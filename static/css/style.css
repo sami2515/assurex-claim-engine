@@ -371,3 +371,109 @@ code, pre, .font-mono {
 .table-custom tbody tr:hover {
     background-color: #f8fafc;
 }
+
+/* ==========================================================================
+   Brand Identity Component (Icon + Vector Typography)
+   ========================================================================== */
+.brand-combo {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.65rem;
+    text-decoration: none !important;
+}
+
+.brand-combo-icon {
+    height: 44px;
+    width: auto;
+    object-fit: contain;
+    filter: drop-shadow(0 2px 4px rgba(4, 24, 61, 0.12));
+    transition: transform 0.2s ease;
+}
+
+.brand-combo:hover .brand-combo-icon {
+    transform: scale(1.04);
+}
+
+.brand-combo-text {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    line-height: 1;
+}
+
+.brand-title {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-size: 1.55rem;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    color: #04183d;
+    display: inline-block;
+    line-height: 1.05;
+    margin-bottom: 3px;
+}
+
+.brand-title .brand-x {
+    color: #00A3E0;
+    font-weight: 900;
+    background: linear-gradient(135deg, #0088cc 0%, #00c0ff 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.brand-subtitle-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+}
+
+.brand-subtitle-line {
+    height: 1.5px;
+    flex: 1 1 auto;
+    background: #04183d;
+    opacity: 0.85;
+}
+
+.brand-subtitle-text {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-size: 0.58rem;
+    font-weight: 800;
+    letter-spacing: 0.24em;
+    color: #04183d;
+    text-transform: uppercase;
+    white-space: nowrap;
+    line-height: 1;
+}
+
+/* Larger variant for Login / Auth cards */
+.brand-combo-lg .brand-combo-icon {
+    height: 62px;
+}
+
+.brand-combo-lg .brand-title {
+    font-size: 2.15rem;
+}
+
+.brand-combo-lg .brand-subtitle-text {
+    font-size: 0.72rem;
+    letter-spacing: 0.26em;
+}
+
+.brand-combo-lg .brand-subtitle-line {
+    height: 2px;
+}
+
+/* Compact variant for Footer */
+.brand-combo-sm .brand-combo-icon {
+    height: 36px;
+}
+
+.brand-combo-sm .brand-title {
+    font-size: 1.30rem;
+}
+
+.brand-combo-sm .brand-subtitle-text {
+    font-size: 0.52rem;
+    letter-spacing: 0.20em;
+}
+
