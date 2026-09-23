@@ -87,9 +87,14 @@ def register():
         password = request.form.get("password", "")
         phone = request.form.get("phone", "").strip()
         address = request.form.get("address", "").strip()
+        confirm_password = request.form.get("confirm_password", "")
 
         if not email or not password or not full_name:
             flash("Name, email, and password are required fields.", "warning")
+            return render_template("auth/register.html")
+
+        if confirm_password and password != confirm_password:
+            flash("Passwords do not match. Please re-enter.", "warning")
             return render_template("auth/register.html")
 
         if User.query.filter_by(email=email).first():
