@@ -1,9 +1,11 @@
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top border-bottom border-secondary shadow-sm">
     <div class="container">
         <!-- Brand Logo -->
-        <a class="navbar-brand d-flex align-items-center gap-2 fw-bold text-white tracking-wide" href="{{ url_for('index') }}">
-            <i class="bi bi-shield-check text-primary fs-3"></i>
-            <span>Assure<span class="text-primary">X</span></span>
+        <a class="navbar-brand d-flex align-items-center py-1 text-decoration-none" href="{{ url_for('index') }}">
+            <div class="d-inline-flex align-items-center bg-white px-2.5 py-1 rounded-3 shadow-sm border border-light-subtle">
+                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="AssureX Shield" height="34" class="me-2">
+                <img src="{{ url_for('static', filename='img/brand_text.png') }}" alt="AssureX Claim Engine" height="26">
+            </div>
         </a>
 
         <!-- Mobile Toggle Button -->
