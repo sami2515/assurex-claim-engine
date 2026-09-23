@@ -1,0 +1,40 @@
+{
+  "total_records": 1500,
+  "classes": {
+    "Valid Claim": 500,
+    "Invalid Claim": 500,
+    "Manual Review": 500
+  },
+  "categories": {
+    "Home Appliances": 499,
+    "Consumer Electronics": 511,
+    "Industrial & Automotive Tools": 490
+  },
+  "splits": {
+    "train": {
+      "total": 1050,
+      "by_class": {
+        "Valid Claim": 350,
+        "Invalid Claim": 350,
+        "Manual Review": 350
+      }
+    },
+    "validation": {
+      "total": 225,
+      "by_class": {
+        "Valid Claim": 75,
+        "Invalid Claim": 75,
+        "Manual Review": 75
+      }
+    },
+    "test": {
+      "total": 225,
+      "by_class": {
+        "Valid Claim": 75,
+        "Invalid Claim": 75,
+        "Manual Review": 75
+      }
+    }
+  },
+  "created_at": "2026-09-23T13:23:07.543603"
+}
