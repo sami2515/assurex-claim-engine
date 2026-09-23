@@ -1,0 +1,21 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# Environments
+venv/
+env/
+ENV/
+.env
+
+# Uploads cache (keep directory, ignore runtime temporary uploads)
+data/uploads/*
+!data/uploads/.gitkeep
+
+# Operating System files
+.DS_Store
+Thumbs.db
+desktop.ini
