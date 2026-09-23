@@ -24,95 +24,29 @@
                 </div>
             {% endif %}
 
-            <div class="row align-items-center g-5">
-                <div class="col-lg-6 text-center text-lg-start">
-                    <div class="hero-eyebrow text-uppercase fw-semibold tracking-wider text-primary small mb-3">
-                        AssureX Enterprise &middot; Dual-Model Warranty Engine
-                    </div>
-
-                    <h1 class="display-4 fw-bolder tracking-tight text-dark mb-3 lh-sm">
-                        Autonomous warranty adjudication with dual-model intelligence.
-                    </h1>
-
-                    <p class="lead text-secondary mb-4 fs-6 lh-base pe-lg-3">
-                        Built for high-volume equipment manufacturers. AssureX couples tabular machine learning with computer vision consensus, document OCR, and configurable business rules to eliminate fraudulent claims and accelerate approvals from weeks to seconds.
-                    </p>
-
-                    <div class="d-flex flex-wrap align-items-center justify-content-center justify-content-lg-start gap-3">
-                        <a href="#demo-sandbox" class="btn btn-dark btn-lg px-4 py-2 rounded-pill shadow-sm fs-6 fw-medium">
-                            Launch Demo Sandbox
-                        </a>
-                        <a href="{{ url_for('public.view_blog') }}" class="btn btn-outline-secondary btn-lg px-4 py-2 rounded-pill fs-6 fw-medium text-dark border-light-subtle">
-                            Technical Blog
-                        </a>
-                        <a href="#how-it-works" class="btn btn-link text-decoration-none text-secondary fs-6 px-2">
-                            How it works &darr;
-                        </a>
-                    </div>
+            <div class="hero-content text-center py-4 my-2">
+                <div class="hero-eyebrow text-uppercase fw-semibold tracking-wider text-primary small mb-3">
+                    AssureX Enterprise &middot; Dual-Model Warranty Engine
                 </div>
 
-                <div class="col-lg-6">
-                    <!-- Real Product Adjudication Preview Mockup -->
-                    <div class="product-preview-surface bg-white rounded-4 shadow-sm border border-light-subtle p-4">
-                        <div class="d-flex align-items-center justify-content-between border-bottom border-light-subtle pb-3 mb-3">
-                            <div class="d-flex align-items-center gap-2">
-                                <span class="badge bg-light text-dark border border-light-subtle font-monospace extra-small">CLM-2026-9041</span>
-                                <span class="small fw-semibold text-dark">Industrial Rotary Hammer</span>
-                            </div>
-                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
-                                Strong Match &middot; Approved
-                            </span>
-                        </div>
+                <h1 class="hero-headline fw-bold tracking-tight text-dark mb-3 mx-auto" style="max-width: 860px; font-size: clamp(2.1rem, 3.8vw, 3rem); line-height: 1.2;">
+                    Autonomous warranty adjudication<br class="d-none d-md-inline"> with dual-model intelligence.
+                </h1>
 
-                        <!-- Side by side comparison row -->
-                        <div class="row g-3 mb-3">
-                            <div class="col-6">
-                                <div class="p-3 rounded-3 bg-light border border-light-subtle">
-                                    <div class="text-uppercase extra-small text-muted fw-semibold mb-1">Branch A: Tabular RF</div>
-                                    <div class="fw-bold text-dark small mb-2">Valid Claim &middot; 99.8%</div>
-                                    <div class="progress" style="height: 4px;">
-                                        <div class="progress-bar bg-primary" role="progressbar" style="width: 99.8%"></div>
-                                    </div>
-                                    <div class="extra-small text-muted mt-2">Features: 14 &middot; Latency: 3ms</div>
-                                </div>
-                            </div>
-                            <div class="col-6">
-                                <div class="p-3 rounded-3 bg-light border border-light-subtle">
-                                    <div class="text-uppercase extra-small text-muted fw-semibold mb-1">Branch B: GTM Vision</div>
-                                    <div class="fw-bold text-dark small mb-2">Valid Claim &middot; 98.9%</div>
-                                    <div class="progress" style="height: 4px;">
-                                        <div class="progress-bar bg-info" role="progressbar" style="width: 98.9%"></div>
-                                    </div>
-                                    <div class="extra-small text-muted mt-2">Card: 640&times;420 &middot; Aug: 2x</div>
-                                </div>
-                            </div>
-                        </div>
+                <p class="lead text-secondary mb-4 mx-auto fs-6 lh-base" style="max-width: 680px;">
+                    Built for high-volume equipment manufacturers. AssureX couples tabular machine learning with computer vision consensus, document OCR, and configurable business rules to eliminate fraudulent claims and accelerate approvals from weeks to seconds.
+                </p>
 
-                        <!-- Verification Indicators -->
-                        <div class="d-flex flex-column gap-2 mb-3 extra-small">
-                            <div class="d-flex align-items-center justify-content-between text-secondary">
-                                <span>Absolute Confidence Delta |&Delta;conf|</span>
-                                <span class="font-monospace fw-semibold text-dark">0.009 (&le; 0.150 threshold)</span>
-                            </div>
-                            <div class="d-flex align-items-center justify-content-between text-secondary">
-                                <span>Cryptographic Document Fingerprint</span>
-                                <span class="font-monospace text-success fw-medium">SHA-256 Unique (0 collisions)</span>
-                            </div>
-                            <div class="d-flex align-items-center justify-content-between text-secondary">
-                                <span>Category Policy Engine (Industrial Tools)</span>
-                                <span class="text-success fw-medium">All 6 rule groups passed</span>
-                            </div>
-                        </div>
-
-                        <!-- Decision Banner -->
-                        <div class="d-flex align-items-center justify-content-between p-3 rounded-3 bg-success-subtle border border-success-subtle">
-                            <div>
-                                <div class="extra-small text-success fw-semibold text-uppercase">Adjudication Outcome</div>
-                                <div class="fw-bold text-dark small">Likely Valid &mdash; Authorized for Warranty Servicing</div>
-                            </div>
-                            <span class="badge bg-success text-white px-3 py-2 rounded-pill font-monospace">118ms</span>
-                        </div>
-                    </div>
+                <div class="d-flex flex-wrap align-items-center justify-content-center gap-3">
+                    <a href="#demo-sandbox" class="btn btn-dark btn-lg px-4 py-2 rounded-pill shadow-sm fs-6 fw-medium">
+                        Launch Demo Sandbox
+                    </a>
+                    <a href="{{ url_for('public.view_blog') }}" class="btn btn-outline-secondary btn-lg px-4 py-2 rounded-pill fs-6 fw-medium text-dark border-light-subtle">
+                        Technical Blog
+                    </a>
+                    <a href="#how-it-works" class="btn btn-link text-decoration-none text-secondary fs-6 px-2">
+                        How it works &darr;
+                    </a>
                 </div>
             </div>
         </div>
