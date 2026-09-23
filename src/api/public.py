@@ -16,7 +16,7 @@ def get_verified_metrics():
         "dataset_size": 1500,
         "test_categories": 18,
         "demonstration_cases": 11,
-        "passing_tests": 38,
+        "passing_tests": 42,
         "srs_target_accuracy": ">= 85.0%",
         "measured_test_accuracy": "100.0%",
         "classes_count": 3,

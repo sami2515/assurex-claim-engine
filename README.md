@@ -113,10 +113,10 @@ Open **`http://127.0.0.1:5000`** in your browser.
 
 ## 🧪 Test Suite & Verification
 
-The application includes 38 automated test cases covering all 18 SRS test categories and 11 demonstration scenarios:
+The application includes 42 automated test cases covering all 18 SRS test categories, 11 demonstration scenarios, and frontend integration workflows:
 
 ```bash
-# Run full automated test suite (38 tests)
+# Run full automated test suite (42 tests)
 python -m unittest discover tests
 
 # Run 18 SRS Test Categories specifically
@@ -128,6 +128,16 @@ python -m unittest tests/test_srs_demonstration_cases.py
 # Generate 21-column Model Comparison Report (36 unseen claims)
 python reports/generate_comparison_report.py
 ```
+
+---
+
+## 🌐 Live Deployed Application (Deliverable #12)
+
+In accordance with SRS Page 33 (Section 1.10 Deliverable 12), the complete production platform is deployed and publicly accessible:
+
+- **Production Live URL:** [https://assurexai.pythonanywhere.com](https://assurexai.pythonanywhere.com)
+- **Deployment Platform:** PythonAnywhere (WSGI Linux Cloud Architecture)
+- **Evaluator Access:** All 4 role accounts pre-configured with 1-click credentials on the landing page.
 
 ---
 
@@ -155,10 +165,13 @@ assurex-claim-engine/
 ├── documentation/           # System design, test matrix, evidence dossiers
 │   ├── TEST_CASES.md        # 18-Category formal verification matrix
 │   ├── PYTHON_MODEL_EVIDENCE.md
-│   └── GTM_EVIDENCE.md
+│   ├── GTM_EVIDENCE.md
+│   └── PROJECT_REPORT.md    # Comprehensive system design specification
 ├── model/                   # Serialized ML models (joblib, model.json, weights.bin)
 ├── policies/                # Configurable JSON warranty policies per category
-├── reports/                 # 21-column model comparison report (CSV + MD)
+├── reports/                 # 21-column model comparison report & project report PDF
+├── sample_claims/           # 11 Mandatory SRS Demonstration Case JSON files & docs
+├── screenshots/             # Interface walkthroughs & system architecture diagram
 ├── src/                     # Core application source code
 │   ├── api/                 # Flask Blueprints (auth, products, claims, reviewer, admin, reports)
 │   ├── core/                # Preprocessor, Python ML, GTM Vision, Comparator, Decision Engine
@@ -168,8 +181,9 @@ assurex-claim-engine/
 │   └── services/            # PDF report certificate generator, CSV exporter
 ├── static/                  # CSS stylesheets, JavaScript client engine, images
 ├── templates/               # Jinja2 templates (Customer, Reviewer, Admin portals)
-├── tests/                   # Automated unit and integration test suites
+├── tests/                   # Automated unit and integration test suites (42 tests)
 ├── AI_USAGE.md              # Section 1.8 AI tool compliance declaration
+├── LICENSE                  # Open-source MIT License (Deliverable #2)
 └── README.md                # Project documentation
 ```
 

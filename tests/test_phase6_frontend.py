@@ -96,6 +96,19 @@ class TestPhase6Frontend(unittest.TestCase):
         self.assertIn(b"System Security", res_audits.data)
         self.assertIn(b"Audit Trail", res_audits.data)
 
+        # Verify CSV exports (Req xlv)
+        res_exp_claims = self.client.get("/admin/export/claims")
+        self.assertEqual(res_exp_claims.status_code, 200)
+        self.assertEqual(res_exp_claims.content_type, "text/csv; charset=utf-8")
+
+        res_exp_prods = self.client.get("/admin/export/products")
+        self.assertEqual(res_exp_prods.status_code, 200)
+        self.assertEqual(res_exp_prods.content_type, "text/csv; charset=utf-8")
+
+        res_exp_audit = self.client.get("/admin/export/audit")
+        self.assertEqual(res_exp_audit.status_code, 200)
+        self.assertEqual(res_exp_audit.content_type, "text/csv; charset=utf-8")
+
     def test_404_error_page(self):
         """Verify custom 404 error page renders nicely."""
         res_404 = self.client.get("/non-existent-route-for-testing")
