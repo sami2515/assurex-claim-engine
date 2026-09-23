@@ -28,9 +28,13 @@
     {% include 'components/navbar.html' %}
 
     <!-- Flash Notifications -->
-    <div class="container mt-3">
-        {% include 'components/flash_messages.html' %}
-    </div>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="container mt-2">
+                {% include 'components/flash_messages.html' %}
+            </div>
+        {% endif %}
+    {% endwith %}
 
     <!-- Main Content Body -->
     <main class="flex-grow-1 pb-5">

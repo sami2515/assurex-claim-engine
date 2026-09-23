@@ -85,6 +85,11 @@
                     </li>
                 {% else %}
                     <li class="nav-item">
+                        <a class="nav-link px-3 fw-medium text-secondary" href="{{ url_for('public.landing_page') }}">
+                            Home
+                        </a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link px-3 fw-medium text-secondary" href="{{ url_for('public.landing_page') }}#how-it-works">
                             How It Works
                         </a>
