@@ -550,4 +550,22 @@ code, pre, .font-mono {
     }
 }
 
+/* Enterprise Multi-Column Footer Styles */
+.footer-enterprise {
+    background-color: #ffffff;
+}
+
+.footer-link {
+    color: #64748b;
+    text-decoration: none;
+    transition: color 0.15s ease, transform 0.15s ease;
+    display: inline-block;
+}
+
+.footer-link:hover {
+    color: #0d6efd;
+    text-decoration: none;
+    transform: translateX(2px);
+}
+
 

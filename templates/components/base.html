@@ -45,31 +45,8 @@
         {% endblock %}
     </main>
 
-    <!-- Enterprise Footer -->
-    <footer class="bg-white text-muted py-4 mt-auto border-top border-light-subtle shadow-sm">
-        <div class="container d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
-            <div class="d-flex align-items-center gap-3">
-                <div class="brand-combo brand-combo-sm">
-                    <img src="{{ url_for('static', filename='img/logoicon.png') }}" alt="AssureX Shield" class="brand-combo-icon">
-                    <div class="brand-combo-text">
-                        <img src="{{ url_for('static', filename='img/assurex_wordmark.png') }}" alt="AssureX Claim Engine" class="brand-wordmark-img">
-                        <div class="brand-subtitle-wrapper">
-                            <span class="brand-subtitle-line"></span>
-                            <span class="brand-subtitle-text">WARRANTY INTELLIGENCE</span>
-                            <span class="brand-subtitle-line"></span>
-                        </div>
-                    </div>
-                </div>
-                <span class="badge bg-primary-subtle text-primary border border-primary-subtle ms-2">v1.0.0 Enterprise</span>
-            </div>
-            <div class="text-center text-md-start small text-secondary">
-                Dual-Model Machine Learning Consensus & Automated Policy Adjudication Engine
-            </div>
-            <div class="small text-secondary">
-                &copy; {{ current_year or 2026 }} AssureX Systems. All rights reserved.
-            </div>
-        </div>
-    </footer>
+    <!-- Enterprise Multi-Column Footer -->
+    {% include 'components/footer.html' %}
 
     <!-- Bootstrap 5.3 Bundle with Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>

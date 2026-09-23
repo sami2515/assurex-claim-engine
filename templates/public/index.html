@@ -157,46 +157,65 @@
     <!-- Competition Evaluation Demo Sandbox -->
     <section id="demo-sandbox" class="py-5 bg-white border-bottom border-light-subtle">
         <div class="container py-3">
-            <div class="row align-items-end justify-content-between mb-4 pb-2 border-bottom border-light-subtle">
-                <div class="col-lg-8">
-                    <div class="text-uppercase extra-small fw-semibold tracking-wider text-primary mb-1">Evaluator Access Sandbox</div>
-                    <h2 class="fw-bold text-dark mb-1 fs-3">Explore the 4 Role Portals</h2>
-                    <p class="text-secondary small mb-0">
-                        In accordance with the Role-Based Access Control (RBAC) requirements of Aptech NextWave SRS, choose any role below for instant 1-click evaluation.
-                    </p>
-                </div>
-                <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
-                    <span class="badge bg-light text-muted border border-light-subtle px-3 py-2 rounded-pill small">
-                        Seeded Demo Accounts Active
-                    </span>
-                </div>
+            <div class="mb-4 pb-2 border-bottom border-light-subtle">
+                <div class="text-uppercase extra-small fw-semibold tracking-wider text-primary mb-1">Role-Based Access Control</div>
+                <h2 class="fw-bold text-dark mb-1 fs-3">Explore the 4 Role Portals</h2>
+                <p class="text-secondary small mb-0">
+                    In accordance with the RBAC requirements of Aptech NextWave SRS, choose any role below for instant 1-click evaluation.
+                </p>
             </div>
 
-            <div class="row g-3">
+            <div class="row g-4">
                 {% for acc in demo_accounts %}
                 <div class="col-md-6 col-lg-3">
-                    <div class="role-selector-card p-4 rounded-3 border border-light-subtle bg-white h-100 d-flex flex-column justify-content-between">
+                    <div class="role-selector-card p-4 rounded-3 border border-light-subtle bg-white h-100 d-flex flex-column justify-content-between shadow-xs">
                         <div>
                             <div class="d-flex align-items-center justify-content-between mb-2">
-                                <span class="fw-bold text-dark small">{{ acc.role }}</span>
-                                <span class="badge bg-light text-muted border border-light-subtle extra-small">{{ acc.email.split('@')[0] }}</span>
+                                <h3 class="fw-bold text-dark fs-6 mb-0">{{ acc.role }}</h3>
+                                {% if acc.role == 'Administrator' %}
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle extra-small">Governance</span>
+                                {% elif acc.role == 'Claim Reviewer' %}
+                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle extra-small">Adjudication</span>
+                                {% elif acc.role == 'Service Staff' %}
+                                    <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle extra-small">Service Desk</span>
+                                {% else %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle extra-small">Claimant</span>
+                                {% endif %}
                             </div>
-                            <p class="text-secondary extra-small mb-3 lh-sm">
+                            <p class="text-secondary extra-small mb-3 lh-base">
                                 {{ acc.desc }}
                             </p>
+                            <div class="role-capabilities extra-small text-muted mb-4 pb-2 border-top border-light-subtle pt-2">
+                                {% if acc.role == 'Administrator' %}
+                                    <div class="d-flex align-items-center gap-1 mb-1">&bull; Chart.js System Analytics</div>
+                                    <div class="d-flex align-items-center gap-1 mb-1">&bull; JSON Policy Schema Editor</div>
+                                    <div class="d-flex align-items-center gap-1">&bull; Immutable Cryptographic Audit Log</div>
+                                {% elif acc.role == 'Claim Reviewer' %}
+                                    <div class="d-flex align-items-center gap-1 mb-1">&bull; Filterable Triage Workbench</div>
+                                    <div class="d-flex align-items-center gap-1 mb-1">&bull; Dual-Model Probability Matrix</div>
+                                    <div class="d-flex align-items-center gap-1">&bull; Justified Decision Overrides</div>
+                                {% elif acc.role == 'Service Staff' %}
+                                    <div class="d-flex align-items-center gap-1 mb-1">&bull; Walk-in Equipment Intake</div>
+                                    <div class="d-flex align-items-center gap-1 mb-1">&bull; Warranty Fleet Verification</div>
+                                    <div class="d-flex align-items-center gap-1">&bull; Physical Damage Assessment</div>
+                                {% else %}
+                                    <div class="d-flex align-items-center gap-1 mb-1">&bull; 5-Step Guided Intake Wizard</div>
+                                    <div class="d-flex align-items-center gap-1 mb-1">&bull; Live Side-by-Side OCR Match</div>
+                                    <div class="d-flex align-items-center gap-1">&bull; 8-Stage Tracker &amp; PDF Report</div>
+                                {% endif %}
+                            </div>
                         </div>
 
                         <div>
-                            <div class="extra-small font-monospace text-muted mb-3 bg-light p-2 rounded">
-                                <div><strong>ID:</strong> {{ acc.email }}</div>
-                                <div><strong>PW:</strong> {{ acc.password }}</div>
-                            </div>
                             <form action="{{ url_for('auth.login') }}" method="POST">
                                 <input type="hidden" name="email" value="{{ acc.email }}">
                                 <input type="hidden" name="password" value="{{ acc.password }}">
-                                <button type="submit" class="btn btn-sm btn-outline-dark w-100 rounded-pill fw-medium">
-                                    Sign In as {{ acc.role }} &rarr;
+                                <button type="submit" class="btn btn-sm btn-dark w-100 rounded-pill py-2 fw-medium shadow-xs">
+                                    Launch {{ acc.role }} &rarr;
                                 </button>
+                                <div class="text-center extra-small text-muted mt-2">
+                                    1-Click Evaluator Access &bull; Instant Session
+                                </div>
                             </form>
                         </div>
                     </div>
