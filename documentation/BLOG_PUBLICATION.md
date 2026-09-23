@@ -8,14 +8,14 @@
 
 | Field | Official Record Details |
 |:---|:---|
-| **Article Title** | **Building AssureX: Engineering an Enterprise Dual-Model AI Engine for Warranty Claim Adjudication & Fraud Prevention** |
-| **Subtitle** | *A Deep Technical Dive into Hybrid Machine Learning, Computer Vision Consensus, Document OCR, and Configurable Rules Engines* |
+| **Article Title** | **Building AssureX: A Dual-Model Warranty Claim Evaluation System** |
+| **Subtitle** | *Technical overview of machine learning, OCR, visual classification, and configurable warranty rules* |
 | **Target Platforms** | **Medium** (Primary), **Ghost / Blogger** (Mirrors) |
 | **Primary Live URL** | [https://medium.com/@assurex-team/building-assurex-dual-model-ai-warranty-engine-2026](https://medium.com/@assurex-team/building-assurex-dual-model-ai-warranty-engine-2026) |
 | **Archive Mirror URL** | [https://assurex.ghost.io/engineering-dual-model-ai-warranty-engine/](https://assurex.ghost.io/engineering-dual-model-ai-warranty-engine/) |
 | **Publication Date** | September 2026 |
 | **Author / Team** | AssureX Engineering Team — Aptech NextWave Competition |
-| **Official Word Count** | **2,720 Words** *(Exceeds mandatory $\ge 2,000$ words requirement)* |
+| **Official Word Count** | **3,825 Words** *(Exceeds mandatory $\ge 2,000$ words requirement)* |
 | **Local Source File** | [`documentation/TECHNICAL_BLOG.md`](file:///c:/Users/sami/Desktop/techwiz%207/documentation/TECHNICAL_BLOG.md) |
 | **In-App Reader Route**| `http://127.0.0.1:5000/blog` |
 | **Raw Markdown Export**| `http://127.0.0.1:5000/blog/raw` |
