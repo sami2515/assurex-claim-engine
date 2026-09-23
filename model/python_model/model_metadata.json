@@ -1,0 +1,223 @@
+{
+  "model_version": "v1.0.0",
+  "best_algorithm": "Random_Forest",
+  "classes": [
+    "Invalid Claim",
+    "Manual Review",
+    "Valid Claim"
+  ],
+  "test_accuracy": 1.0,
+  "test_f1_macro": 1.0,
+  "cv_accuracy_mean": 1.0,
+  "top_features": [
+    {
+      "feature": "cat__damage_type_Hardware Defect",
+      "importance": 0.3727
+    },
+    {
+      "feature": "bin__is_extended_warranty",
+      "importance": 0.0634
+    },
+    {
+      "feature": "cat__damage_type_Ambiguous Diagnostic",
+      "importance": 0.0593
+    },
+    {
+      "feature": "cat__damage_type_Customer Induced Damage",
+      "importance": 0.055
+    },
+    {
+      "feature": "cat__damage_type_Borderline Lifecycle",
+      "importance": 0.0452
+    },
+    {
+      "feature": "cat__damage_type_Hardware Wear",
+      "importance": 0.0436
+    },
+    {
+      "feature": "cat__damage_type_Date Inconsistency",
+      "importance": 0.0394
+    },
+    {
+      "feature": "bin__claim_date_conflict_flag",
+      "importance": 0.0345
+    },
+    {
+      "feature": "num__missing_document_count",
+      "importance": 0.0312
+    },
+    {
+      "feature": "num__remaining_warranty_days",
+      "importance": 0.0277
+    },
+    {
+      "feature": "bin__unauthorized_repair_flag",
+      "importance": 0.0269
+    },
+    {
+      "feature": "cat__damage_type_Tampering",
+      "importance": 0.0259
+    }
+  ],
+  "all_benchmarked_algorithms": {
+    "Random_Forest": {
+      "algorithm": "Random_Forest",
+      "cv_5fold_mean": 1.0,
+      "cv_5fold_std": 0.0,
+      "validation_accuracy": 1.0,
+      "test_accuracy": 1.0,
+      "test_precision_macro": 1.0,
+      "test_recall_macro": 1.0,
+      "test_f1_macro": 1.0,
+      "test_f1_weighted": 1.0,
+      "confusion_matrix": [
+        [
+          75,
+          0,
+          0
+        ],
+        [
+          0,
+          75,
+          0
+        ],
+        [
+          0,
+          0,
+          75
+        ]
+      ],
+      "class_labels": [
+        "Invalid Claim",
+        "Manual Review",
+        "Valid Claim"
+      ],
+      "class_wise_metrics": {
+        "Invalid Claim": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 75.0
+        },
+        "Manual Review": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 75.0
+        },
+        "Valid Claim": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 75.0
+        }
+      }
+    },
+    "Hist_Gradient_Boosting": {
+      "algorithm": "Hist_Gradient_Boosting",
+      "cv_5fold_mean": 1.0,
+      "cv_5fold_std": 0.0,
+      "validation_accuracy": 1.0,
+      "test_accuracy": 1.0,
+      "test_precision_macro": 1.0,
+      "test_recall_macro": 1.0,
+      "test_f1_macro": 1.0,
+      "test_f1_weighted": 1.0,
+      "confusion_matrix": [
+        [
+          75,
+          0,
+          0
+        ],
+        [
+          0,
+          75,
+          0
+        ],
+        [
+          0,
+          0,
+          75
+        ]
+      ],
+      "class_labels": [
+        "Invalid Claim",
+        "Manual Review",
+        "Valid Claim"
+      ],
+      "class_wise_metrics": {
+        "Invalid Claim": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 75.0
+        },
+        "Manual Review": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 75.0
+        },
+        "Valid Claim": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 75.0
+        }
+      }
+    },
+    "Multi_Layer_Perceptron": {
+      "algorithm": "Multi_Layer_Perceptron",
+      "cv_5fold_mean": 1.0,
+      "cv_5fold_std": 0.0,
+      "validation_accuracy": 1.0,
+      "test_accuracy": 1.0,
+      "test_precision_macro": 1.0,
+      "test_recall_macro": 1.0,
+      "test_f1_macro": 1.0,
+      "test_f1_weighted": 1.0,
+      "confusion_matrix": [
+        [
+          75,
+          0,
+          0
+        ],
+        [
+          0,
+          75,
+          0
+        ],
+        [
+          0,
+          0,
+          75
+        ]
+      ],
+      "class_labels": [
+        "Invalid Claim",
+        "Manual Review",
+        "Valid Claim"
+      ],
+      "class_wise_metrics": {
+        "Invalid Claim": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 75.0
+        },
+        "Manual Review": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 75.0
+        },
+        "Valid Claim": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1-score": 1.0,
+          "support": 75.0
+        }
+      }
+    }
+  }
+}

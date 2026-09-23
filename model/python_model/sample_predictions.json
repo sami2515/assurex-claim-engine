@@ -1,0 +1,112 @@
+[
+  {
+    "claim_id": "CLM-00134",
+    "actual_class": "Valid Claim",
+    "predicted_class": "Valid Claim",
+    "probabilities": {
+      "Invalid Claim": 0.0,
+      "Manual Review": 0.0013,
+      "Valid Claim": 0.9987
+    },
+    "match": true
+  },
+  {
+    "claim_id": "CLM-00278",
+    "actual_class": "Valid Claim",
+    "predicted_class": "Valid Claim",
+    "probabilities": {
+      "Invalid Claim": 0.0,
+      "Manual Review": 0.0055,
+      "Valid Claim": 0.9945
+    },
+    "match": true
+  },
+  {
+    "claim_id": "CLM-00545",
+    "actual_class": "Invalid Claim",
+    "predicted_class": "Invalid Claim",
+    "probabilities": {
+      "Invalid Claim": 0.9998,
+      "Manual Review": 0.0002,
+      "Valid Claim": 0.0
+    },
+    "match": true
+  },
+  {
+    "claim_id": "CLM-01268",
+    "actual_class": "Manual Review",
+    "predicted_class": "Manual Review",
+    "probabilities": {
+      "Invalid Claim": 0.0,
+      "Manual Review": 1.0,
+      "Valid Claim": 0.0
+    },
+    "match": true
+  },
+  {
+    "claim_id": "CLM-01414",
+    "actual_class": "Manual Review",
+    "predicted_class": "Manual Review",
+    "probabilities": {
+      "Invalid Claim": 0.0,
+      "Manual Review": 1.0,
+      "Valid Claim": 0.0
+    },
+    "match": true
+  },
+  {
+    "claim_id": "CLM-00325",
+    "actual_class": "Valid Claim",
+    "predicted_class": "Valid Claim",
+    "probabilities": {
+      "Invalid Claim": 0.0,
+      "Manual Review": 0.0047,
+      "Valid Claim": 0.9953
+    },
+    "match": true
+  },
+  {
+    "claim_id": "CLM-01032",
+    "actual_class": "Manual Review",
+    "predicted_class": "Manual Review",
+    "probabilities": {
+      "Invalid Claim": 0.0,
+      "Manual Review": 0.994,
+      "Valid Claim": 0.006
+    },
+    "match": true
+  },
+  {
+    "claim_id": "CLM-00169",
+    "actual_class": "Valid Claim",
+    "predicted_class": "Valid Claim",
+    "probabilities": {
+      "Invalid Claim": 0.0002,
+      "Manual Review": 0.0,
+      "Valid Claim": 0.9998
+    },
+    "match": true
+  },
+  {
+    "claim_id": "CLM-00279",
+    "actual_class": "Valid Claim",
+    "predicted_class": "Valid Claim",
+    "probabilities": {
+      "Invalid Claim": 0.0,
+      "Manual Review": 0.0003,
+      "Valid Claim": 0.9997
+    },
+    "match": true
+  },
+  {
+    "claim_id": "CLM-00255",
+    "actual_class": "Valid Claim",
+    "predicted_class": "Valid Claim",
+    "probabilities": {
+      "Invalid Claim": 0.0,
+      "Manual Review": 0.0,
+      "Valid Claim": 1.0
+    },
+    "match": true
+  }
+]

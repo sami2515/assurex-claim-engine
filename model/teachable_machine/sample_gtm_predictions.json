@@ -1,0 +1,167 @@
+[
+  {
+    "claim_id": "CLM-00003",
+    "actual_class": "Valid Claim",
+    "gtm_predicted_class": "Valid Claim",
+    "probabilities": {
+      "Valid Claim": 1.0,
+      "Invalid Claim": 0.0,
+      "Manual Review": 0.0
+    },
+    "match": true
+  },
+  {
+    "claim_id": "CLM-00008",
+    "actual_class": "Valid Claim",
+    "gtm_predicted_class": "Valid Claim",
+    "probabilities": {
+      "Valid Claim": 1.0,
+      "Invalid Claim": 0.0,
+      "Manual Review": 0.0
+    },
+    "match": true
+  },
+  {
+    "claim_id": "CLM-00010",
+    "actual_class": "Valid Claim",
+    "gtm_predicted_class": "Valid Claim",
+    "probabilities": {
+      "Valid Claim": 1.0,
+      "Invalid Claim": 0.0,
+      "Manual Review": 0.0
+    },
+    "match": true
+  },
+  {
+    "claim_id": "CLM-00015",
+    "actual_class": "Valid Claim",
+    "gtm_predicted_class": "Valid Claim",
+    "probabilities": {
+      "Valid Claim": 1.0,
+      "Invalid Claim": 0.0,
+      "Manual Review": 0.0
+    },
+    "match": true
+  },
+  {
+    "claim_id": "CLM-00017",
+    "actual_class": "Valid Claim",
+    "gtm_predicted_class": "Valid Claim",
+    "probabilities": {
+      "Valid Claim": 1.0,
+      "Invalid Claim": 0.0,
+      "Manual Review": 0.0
+    },
+    "match": true
+  },
+  {
+    "claim_id": "CLM-00018",
+    "actual_class": "Valid Claim",
+    "gtm_predicted_class": "Valid Claim",
+    "probabilities": {
+      "Valid Claim": 1.0,
+      "Invalid Claim": 0.0,
+      "Manual Review": 0.0
+    },
+    "match": true
+  },
+  {
+    "claim_id": "CLM-00026",
+    "actual_class": "Valid Claim",
+    "gtm_predicted_class": "Valid Claim",
+    "probabilities": {
+      "Valid Claim": 1.0,
+      "Invalid Claim": 0.0,
+      "Manual Review": 0.0
+    },
+    "match": true
+  },
+  {
+    "claim_id": "CLM-00029",
+    "actual_class": "Valid Claim",
+    "gtm_predicted_class": "Valid Claim",
+    "probabilities": {
+      "Valid Claim": 1.0,
+      "Invalid Claim": 0.0,
+      "Manual Review": 0.0
+    },
+    "match": true
+  },
+  {
+    "claim_id": "CLM-00044",
+    "actual_class": "Valid Claim",
+    "gtm_predicted_class": "Valid Claim",
+    "probabilities": {
+      "Valid Claim": 1.0,
+      "Invalid Claim": 0.0,
+      "Manual Review": 0.0
+    },
+    "match": true
+  },
+  {
+    "claim_id": "CLM-00045",
+    "actual_class": "Valid Claim",
+    "gtm_predicted_class": "Valid Claim",
+    "probabilities": {
+      "Valid Claim": 1.0,
+      "Invalid Claim": 0.0,
+      "Manual Review": 0.0
+    },
+    "match": true
+  },
+  {
+    "claim_id": "CLM-00058",
+    "actual_class": "Valid Claim",
+    "gtm_predicted_class": "Valid Claim",
+    "probabilities": {
+      "Valid Claim": 1.0,
+      "Invalid Claim": 0.0,
+      "Manual Review": 0.0
+    },
+    "match": true
+  },
+  {
+    "claim_id": "CLM-00072",
+    "actual_class": "Valid Claim",
+    "gtm_predicted_class": "Valid Claim",
+    "probabilities": {
+      "Valid Claim": 1.0,
+      "Invalid Claim": 0.0,
+      "Manual Review": 0.0
+    },
+    "match": true
+  },
+  {
+    "claim_id": "CLM-00077",
+    "actual_class": "Valid Claim",
+    "gtm_predicted_class": "Valid Claim",
+    "probabilities": {
+      "Valid Claim": 1.0,
+      "Invalid Claim": 0.0,
+      "Manual Review": 0.0
+    },
+    "match": true
+  },
+  {
+    "claim_id": "CLM-00087",
+    "actual_class": "Valid Claim",
+    "gtm_predicted_class": "Valid Claim",
+    "probabilities": {
+      "Valid Claim": 1.0,
+      "Invalid Claim": 0.0,
+      "Manual Review": 0.0
+    },
+    "match": true
+  },
+  {
+    "claim_id": "CLM-00088",
+    "actual_class": "Valid Claim",
+    "gtm_predicted_class": "Valid Claim",
+    "probabilities": {
+      "Valid Claim": 1.0,
+      "Invalid Claim": 0.0,
+      "Manual Review": 0.0
+    },
+    "match": true
+  }
+]

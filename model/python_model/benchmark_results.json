@@ -1,0 +1,161 @@
+{
+  "Random_Forest": {
+    "algorithm": "Random_Forest",
+    "cv_5fold_mean": 1.0,
+    "cv_5fold_std": 0.0,
+    "validation_accuracy": 1.0,
+    "test_accuracy": 1.0,
+    "test_precision_macro": 1.0,
+    "test_recall_macro": 1.0,
+    "test_f1_macro": 1.0,
+    "test_f1_weighted": 1.0,
+    "confusion_matrix": [
+      [
+        75,
+        0,
+        0
+      ],
+      [
+        0,
+        75,
+        0
+      ],
+      [
+        0,
+        0,
+        75
+      ]
+    ],
+    "class_labels": [
+      "Invalid Claim",
+      "Manual Review",
+      "Valid Claim"
+    ],
+    "class_wise_metrics": {
+      "Invalid Claim": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 75.0
+      },
+      "Manual Review": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 75.0
+      },
+      "Valid Claim": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 75.0
+      }
+    }
+  },
+  "Hist_Gradient_Boosting": {
+    "algorithm": "Hist_Gradient_Boosting",
+    "cv_5fold_mean": 1.0,
+    "cv_5fold_std": 0.0,
+    "validation_accuracy": 1.0,
+    "test_accuracy": 1.0,
+    "test_precision_macro": 1.0,
+    "test_recall_macro": 1.0,
+    "test_f1_macro": 1.0,
+    "test_f1_weighted": 1.0,
+    "confusion_matrix": [
+      [
+        75,
+        0,
+        0
+      ],
+      [
+        0,
+        75,
+        0
+      ],
+      [
+        0,
+        0,
+        75
+      ]
+    ],
+    "class_labels": [
+      "Invalid Claim",
+      "Manual Review",
+      "Valid Claim"
+    ],
+    "class_wise_metrics": {
+      "Invalid Claim": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 75.0
+      },
+      "Manual Review": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 75.0
+      },
+      "Valid Claim": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 75.0
+      }
+    }
+  },
+  "Multi_Layer_Perceptron": {
+    "algorithm": "Multi_Layer_Perceptron",
+    "cv_5fold_mean": 1.0,
+    "cv_5fold_std": 0.0,
+    "validation_accuracy": 1.0,
+    "test_accuracy": 1.0,
+    "test_precision_macro": 1.0,
+    "test_recall_macro": 1.0,
+    "test_f1_macro": 1.0,
+    "test_f1_weighted": 1.0,
+    "confusion_matrix": [
+      [
+        75,
+        0,
+        0
+      ],
+      [
+        0,
+        75,
+        0
+      ],
+      [
+        0,
+        0,
+        75
+      ]
+    ],
+    "class_labels": [
+      "Invalid Claim",
+      "Manual Review",
+      "Valid Claim"
+    ],
+    "class_wise_metrics": {
+      "Invalid Claim": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 75.0
+      },
+      "Manual Review": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 75.0
+      },
+      "Valid Claim": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 75.0
+      }
+    }
+  }
+}

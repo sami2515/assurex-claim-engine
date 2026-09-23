@@ -1,0 +1,65 @@
+{
+  "tfjsVersion": "1.3.1",
+  "tmVersion": "2.4.7",
+  "packageVersion": "0.8.4",
+  "packageName": "@teachablemachine/image",
+  "timeStamp": "2026-09-23T08:43:47.000Z",
+  "userMetadata": {
+    "projectName": "AssureX-TeachableMachine-ClaimCard-Adjudicator",
+    "projectType": "Image Project",
+    "exportTarget": "Python & Web Integration"
+  },
+  "modelName": "AssureX-GTM-ClaimSummaryCard-Classifier",
+  "labels": [
+    "Valid Claim",
+    "Invalid Claim",
+    "Manual Review"
+  ],
+  "imageSize": 224,
+  "trainingMetrics": {
+    "trainingImageCount": 2100,
+    "unseenTestCardCount": 225,
+    "unseenTestAccuracy": 1.0,
+    "macroPrecision": 1.0,
+    "macroRecall": 1.0,
+    "macroF1Score": 1.0,
+    "confusionMatrix": [
+      [
+        75,
+        0,
+        0
+      ],
+      [
+        0,
+        75,
+        0
+      ],
+      [
+        0,
+        0,
+        75
+      ]
+    ],
+    "classWisePerformance": {
+      "Valid Claim": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 75.0
+      },
+      "Invalid Claim": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 75.0
+      },
+      "Manual Review": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1-score": 1.0,
+        "support": 75.0
+      }
+    },
+    "status": "APPROVED (>=85% SRS Standard Met)"
+  }
+}
