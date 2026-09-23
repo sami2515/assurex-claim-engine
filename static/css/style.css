@@ -378,15 +378,15 @@ code, pre, .font-mono {
 .brand-combo {
     display: inline-flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: 0.70rem;
     text-decoration: none !important;
 }
 
 .brand-combo-icon {
-    height: 52px;
+    height: 56px;
     width: auto;
     object-fit: contain;
-    filter: drop-shadow(0 2px 5px rgba(4, 24, 61, 0.15));
+    filter: drop-shadow(0 2px 6px rgba(4, 24, 61, 0.16));
     transition: transform 0.2s ease;
 }
 
@@ -401,7 +401,7 @@ code, pre, .font-mono {
 }
 
 .brand-wordmark-img {
-    height: 30px;
+    height: 25px;
     width: auto;
     object-fit: contain;
     display: block;
@@ -410,9 +410,9 @@ code, pre, .font-mono {
 .brand-subtitle-wrapper {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     width: 100%;
-    margin-top: 3px;
+    margin-top: 2px;
 }
 
 .brand-subtitle-line {
@@ -424,7 +424,7 @@ code, pre, .font-mono {
 
 .brand-subtitle-text {
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
-    font-size: 0.62rem;
+    font-size: 0.55rem;
     font-weight: 800;
     letter-spacing: 0.08em;
     color: #04183d;
@@ -435,24 +435,24 @@ code, pre, .font-mono {
 
 /* Larger variant for Login / Auth cards */
 .brand-combo-lg {
-    gap: 1rem;
+    gap: 0.90rem;
 }
 
 .brand-combo-lg .brand-combo-icon {
-    height: 68px;
+    height: 76px;
 }
 
 .brand-combo-lg .brand-wordmark-img {
-    height: 42px;
+    height: 35px;
 }
 
 .brand-combo-lg .brand-subtitle-text {
-    font-size: 0.76rem;
+    font-size: 0.68rem;
     letter-spacing: 0.09em;
 }
 
 .brand-combo-lg .brand-subtitle-line {
-    height: 2px;
+    height: 1.8px;
 }
 
 /* Compact variant for Footer */
@@ -461,15 +461,15 @@ code, pre, .font-mono {
 }
 
 .brand-combo-sm .brand-combo-icon {
-    height: 38px;
+    height: 42px;
 }
 
 .brand-combo-sm .brand-wordmark-img {
-    height: 22px;
+    height: 20px;
 }
 
 .brand-combo-sm .brand-subtitle-text {
-    font-size: 0.50rem;
+    font-size: 0.46rem;
     letter-spacing: 0.07em;
 }
 
