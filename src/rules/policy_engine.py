@@ -80,17 +80,23 @@ class WarrantyPolicyEngine:
         # -------------------------------------------------------------
         # 1. Warranty Expiry & Grace Period Check
         # -------------------------------------------------------------
-        remaining_days = claim_data.get("remaining_warranty_days", 0)
+        remaining_days = claim_data.get("remaining_warranty_days")
+        if remaining_days is None:
+            remaining_days = claim_data.get("days_until_warranty_expiry", 0)
+
+        product_age = claim_data.get("product_age_days")
+        if product_age is None:
+            product_age = claim_data.get("days_since_purchase", 0)
+
+        duration_months = claim_data.get("warranty_duration_months") or claim_data.get("warranty_period_months") or policy.get("coverage_duration_months", 12)
+        duration_days = duration_months * 30
+        overdue_days = max(0, product_age - duration_days)
         grace_days = policy.get("grace_period_days", 7)
 
-        if remaining_days > 0:
+        if remaining_days > 0 or (remaining_days >= 0 and overdue_days == 0):
             passed_rules.append(f"Warranty active: {remaining_days} days remaining within standard coverage.")
         else:
             # Check if within grace period
-            product_age = claim_data.get("product_age_days", 0)
-            duration_days = claim_data.get("warranty_duration_months", 12) * 30
-            overdue_days = max(0, product_age - duration_days)
-
             if overdue_days <= grace_days and overdue_days > 0:
                 warnings.append(
                     f"Claim submitted during grace period window: {overdue_days} days past standard term (allowance: {grace_days} days)."
@@ -106,8 +112,25 @@ class WarrantyPolicyEngine:
         # 2. Claim Reporting Window
         # -------------------------------------------------------------
         max_reporting = policy.get("claim_reporting_period_days", 30)
-        fault_date_str = claim_data.get("fault_occurrence_date")
-        purchase_date_str = claim_data.get("purchase_date")
+        days_between = claim_data.get("days_between_fault_and_claim")
+        if days_between is None and claim_data.get("fault_occurrence_date") and claim_data.get("claim_submission_date"):
+            try:
+                f_d = datetime.strptime(str(claim_data["fault_occurrence_date"])[:10], "%Y-%m-%d").date()
+                c_d = datetime.strptime(str(claim_data["claim_submission_date"])[:10], "%Y-%m-%d").date()
+                days_between = (c_d - f_d).days
+            except Exception:
+                days_between = 0
+
+        if days_between is not None and days_between > max_reporting:
+            failed_rules.append(
+                f"HARD FAIL: Claim reporting deadline exceeded: Reported {days_between} days after fault occurrence (deadline: {max_reporting} days)."
+            )
+        elif days_between is not None and days_between > (max_reporting - 7):
+            warnings.append(
+                f"Claim reported near deadline ({days_between} days after fault occurrence, deadline: {max_reporting} days)."
+            )
+        else:
+            passed_rules.append("Claim reported within permissible reporting window.")
 
         # -------------------------------------------------------------
         # 3. Exclusions & Damage Type (Hard-Fail Checks)
@@ -138,7 +161,8 @@ class WarrantyPolicyEngine:
         # -------------------------------------------------------------
         if policy.get("authorized_service_center_required", True):
             if claim_data.get("unauthorized_repair_flag", 0) == 1:
-                failed_rules.append("HARD FAIL: Product was previously serviced or opened by an unauthorized third-party center.")
+                review_triggers.append("Unauthorized Service Alert: Product has history of maintenance by uncertified third-party facility.")
+                warnings.append("Unauthorized service facility record found.")
             else:
                 passed_rules.append("Service center history verified: No unauthorized workshop tampering detected.")
 
@@ -146,7 +170,8 @@ class WarrantyPolicyEngine:
         # 5. Serial Number Cross-Check
         # -------------------------------------------------------------
         if claim_data.get("serial_number_match", 1) == 0:
-            failed_rules.append("HARD FAIL: Hardware serial number does not match purchase invoice documentation.")
+            review_triggers.append("Serial Mismatch Trigger: Hardware serial number does not match purchase invoice documentation.")
+            warnings.append("Serial number mismatch detected.")
         else:
             passed_rules.append("Serial number verification passed: Exact match between device backplate and tax invoice.")
 
@@ -155,6 +180,9 @@ class WarrantyPolicyEngine:
         # -------------------------------------------------------------
         missing_count = claim_data.get("missing_document_count", 0)
         has_receipt = claim_data.get("has_receipt", 1)
+        if claim_data.get("mandatory_documents_present") == 0:
+            missing_count = max(missing_count, 2)
+            has_receipt = 0
 
         if has_receipt == 0:
             review_triggers.append("Primary proof of purchase receipt missing: Claimant identity verification required.")
@@ -171,7 +199,8 @@ class WarrantyPolicyEngine:
         # 7. Chronological Coherence Check
         # -------------------------------------------------------------
         if claim_data.get("claim_date_conflict_flag", 0) == 1:
-            failed_rules.append("HARD FAIL: Chronological date contradiction detected (e.g. fault date precedes purchase date).")
+            review_triggers.append("Chronological Contradiction Trigger: Fault date conflict detected relative to purchase date.")
+            warnings.append("Chronological date conflict flagged.")
 
         # Determine Overall Rule Status
         if len(failed_rules) > 0:

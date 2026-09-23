@@ -15,6 +15,10 @@ ENV/
 data/uploads/*
 !data/uploads/.gitkeep
 
+# Large training and validation images cache (keep test sample cards for evaluation)
+data/summary_cards/train/
+data/summary_cards/val/
+
 # Operating System files
 .DS_Store
 Thumbs.db

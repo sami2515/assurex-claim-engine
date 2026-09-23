@@ -25,10 +25,13 @@ class DocumentProcessor:
             pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
 
     @staticmethod
-    def compute_sha256(file_path: Path) -> str:
-        """Computes cryptographic SHA-256 hash of a file for duplicate detection."""
+    def compute_sha256(file_input) -> str:
+        """Computes cryptographic SHA-256 hash of a file or byte buffer for duplicate detection."""
         hasher = hashlib.sha256()
-        with open(file_path, "rb") as f:
+        if isinstance(file_input, (bytes, bytearray)):
+            hasher.update(file_input)
+            return hasher.hexdigest()
+        with open(file_input, "rb") as f:
             for chunk in iter(lambda: f.read(65536), b""):
                 hasher.update(chunk)
         return hasher.hexdigest()
@@ -113,10 +116,14 @@ class DocumentProcessor:
         if not raw_text:
             return entities
 
-        # 1. Invoice Number pattern (e.g. INV-2026-12345 or Invoice #12345)
-        inv_match = re.search(r"\b(INV(?:OICE)?[-#\s:]*[A-Z0-9-]+)\b", raw_text, re.IGNORECASE)
-        if inv_match:
-            entities["invoice_number"] = inv_match.group(1).strip()
+        # 1. Invoice Number pattern (e.g. INV-2026-12345, INV-887412, or Invoice: 12345)
+        direct_inv = re.search(r"\b(INV-[A-Z0-9-]+)\b", raw_text, re.IGNORECASE)
+        inv_labeled = re.search(r"(?:Invoice|Inv)\s*(?:No\.?|Num(?:ber)?|#)?[:\s]+([A-Z0-9-]+)", raw_text, re.IGNORECASE)
+
+        if direct_inv:
+            entities["invoice_number"] = direct_inv.group(1).strip()
+        elif inv_labeled and inv_labeled.group(1).upper() not in ["NO", "NUM", "NUMBER"]:
+            entities["invoice_number"] = inv_labeled.group(1).strip()
         else:
             entities["invoice_number"] = "INV-2026-00000"
 
@@ -189,6 +196,20 @@ class DocumentProcessor:
             "entities": parsed_entities,
             "requires_user_verification": True
         }
+
+    def process_text(self, raw_text: str) -> dict:
+        """Processes raw text and returns extracted entity payload."""
+        entities = self.parse_entities_from_text(raw_text)
+        return {
+            "extracted_text": raw_text,
+            "entities": entities,
+            "serial_number": entities.get("serial_number"),
+            "invoice_number": entities.get("invoice_number"),
+            "purchase_date": entities.get("purchase_date"),
+            "retailer": entities.get("retailer")
+        }
+
+    extract_receipt_entities = parse_entities_from_text
 
 
 # Singleton document processor

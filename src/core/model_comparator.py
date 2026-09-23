@@ -44,49 +44,67 @@ class DualModelComparator:
         gtm_pred_class = gtm_result["predicted_class"]
         gtm_top_conf = gtm_result["top_confidence"]
 
-        # 3. Class Match Evaluation
+        # Delegate to consensus evaluator
+        return self.evaluate_consensus(py_result, gtm_result)
+
+    def evaluate_consensus(self, py_result: dict, gtm_result: dict) -> dict:
+        """
+        Evaluates formal 5-status consistency matrix directly from prediction outputs.
+        """
+        py_pred_class = py_result["predicted_class"]
+        py_top_conf = py_result["top_confidence"]
+        gtm_pred_class = gtm_result["predicted_class"]
+        gtm_top_conf = gtm_result["top_confidence"]
+
+        # Class Match Evaluation
         is_class_match = bool(py_pred_class == gtm_pred_class)
 
-        # 4. Confidence Difference: |Python Top Conf - GTM Top Conf|
+        # Confidence Difference: |Python Top Conf - GTM Top Conf|
         confidence_diff = round(abs(py_top_conf - gtm_top_conf), 4)
 
-        # 5. Evaluate Formal Consistency Status from Decision Matrix
+        # Evaluate Formal Consistency Status from Decision Matrix
         if (py_top_conf < self.min_confidence) or (gtm_top_conf < self.min_confidence):
             consistency_status = Config.CONSISTENCY_UNCERTAIN
             explanation = (
                 f"Confidence is below minimum threshold ({self.min_confidence:.2f}). "
                 f"Python Top: {py_top_conf:.4f}, GTM Top: {gtm_top_conf:.4f}."
             )
+            consensus_reached = False
         elif not is_class_match:
             consistency_status = Config.CONSISTENCY_DISAGREEMENT
             explanation = (
                 f"Model divergence detected: Python model predicted '{py_pred_class}' "
                 f"while Google Teachable Machine predicted '{gtm_pred_class}'."
             )
+            consensus_reached = False
         elif confidence_diff <= self.strong_diff:
             consistency_status = Config.CONSISTENCY_STRONG
             explanation = (
                 f"Both models unanimously predicted '{py_pred_class}' with low confidence "
                 f"differential ({confidence_diff:.4f} <= {self.strong_diff:.2f})."
             )
+            consensus_reached = True
         elif confidence_diff <= self.acceptable_diff:
             consistency_status = Config.CONSISTENCY_ACCEPTABLE
             explanation = (
                 f"Both models predicted '{py_pred_class}' with acceptable confidence "
                 f"differential ({confidence_diff:.4f} <= {self.acceptable_diff:.2f})."
             )
+            consensus_reached = True
         else:
             consistency_status = Config.CONSISTENCY_WEAK
             explanation = (
                 f"Both models predicted '{py_pred_class}' but with high confidence "
                 f"divergence ({confidence_diff:.4f} > {self.acceptable_diff:.2f})."
             )
+            consensus_reached = True
 
         return {
             "is_class_match": is_class_match,
             "top_confidence_difference": confidence_diff,
             "model_consistency_status": consistency_status,
             "explanation": explanation,
+            "consensus_reached": consensus_reached,
             "python_model": py_result,
             "gtm_model": gtm_result,
             "thresholds_used": {

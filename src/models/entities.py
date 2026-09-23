@@ -75,11 +75,20 @@ class Product(db.Model):
     claims = db.relationship("Claim", backref="product", lazy=True)
     repair_records = db.relationship("RepairHistory", backref="product", lazy=True, cascade="all, delete-orphan")
 
+    @property
+    def product_category(self):
+        return self.category
+
+    @product_category.setter
+    def product_category(self, val):
+        self.category = val
+
     def to_dict(self):
         return {
             "product_id": self.product_id,
             "product_name": self.product_name,
             "category": self.category,
+            "product_category": self.category,
             "brand": self.brand,
             "model_number": self.model_number,
             "serial_number": self.serial_number,
@@ -197,6 +206,19 @@ class Claim(db.Model):
     rule_validation = db.relationship("RuleValidationLog", backref="claim", uselist=False, cascade="all, delete-orphan")
     reviewer_actions = db.relationship("ReviewerAction", backref="claim", lazy=True, cascade="all, delete-orphan")
     repair_records = db.relationship("RepairHistory", backref="claim", lazy=True)
+
+    def transition_status(self, new_status, updated_by_user_id=None, notes=None):
+        prev = self.status
+        self.status = new_status
+        history_entry = ClaimStatusHistory(
+            claim_id=self.id,
+            previous_status=prev,
+            new_status=new_status,
+            changed_by_user_id=updated_by_user_id,
+            reason_comment=notes or f"Status transitioned from {prev} to {new_status}"
+        )
+        db.session.add(history_entry)
+        return history_entry
 
     def to_dict(self):
         return {
@@ -444,6 +466,22 @@ class AuditLog(db.Model):
     ip_address = db.Column(db.String(50), nullable=True)
     details_json = db.Column(db.Text, nullable=True)
     timestamp = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+
+    @classmethod
+    def log_event(cls, action=None, user_id=None, user_role=None, entity_type=None, entity_id=None, ip_address=None, details=None, event_type=None):
+        act = action or event_type or "AUDIT_EVENT"
+        det_str = json.dumps(details) if isinstance(details, (dict, list)) else (str(details) if details else None)
+        log = cls(
+            user_id=user_id,
+            user_role=user_role,
+            action=act,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            ip_address=ip_address,
+            details_json=det_str
+        )
+        db.session.add(log)
+        return log
 
     def to_dict(self):
         return {

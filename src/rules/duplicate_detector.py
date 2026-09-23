@@ -32,18 +32,21 @@ class DuplicateDetector:
 
         return {"is_duplicate": False, "matched_claims": []}
 
+    check_document_duplicate = check_document_duplicates
+
     @staticmethod
-    def check_claim_duplicates(claim_data: dict, current_claim_internal_id: int = None) -> dict:
+    def check_claim_duplicates(claim_data: dict, current_claim_internal_id: int = None, uploaded_file_hashes: list = None) -> dict:
         """
         Req xxx: Checks if the claim attributes match an existing active or closed claim:
         - Matching Product Serial Number
         - Matching Invoice Number
         - Identical Fault Description on same product
+        - Matching Document SHA-256 Hashes
         """
         duplicate_flags = []
         conflicting_claim_ids = []
 
-        serial_no = claim_data.get("product_serial")
+        serial_no = claim_data.get("product_serial") or claim_data.get("serial_number")
         invoice_no = claim_data.get("invoice_number")
         current_claim_code = claim_data.get("claim_id")
 
@@ -56,6 +59,13 @@ class DuplicateDetector:
             }
 
         try:
+            # Check document hashes if provided
+            if uploaded_file_hashes:
+                for f_hash in uploaded_file_hashes:
+                    doc_check = DuplicateDetector.check_document_duplicates(f_hash, exclude_claim_id=current_claim_internal_id)
+                    if doc_check["is_duplicate"]:
+                        duplicate_flags.append(f"Identical document hash detected: {doc_check['message']}")
+                        conflicting_claim_ids.extend(doc_check["matched_claims"])
             if serial_no:
                 # Find products with same serial
                 matching_products = Product.query.filter_by(serial_number=serial_no).all()

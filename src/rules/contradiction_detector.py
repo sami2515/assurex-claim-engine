@@ -48,7 +48,7 @@ class ContradictionDetector:
             if fault_date < purchase_date:
                 contradictions.append(
                     f"Chronological Contradiction: Reported fault occurrence ({fault_date}) "
-                    f"is prior to retail purchase date ({purchase_date})."
+                    f"predates / is prior to retail purchase date ({purchase_date})."
                 )
 
         if fault_date and submission_date:
@@ -61,9 +61,13 @@ class ContradictionDetector:
         # -------------------------------------------------------------
         # 2. Serial Number Cross-Verification
         # -------------------------------------------------------------
-        registered_serial = str(claim_data.get("product_serial", "")).strip().upper()
+        registered_serial = str(claim_data.get("product_serial") or claim_data.get("serial_number") or "").strip().upper()
         if ocr_data:
-            extracted_serial = str(ocr_data.get("serial_number", "")).strip().upper()
+            extracted_serial = (
+                ocr_data.get("serial_number") or
+                ocr_data.get("entities", {}).get("serial_number", "")
+            )
+            extracted_serial = str(extracted_serial).strip().upper()
             if extracted_serial and extracted_serial not in ["SN-UNKNOWN", "N/A", ""]:
                 if registered_serial != extracted_serial:
                     contradictions.append(
@@ -80,13 +84,15 @@ class ContradictionDetector:
         # -------------------------------------------------------------
         # 3. Model Consistency Check
         # -------------------------------------------------------------
-        model_name = str(claim_data.get("product_model", "")).strip()
-        if ocr_data and ocr_data.get("model_name"):
-            ocr_model = str(ocr_data.get("model_name", "")).strip()
-            if ocr_model and ocr_model.lower() not in model_name.lower() and model_name.lower() not in ocr_model.lower():
-                warnings.append(
-                    f"Potential Model Variance: Claim model '{model_name}' differs from invoice model '{ocr_model}'."
-                )
+        model_name = str(claim_data.get("product_model") or claim_data.get("model_number") or "").strip()
+        if ocr_data:
+            raw_ocr_model = ocr_data.get("model_name") or ocr_data.get("model_number") or ocr_data.get("entities", {}).get("model_name")
+            if raw_ocr_model and str(raw_ocr_model).strip().lower() not in ["none", "null", ""]:
+                ocr_model = str(raw_ocr_model).strip()
+                if model_name and ocr_model.lower() not in model_name.lower() and model_name.lower() not in ocr_model.lower():
+                    contradictions.append(
+                        f"Product Model Contradiction: Claimed model '{model_name}' differs from invoice model '{ocr_model}'."
+                    )
 
         has_contradictions = len(contradictions) > 0
 
