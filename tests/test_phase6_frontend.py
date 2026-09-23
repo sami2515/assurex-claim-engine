@@ -134,6 +134,40 @@ class TestPhase6Frontend(unittest.TestCase):
         self.assertIn(b"Business Problem", res.data)
         self.assertIn(b"Google Teachable Machine Training", res.data)
 
+    def test_customer_create_claim_submission(self):
+        """Verify customer can submit claim wizard with integer ID and reach evaluated state."""
+        with self.client.session_transaction() as sess:
+            with self.app.app_context():
+                user = User.query.filter_by(role=Config.ROLE_CUSTOMER).first()
+                sess["user_id"] = user.id
+                sess["user_code"] = user.user_id
+                sess["role"] = user.role
+                sess["user_name"] = user.full_name
+                sess["email"] = user.email
+
+                product = Product.query.filter_by(user_id=user.id).first()
+                self.assertIsNotNone(product)
+                prod_id = product.id
+
+        post_data = {
+            "product_id": str(prod_id),
+            "fault_occurrence_date": "2026-09-20",
+            "fault_category": "Battery Degradation",
+            "damage_type": "Normal Wear and Tear",
+            "fault_description": "Battery depleting abnormally fast within 30 minutes of charge.",
+            "claim_amount": "120.00"
+        }
+        try:
+            res = self.client.post("/claims/new", data=post_data, follow_redirects=True)
+            self.assertEqual(res.status_code, 200)
+            self.assertIn(b"submitted and evaluated", res.data)
+        finally:
+            with self.app.app_context():
+                for c in Claim.query.all():
+                    db.session.delete(c)
+                db.session.commit()
+
 
 if __name__ == "__main__":
     unittest.main()
+

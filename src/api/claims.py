@@ -70,7 +70,13 @@ def create_claim_wizard():
         damage_type = request.form.get("damage_type")
         fault_description = request.form.get("fault_description", "").strip()
 
-        product = Product.query.filter_by(product_id=product_id_str).first()
+        product = None
+        if product_id_str:
+            if str(product_id_str).isdigit():
+                product = db.session.get(Product, int(product_id_str))
+            if not product:
+                product = Product.query.filter_by(product_id=str(product_id_str)).first()
+
         if not product or not product.warranty:
             flash("Please select a registered product with an active warranty policy.", "danger")
             return redirect(url_for("claims.create_claim_wizard"))
@@ -118,6 +124,8 @@ def create_claim_wizard():
 
         for doc_key in ["receipt", "warranty_card", "damage_photo", "serial_photo"]:
             uploaded_file = request.files.get(doc_key)
+            if not uploaded_file and doc_key == "receipt":
+                uploaded_file = request.files.get("invoice_document")
             if uploaded_file and uploaded_file.filename:
                 sec_filename = f"{claim.claim_id}_{doc_key}_{secure_filename(uploaded_file.filename)}"
                 save_dest = upload_folder / sec_filename
