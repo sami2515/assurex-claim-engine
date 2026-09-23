@@ -1,0 +1,236 @@
+{% extends "components/base.html" %}
+
+{% block title %}Track Claim {{ claim.claim_id }}{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+    <div>
+        <div class="d-flex align-items-center gap-2 mb-1">
+            <h2 class="fw-bold text-slate-900 mb-0">Claim Progress Tracker</h2>
+            <span class="badge bg-primary font-mono">{{ claim.claim_id }}</span>
+        </div>
+        <p class="text-muted mb-0 small">Real-time lifecycle monitoring across all 8 SRS stages (Req xxxviii)</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('claims.customer_dashboard') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left"></i> Back to Dashboard
+        </a>
+        <a href="{{ url_for('reports.download_claim_pdf', claim_id=claim.claim_id) }}" class="btn btn-primary btn-sm shadow-sm d-inline-flex align-items-center gap-1">
+            <i class="bi bi-file-earmark-pdf"></i> Download PDF Certificate
+        </a>
+    </div>
+</div>
+
+<!-- ===================================================================
+     8-STAGE LIFECYCLE PROGRESS TRACKER (Req xxxviii)
+     Draft -> Submitted -> Under Evaluation -> Additional Info -> Manual Review -> Approved -> Rejected -> Closed
+     =================================================================== -->
+<div class="card border-0 shadow-sm rounded-4 bg-white p-4 mb-4 overflow-hidden">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <span class="fw-bold text-slate-800"><i class="bi bi-diagram-3-fill text-primary me-2"></i>Lifecycle Progress Timeline</span>
+        <span class="badge bg-light text-dark border font-mono">Current: {{ claim.status }}</span>
+    </div>
+
+    {% set stage_order = [
+        'Draft',
+        'Submitted',
+        'Under Evaluation',
+        'Additional Information Required',
+        'Manual Review',
+        'Approved',
+        'Rejected',
+        'Closed'
+    ] %}
+
+    <!-- Calculate current stage index -->
+    {% set current_idx = 0 %}
+    {% for s in stage_order %}
+        {% if s == claim.status %}
+            {% set current_idx = loop.index0 %}
+        {% endif %}
+    {% endfor %}
+
+    <div class="timeline-stages">
+        {% for stage in stage_order %}
+            {% set is_active = (stage == claim.status) %}
+            {% set is_completed = false %}
+            
+            {# Stage progress logic #}
+            {% if claim.status == 'Approved' and stage in ['Draft', 'Submitted', 'Under Evaluation', 'Approved'] %}
+                {% set is_completed = true %}
+            {% elif claim.status == 'Rejected' and stage in ['Draft', 'Submitted', 'Under Evaluation', 'Rejected'] %}
+                {% set is_completed = true %}
+            {% elif claim.status == 'Closed' %}
+                {% set is_completed = true %}
+            {% elif claim.status == 'Manual Review' and stage in ['Draft', 'Submitted', 'Under Evaluation', 'Manual Review'] %}
+                {% set is_completed = (stage != 'Manual Review') %}
+            {% elif claim.status == 'Additional Information Required' and stage in ['Draft', 'Submitted', 'Under Evaluation', 'Additional Information Required'] %}
+                {% set is_completed = (stage != 'Additional Information Required') %}
+            {% elif claim.status == 'Under Evaluation' and stage in ['Draft', 'Submitted'] %}
+                {% set is_completed = true %}
+            {% elif claim.status == 'Submitted' and stage == 'Draft' %}
+                {% set is_completed = true %}
+            {% endif %}
+
+            <div class="timeline-stage-item {% if is_active %}active{% elif is_completed %}completed{% endif %} {% if is_active and stage == 'Rejected' %}rejected{% endif %}">
+                <div class="timeline-stage-node">
+                    {% if is_completed %}
+                        <i class="bi bi-check-lg"></i>
+                    {% elif is_active and stage == 'Rejected' %}
+                        <i class="bi bi-x-lg"></i>
+                    {% elif is_active %}
+                        <i class="bi bi-record-circle-fill"></i>
+                    {% else %}
+                        {{ loop.index }}
+                    {% endif %}
+                </div>
+                <div class="timeline-stage-label">{{ stage }}</div>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Evaluation Summary & Adjudication Breakdown -->
+<div class="row g-4 mb-4">
+    <!-- Adjudication Result Card -->
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm rounded-4 bg-white h-100">
+            <div class="card-header-styled d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-check-all text-primary me-2"></i>Automated Adjudication Status</span>
+                {% if claim.final_decision == 'Likely Valid' or claim.final_decision == 'Valid Claim' %}
+                    <span class="badge badge-decision-valid px-3 py-1">Valid Claim</span>
+                {% elif claim.final_decision == 'Likely Invalid' or claim.final_decision == 'Invalid Claim' %}
+                    <span class="badge badge-decision-invalid px-3 py-1">Invalid Claim</span>
+                {% else %}
+                    <span class="badge badge-decision-manual px-3 py-1">Manual Review Required</span>
+                {% endif %}
+            </div>
+            <div class="card-body p-4">
+                <div class="mb-3">
+                    <div class="text-muted extra-small">Adjudication Rationale</div>
+                    <p class="fw-semibold text-slate-800 mb-0 mt-1">{{ claim.decision_reason or 'Claim is undergoing automated model evaluation.' }}</p>
+                </div>
+
+                <div class="row g-3 pt-2 border-top">
+                    <div class="col-6">
+                        <div class="text-muted extra-small">Product Name</div>
+                        <div class="fw-semibold">{{ claim.product.product_name }}</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-muted extra-small">Defect Category</div>
+                        <div class="fw-semibold text-primary">{{ claim.fault_category }}</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-muted extra-small">Risk Rating</div>
+                        <div class="fw-semibold">
+                            {% if claim.risk_level == 'Low' %}
+                                <span class="text-success"><i class="bi bi-shield-check"></i> Low Risk</span>
+                            {% elif claim.risk_level == 'High' %}
+                                <span class="text-danger"><i class="bi bi-shield-slash"></i> High Risk</span>
+                            {% else %}
+                                <span class="text-warning"><i class="bi bi-shield-exclamation"></i> Medium Risk</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-muted extra-small">Date Submitted</div>
+                        <div class="fw-semibold">{{ claim.claim_submission_date.strftime('%B %d, %Y') }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dual-Model Consensus Quick Glance -->
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm rounded-4 bg-white h-100">
+            <div class="card-header-styled d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-cpu text-primary me-2"></i>Dual-Model Consensus Status</span>
+                {% if claim.model_evaluation %}
+                    <span class="badge bg-light text-secondary border font-mono">Δ {{ "%.4f"|format(claim.model_evaluation.top_confidence_difference) }}</span>
+                {% endif %}
+            </div>
+            <div class="card-body p-4">
+                {% if claim.model_evaluation %}
+                    {% set eval = claim.model_evaluation %}
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <span class="small fw-semibold text-slate-700">Model Consistency Status:</span>
+                        {% if eval.model_consistency_status == 'Strong Match' %}
+                            <span class="badge badge-consistency-strong px-2 py-1">Strong Match</span>
+                        {% elif eval.model_consistency_status == 'Acceptable Match' %}
+                            <span class="badge badge-consistency-acceptable px-2 py-1">Acceptable Match</span>
+                        {% elif eval.model_consistency_status == 'Weak Match' %}
+                            <span class="badge badge-consistency-weak px-2 py-1">Weak Match</span>
+                        {% elif eval.model_consistency_status == 'Model Disagreement' %}
+                            <span class="badge badge-consistency-disagreement px-2 py-1">Model Disagreement</span>
+                        {% else %}
+                            <span class="badge badge-consistency-uncertain px-2 py-1">Uncertain Result</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <div class="bg-light p-3 rounded-3 border">
+                                <div class="extra-small text-muted mb-1">Python Tabular Model</div>
+                                <div class="fw-bold text-dark">{{ eval.python_predicted_class }}</div>
+                                <div class="extra-small text-muted mt-1">Confidence: {{ "%.1f"|format(eval.python_conf_valid * 100) }}%</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="bg-light p-3 rounded-3 border">
+                                <div class="extra-small text-muted mb-1">Teachable Machine Vision</div>
+                                <div class="fw-bold text-dark">{{ eval.gtm_predicted_class }}</div>
+                                <div class="extra-small text-muted mt-1">Confidence: {{ "%.1f"|format(eval.gtm_conf_valid * 100) }}%</div>
+                            </div>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4 text-muted">
+                        <i class="bi bi-hourglass-split fs-2 d-block mb-2 text-secondary"></i>
+                        Automated AI model evaluation records pending.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Status Transition Audit History -->
+<div class="card border-0 shadow-sm rounded-4 bg-white">
+    <div class="card-header-styled">
+        <i class="bi bi-clock-history text-primary me-2"></i>Persistent Status Transition History
+    </div>
+    <div class="table-responsive">
+        <table class="table table-custom align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Timestamp (UTC)</th>
+                    <th>Previous Status</th>
+                    <th>New Status</th>
+                    <th>Transition Origin</th>
+                    <th>Adjudication / Audit Comment</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if claim.status_history %}
+                    {% for h in claim.status_history %}
+                        <tr>
+                            <td class="font-mono small">{{ h.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                            <td><span class="badge bg-light text-secondary border">{{ h.previous_status or 'Init' }}</span></td>
+                            <td><span class="badge bg-primary-subtle text-primary border border-primary-subtle">{{ h.new_status }}</span></td>
+                            <td class="small fw-semibold">{{ h.changed_by.full_name if h.changed_by else 'Automated Engine' }}</td>
+                            <td class="small text-muted">{{ h.reason_comment }}</td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center py-4 text-muted">
+                            No transition records logged yet.
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

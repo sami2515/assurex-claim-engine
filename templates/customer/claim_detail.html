@@ -1,0 +1,226 @@
+{% extends "components/base.html" %}
+
+{% block title %}Claim Dossier {{ claim.claim_id }}{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+    <div>
+        <div class="d-flex align-items-center gap-2 mb-1">
+            <h2 class="fw-bold text-slate-900 mb-0">Claim Dossier & Evaluation Report</h2>
+            <span class="badge bg-primary font-mono">{{ claim.claim_id }}</span>
+        </div>
+        <p class="text-muted mb-0 small">Comprehensive technical audit, dual-model consensus matrix, and policy rule verification</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('claims.track_claim_status', claim_id=claim.claim_id) }}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-broadcast"></i> Live Tracker
+        </a>
+        <a href="{{ url_for('reports.download_claim_pdf', claim_id=claim.claim_id) }}" class="btn btn-primary btn-sm shadow-sm d-inline-flex align-items-center gap-1">
+            <i class="bi bi-file-earmark-pdf"></i> Download Official PDF
+        </a>
+    </div>
+</div>
+
+<!-- Primary Metadata Cards -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm rounded-4 bg-white h-100">
+            <div class="card-header-styled">
+                <i class="bi bi-info-circle text-primary me-2"></i>Claimant & Hardware Record
+            </div>
+            <div class="card-body p-4">
+                <div class="row g-3">
+                    <div class="col-6">
+                        <div class="text-muted extra-small">Claimant Name</div>
+                        <div class="fw-semibold">{{ claim.claimant.full_name }}</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-muted extra-small">Email Address</div>
+                        <div class="fw-semibold">{{ claim.claimant.email }}</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-muted extra-small">Equipment Name</div>
+                        <div class="fw-semibold">{{ claim.product.product_name }}</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-muted extra-small">Hardware Category</div>
+                        <div class="fw-semibold">{{ claim.product.category }}</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-muted extra-small">Serial Number</div>
+                        <div class="fw-bold font-mono text-primary">{{ claim.product.serial_number }}</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-muted extra-small">Purchase Date</div>
+                        <div class="fw-semibold">{{ claim.product.purchase_date.strftime('%Y-%m-%d') }}</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-muted extra-small">Fault Date</div>
+                        <div class="fw-semibold">{{ claim.fault_occurrence_date.strftime('%Y-%m-%d') }}</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-muted extra-small">Submission Date</div>
+                        <div class="fw-semibold">{{ claim.claim_submission_date.strftime('%Y-%m-%d') }}</div>
+                    </div>
+                    <div class="col-12">
+                        <div class="text-muted extra-small">Defect Description</div>
+                        <div class="bg-light p-3 rounded-3 border small mt-1">{{ claim.fault_description }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Master Decision Engine Result -->
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm rounded-4 bg-white h-100">
+            <div class="card-header-styled d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-cpu text-primary me-2"></i>Master Adjudication Recommendation</span>
+                {% if claim.final_decision == 'Likely Valid' or claim.final_decision == 'Valid Claim' %}
+                    <span class="badge badge-decision-valid px-3 py-1">Valid Claim</span>
+                {% elif claim.final_decision == 'Likely Invalid' or claim.final_decision == 'Invalid Claim' %}
+                    <span class="badge badge-decision-invalid px-3 py-1">Invalid Claim</span>
+                {% else %}
+                    <span class="badge badge-decision-manual px-3 py-1">Manual Review</span>
+                {% endif %}
+            </div>
+            <div class="card-body p-4">
+                <div class="mb-3">
+                    <div class="text-muted extra-small">Adjudication Rationale</div>
+                    <div class="fw-bold text-slate-900 fs-6 mt-1">{{ claim.decision_reason }}</div>
+                </div>
+
+                <div class="row g-3 pt-3 border-top">
+                    <div class="col-6">
+                        <div class="text-muted extra-small">Current Lifecycle Status</div>
+                        <div class="fw-semibold"><span class="badge bg-primary-subtle text-primary border border-primary-subtle">{{ claim.status }}</span></div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-muted extra-small">Fraud Risk Level</div>
+                        <div class="fw-semibold">
+                            {% if claim.risk_level == 'Low' %}
+                                <span class="text-success"><i class="bi bi-shield-check"></i> Low</span>
+                            {% elif claim.risk_level == 'High' %}
+                                <span class="text-danger"><i class="bi bi-shield-slash"></i> High</span>
+                            {% else %}
+                                <span class="text-warning"><i class="bi bi-shield-exclamation"></i> Medium</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-muted extra-small">Duplicate Hash Flag</div>
+                        <div>
+                            {% if claim.is_duplicate_flag %}
+                                <span class="badge bg-danger">Duplicate Detected</span>
+                            {% else %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle">Unique File Hash</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-muted extra-small">Contradiction Flag</div>
+                        <div>
+                            {% if claim.contradiction_flag %}
+                                <span class="badge bg-danger">Conflict Detected</span>
+                            {% else %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle">Consistent Dates</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Dual-Model AI Comparison Details -->
+{% if claim.model_evaluation %}
+    {% set eval = claim.model_evaluation %}
+    <div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
+        <div class="card-header-styled d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-diagram-2 text-primary me-2"></i>Dual-Model AI Consensus Details</span>
+            <span class="badge bg-light text-secondary border font-mono">Confidence Diff: {{ "%.4f"|format(eval.top_confidence_difference) }}</span>
+        </div>
+        <div class="card-body p-4">
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <div class="border rounded-3 p-3 bg-light">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-bold small text-dark"><i class="bi bi-table text-primary me-1"></i>Python Tabular Model</span>
+                            <span class="badge bg-secondary extra-small">{{ eval.python_model_version }}</span>
+                        </div>
+                        <div class="fs-5 fw-bold text-slate-900 mb-2">{{ eval.python_predicted_class }}</div>
+                        <div class="small text-muted mb-1">Confidence Distribution:</div>
+                        <div class="extra-small text-muted">
+                            <div>Valid Claim: <b>{{ "%.2f"|format(eval.python_conf_valid * 100) }}%</b></div>
+                            <div>Invalid Claim: <b>{{ "%.2f"|format(eval.python_conf_invalid * 100) }}%</b></div>
+                            <div>Manual Review: <b>{{ "%.2f"|format(eval.python_conf_manual * 100) }}%</b></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="border rounded-3 p-3 bg-light">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="fw-bold small text-dark"><i class="bi bi-eye text-primary me-1"></i>Teachable Machine Vision</span>
+                            <span class="badge bg-secondary extra-small">{{ eval.gtm_model_version }}</span>
+                        </div>
+                        <div class="fs-5 fw-bold text-slate-900 mb-2">{{ eval.gtm_predicted_class }}</div>
+                        <div class="small text-muted mb-1">Confidence Distribution:</div>
+                        <div class="extra-small text-muted">
+                            <div>Valid Claim: <b>{{ "%.2f"|format(eval.gtm_conf_valid * 100) }}%</b></div>
+                            <div>Invalid Claim: <b>{{ "%.2f"|format(eval.gtm_conf_invalid * 100) }}%</b></div>
+                            <div>Manual Review: <b>{{ "%.2f"|format(eval.gtm_conf_manual * 100) }}%</b></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endif %}
+
+<!-- Attached Evidence Documents & OCR Extraction -->
+<div class="card border-0 shadow-sm rounded-4 bg-white">
+    <div class="card-header-styled">
+        <i class="bi bi-paperclip text-primary me-2"></i>Attached Evidence Documents & OCR Extraction
+    </div>
+    <div class="table-responsive">
+        <table class="table table-custom align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Document Name</th>
+                    <th>Type</th>
+                    <th>SHA-256 Checksum Hash</th>
+                    <th>Upload Date</th>
+                    <th>OCR Verification</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if claim.documents %}
+                    {% for doc in claim.documents %}
+                        <tr>
+                            <td class="fw-semibold">{{ doc.document_name }}</td>
+                            <td><span class="badge bg-light text-secondary border">{{ doc.document_type }}</span></td>
+                            <td class="font-mono extra-small text-muted">{{ doc.sha256_hash or 'N/A' }}</td>
+                            <td class="small">{{ doc.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>
+                                {% if doc.ocr_extracted_text %}
+                                    <span class="badge bg-success-subtle text-success"><i class="bi bi-check-circle"></i> Extracted</span>
+                                {% else %}
+                                    <span class="badge bg-secondary-subtle text-secondary">No Text</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center py-4 text-muted">
+                            No external evidence documents attached to this claim.
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

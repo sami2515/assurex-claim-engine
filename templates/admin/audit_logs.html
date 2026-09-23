@@ -1,0 +1,79 @@
+{% extends "components/base.html" %}
+
+{% block title %}System Audit Trail{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+    <div>
+        <h2 class="fw-bold text-slate-900 mb-1">System Security & Audit Trail</h2>
+        <p class="text-muted mb-0">Immutable chronological log of authentication, claim evaluations, reviewer overrides, and policy updates (Req xlvii)</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left"></i> Back to Dashboard
+        </a>
+        <a href="{{ url_for('admin.export_data', export_type='audit') }}" class="btn btn-outline-dark btn-sm d-inline-flex align-items-center gap-1 shadow-sm">
+            <i class="bi bi-file-earmark-spreadsheet"></i> Export Audit Log CSV
+        </a>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm rounded-4 bg-white">
+    <div class="card-header-styled d-flex justify-content-between align-items-center">
+        <span class="fw-bold text-slate-900"><i class="bi bi-fingerprint text-primary me-2"></i>Audit Log Ledger</span>
+        <span class="badge bg-light text-secondary border font-mono">Showing Recent Events</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-custom align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Timestamp (UTC)</th>
+                    <th>Action</th>
+                    <th>Entity Type & Identifier</th>
+                    <th>Executing Role</th>
+                    <th>IP Address</th>
+                    <th>Technical Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if logs %}
+                    {% for l in logs %}
+                        <tr>
+                            <td class="font-mono extra-small text-muted">{{ l.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                            <td>
+                                <span class="badge bg-light text-dark border font-mono">{{ l.action }}</span>
+                            </td>
+                            <td>
+                                <div class="fw-semibold small">{{ l.entity_type }}</div>
+                                <span class="font-mono extra-small text-muted">{{ l.entity_id or 'N/A' }}</span>
+                            </td>
+                            <td>
+                                {% if l.user_role == 'Admin' %}
+                                    <span class="badge bg-primary extra-small">Admin</span>
+                                {% elif l.user_role == 'Staff Reviewer' %}
+                                    <span class="badge bg-dark extra-small">Reviewer</span>
+                                {% elif l.user_role == 'Customer' %}
+                                    <span class="badge bg-success extra-small">Customer</span>
+                                {% else %}
+                                    <span class="badge bg-secondary extra-small">System</span>
+                                {% endif %}
+                            </td>
+                            <td class="font-mono extra-small text-muted">{{ l.ip_address or '127.0.0.1' }}</td>
+                            <td class="extra-small font-mono text-muted text-truncate" style="max-width: 250px;">
+                                {{ l.details_json or 'None' }}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center py-5 text-muted">
+                            <i class="bi bi-shield-check fs-1 d-block mb-2 text-secondary"></i>
+                            No audit trail entries found.
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

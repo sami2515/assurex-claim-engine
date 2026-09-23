@@ -1,0 +1,175 @@
+{% extends "components/base.html" %}
+
+{% block title %}{{ product.product_name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+    <div>
+        <div class="d-flex align-items-center gap-2 mb-1">
+            <h2 class="fw-bold text-slate-900 mb-0">{{ product.product_name }}</h2>
+            <span class="badge bg-light text-secondary border">{{ product.category }}</span>
+        </div>
+        <p class="text-muted mb-0 font-mono small">Product ID: {{ product.product_id }} &bull; Serial: {{ product.serial_number }}</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('products.list_products') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left"></i> Back to Fleet
+        </a>
+        <a href="{{ url_for('claims.intake_wizard') }}?product_id={{ product.id }}" class="btn btn-primary btn-sm shadow-sm d-inline-flex align-items-center gap-1">
+            <i class="bi bi-lightning-charge-fill"></i> File Claim for Asset
+        </a>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <!-- Hardware Specification Column -->
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm rounded-4 bg-white h-100">
+            <div class="card-header-styled">
+                <i class="bi bi-cpu text-primary me-2"></i>Hardware Specification
+            </div>
+            <div class="card-body p-4">
+                <div class="row g-3">
+                    <div class="col-6">
+                        <div class="text-muted extra-small">Manufacturer / Brand</div>
+                        <div class="fw-semibold">{{ product.brand }}</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-muted extra-small">Model Designation</div>
+                        <div class="fw-semibold font-mono">{{ product.model_number }}</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-muted extra-small">Serial Number</div>
+                        <div class="fw-bold text-primary font-mono">{{ product.serial_number }}</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-muted extra-small">Purchase Price</div>
+                        <div class="fw-semibold">${{ "%.2f"|format(product.purchase_price) }} USD</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-muted extra-small">Purchase Date</div>
+                        <div class="fw-semibold">{{ product.purchase_date.strftime('%B %d, %Y') }}</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-muted extra-small">Authorized Retailer</div>
+                        <div class="fw-semibold">{{ product.retailer }}</div>
+                    </div>
+                    <div class="col-12">
+                        <div class="text-muted extra-small">Invoice / Receipt Reference</div>
+                        <div class="font-mono small bg-light p-2 rounded border">{{ product.invoice_number or 'INV-NOT-RECORDED' }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Warranty Policy Column -->
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm rounded-4 bg-white h-100">
+            <div class="card-header-styled d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-shield-check text-primary me-2"></i>Warranty Policy Coverage</span>
+                {% set w = product.warranty %}
+                {% if w and w.is_active() %}
+                    <span class="badge bg-success-subtle text-success border border-success-subtle">Active</span>
+                {% elif w %}
+                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Expired</span>
+                {% else %}
+                    <span class="badge bg-secondary">None</span>
+                {% endif %}
+            </div>
+            <div class="card-body p-4">
+                {% if w %}
+                    <div class="mb-3">
+                        <div class="text-muted extra-small">Warranty Certificate ID</div>
+                        <div class="fw-bold font-mono text-dark">{{ w.warranty_id }}</div>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-6">
+                            <div class="text-muted extra-small">Coverage Start</div>
+                            <div class="fw-semibold">{{ w.start_date.strftime('%B %d, %Y') }}</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-muted extra-small">Expiration Date</div>
+                            <div class="fw-semibold">{{ w.expiry_date.strftime('%B %d, %Y') }}</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-muted extra-small">Service Provider</div>
+                            <div class="fw-semibold">{{ w.warranty_provider }}</div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-muted extra-small">Authorized Center</div>
+                            <div class="fw-semibold small">{{ w.service_center_name }}</div>
+                        </div>
+                    </div>
+
+                    <!-- Remaining Term Progress Meter -->
+                    <div class="bg-light p-3 rounded-3 border">
+                        <div class="d-flex justify-content-between align-items-center mb-1 small">
+                            <span class="fw-semibold text-slate-700">Remaining Coverage Term</span>
+                            <span class="fw-bold text-primary">{{ w.remaining_days() }} Days</span>
+                        </div>
+                        {% set total_days = (w.expiry_date - w.start_date).days %}
+                        {% set pct = 0 if total_days <= 0 else [0, [(w.remaining_days() / total_days * 100)|round, 100]|min]|max %}
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar {% if w.remaining_days() > 60 %}bg-success{% elif w.remaining_days() > 15 %}bg-warning{% else %}bg-danger{% endif %}" role="progressbar" style="width: {{ pct }}%;" aria-valuenow="{{ pct }}" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4 text-muted">
+                        <i class="bi bi-shield-x fs-1 d-block mb-2"></i>
+                        No active warranty registered for this asset.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Historical Service & Repair Records -->
+<div class="card border-0 shadow-sm rounded-4 bg-white">
+    <div class="card-header-styled">
+        <i class="bi bi-tools text-primary me-2"></i>Authorized Maintenance & Repair History
+    </div>
+    <div class="table-responsive">
+        <table class="table table-custom align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Repair Date</th>
+                    <th>Service Center</th>
+                    <th>Issue Description</th>
+                    <th>Action Performed</th>
+                    <th>Cost Incurred</th>
+                    <th>Authorized Facility</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if product.repair_records %}
+                    {% for r in product.repair_records %}
+                        <tr>
+                            <td class="small">{{ r.repair_date.strftime('%Y-%m-%d') }}</td>
+                            <td class="fw-semibold">{{ r.service_center_name }}</td>
+                            <td class="small text-muted">{{ r.issue_description }}</td>
+                            <td class="small">{{ r.action_taken }}</td>
+                            <td class="small">${{ "%.2f"|format(r.cost) }}</td>
+                            <td>
+                                {% if r.is_authorized_center %}
+                                    <span class="badge bg-success-subtle text-success"><i class="bi bi-check-circle"></i> Authorized</span>
+                                {% else %}
+                                    <span class="badge bg-danger-subtle text-danger"><i class="bi bi-x-circle"></i> Unauthorized</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-muted">
+                            <i class="bi bi-wrench-adjustable fs-2 d-block mb-2 text-secondary"></i>
+                            No previous service or maintenance claims recorded for this equipment.
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

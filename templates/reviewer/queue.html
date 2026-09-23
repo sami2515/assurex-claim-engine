@@ -1,0 +1,161 @@
+{% extends "components/base.html" %}
+
+{% block title %}Reviewer Adjudication Queue{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+    <div>
+        <h2 class="fw-bold text-slate-900 mb-1">Claim Adjudication & Triage Queue</h2>
+        <p class="text-muted mb-0">Multi-criteria filtering and manual review workflow for high-risk and flagged claims (Req xxxvi)</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('admin.export_claims') }}" class="btn btn-outline-dark btn-sm d-inline-flex align-items-center gap-1">
+            <i class="bi bi-file-earmark-spreadsheet"></i> Export Queue CSV
+        </a>
+    </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="card border-0 shadow-sm rounded-4 bg-white p-3 mb-4">
+    <form method="GET" action="{{ url_for('reviewer.queue') }}" class="row g-2 align-items-center">
+        <div class="col-md-3">
+            <label class="extra-small fw-bold text-muted mb-1">Status Filter</label>
+            <select name="status" class="form-select form-select-sm bg-light">
+                <option value="ALL" {% if current_status == 'ALL' %}selected{% endif %}>All Statuses</option>
+                {% for s in all_statuses %}
+                    <option value="{{ s }}" {% if current_status == s %}selected{% endif %}>{{ s }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="extra-small fw-bold text-muted mb-1">Risk Rating</label>
+            <select name="risk" class="form-select form-select-sm bg-light">
+                <option value="ALL" {% if current_risk == 'ALL' %}selected{% endif %}>All Risk Ratings</option>
+                <option value="Low" {% if current_risk == 'Low' %}selected{% endif %}>Low Risk</option>
+                <option value="Medium" {% if current_risk == 'Medium' %}selected{% endif %}>Medium Risk</option>
+                <option value="High" {% if current_risk == 'High' %}selected{% endif %}>High Risk</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="extra-small fw-bold text-muted mb-1">Hardware Category</label>
+            <select name="category" class="form-select form-select-sm bg-light">
+                <option value="ALL" {% if current_category == 'ALL' %}selected{% endif %}>All Categories</option>
+                <option value="Consumer Electronics" {% if current_category == 'Consumer Electronics' %}selected{% endif %}>Consumer Electronics</option>
+                <option value="Home Appliances" {% if current_category == 'Home Appliances' %}selected{% endif %}>Home Appliances</option>
+                <option value="Industrial Tools" {% if current_category == 'Industrial Tools' %}selected{% endif %}>Industrial Tools</option>
+            </select>
+        </div>
+        <div class="col-md-3 d-flex align-items-end gap-2 pt-3">
+            <button type="submit" class="btn btn-sm btn-primary w-100">
+                <i class="bi bi-funnel-fill me-1"></i> Apply Filters
+            </button>
+            <a href="{{ url_for('reviewer.queue') }}" class="btn btn-sm btn-outline-secondary">Reset</a>
+        </div>
+    </form>
+</div>
+
+<!-- Claims Queue Table -->
+<div class="card border-0 shadow-sm rounded-4 bg-white">
+    <div class="table-responsive">
+        <table class="table table-custom align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Claim ID</th>
+                    <th>Claimant & Product</th>
+                    <th>Defect Category</th>
+                    <th>Status</th>
+                    <th>Model Consistency</th>
+                    <th>Risk</th>
+                    <th>Flags</th>
+                    <th class="text-end">Workbench Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if claims %}
+                    {% for c in claims %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('reviewer.inspect_claim', claim_id=c.claim_id) }}" class="fw-bold font-mono text-primary text-decoration-none">
+                                    {{ c.claim_id }}
+                                </a>
+                                <div class="extra-small text-muted">{{ c.claim_submission_date.strftime('%Y-%m-%d') }}</div>
+                            </td>
+                            <td>
+                                <div class="fw-semibold text-slate-900">{{ c.claimant.full_name }}</div>
+                                <small class="text-muted">{{ c.product.product_name }}</small>
+                            </td>
+                            <td>
+                                <span class="badge bg-light text-dark border">{{ c.fault_category }}</span>
+                            </td>
+                            <td>
+                                {% if c.status == 'Approved' %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle">Approved</span>
+                                {% elif c.status == 'Rejected' %}
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Rejected</span>
+                                {% elif c.status == 'Manual Review' %}
+                                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle">Manual Review</span>
+                                {% elif c.status == 'Additional Information Required' %}
+                                    <span class="badge bg-warning text-dark">Info Needed</span>
+                                {% else %}
+                                    <span class="badge bg-secondary-subtle text-secondary">{{ c.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if c.model_evaluation %}
+                                    {% set eval = c.model_evaluation %}
+                                    {% if eval.model_consistency_status == 'Strong Match' %}
+                                        <span class="badge badge-consistency-strong">Strong Match</span>
+                                    {% elif eval.model_consistency_status == 'Acceptable Match' %}
+                                        <span class="badge badge-consistency-acceptable">Acceptable Match</span>
+                                    {% elif eval.model_consistency_status == 'Weak Match' %}
+                                        <span class="badge badge-consistency-weak">Weak Match</span>
+                                    {% elif eval.model_consistency_status == 'Model Disagreement' %}
+                                        <span class="badge badge-consistency-disagreement">Disagreement</span>
+                                    {% else %}
+                                        <span class="badge badge-consistency-uncertain">Uncertain</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted small">N/A</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if c.risk_level == 'Low' %}
+                                    <span class="text-success small fw-semibold"><i class="bi bi-shield-check"></i> Low</span>
+                                {% elif c.risk_level == 'High' %}
+                                    <span class="text-danger small fw-semibold"><i class="bi bi-shield-slash"></i> High</span>
+                                {% else %}
+                                    <span class="text-warning small fw-semibold"><i class="bi bi-shield-exclamation"></i> Med</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if c.is_duplicate_flag %}
+                                    <span class="badge bg-danger" data-bs-toggle="tooltip" title="Duplicate Invoice Detected">DUP</span>
+                                {% endif %}
+                                {% if c.contradiction_flag %}
+                                    <span class="badge bg-warning text-dark" data-bs-toggle="tooltip" title="Chronological Contradiction">CONFLICT</span>
+                                {% endif %}
+                                {% if not c.is_duplicate_flag and not c.contradiction_flag %}
+                                    <span class="text-muted extra-small">None</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <a href="{{ url_for('reviewer.inspect_claim', claim_id=c.claim_id) }}" class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1">
+                                    <i class="bi bi-search"></i> Inspect & Adjudicate
+                                </a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center py-5 text-muted">
+                            <i class="bi bi-check2-all fs-1 d-block mb-2 text-success"></i>
+                            <div class="fw-bold fs-6">No claims matching your filter criteria</div>
+                            <small>Reviewer queue is currently cleared for this category/status.</small>
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

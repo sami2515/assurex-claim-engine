@@ -41,7 +41,15 @@ def customer_dashboard():
     )
 
 
+@claim_bp.route("/my-claims", methods=["GET"])
+@login_required
+def list_my_claims():
+    """Alias for customer claims view."""
+    return customer_dashboard()
+
+
 @claim_bp.route("/new", methods=["GET", "POST"])
+@claim_bp.route("/intake-wizard", methods=["GET", "POST"], endpoint="intake_wizard")
 @login_required
 def create_claim_wizard():
     """

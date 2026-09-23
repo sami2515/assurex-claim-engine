@@ -1,0 +1,271 @@
+{% extends "components/base.html" %}
+
+{% block title %}Customer Portal Dashboard{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+    <div>
+        <h2 class="fw-bold text-slate-900 mb-1">Customer Service Portal</h2>
+        <p class="text-muted mb-0">Manage registered warranties, track claim lifecycles, and monitor automated adjudication</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('products.register_product') }}" class="btn btn-outline-primary d-inline-flex align-items-center gap-1">
+            <i class="bi bi-plus-circle"></i> Register Product
+        </a>
+        <a href="{{ url_for('claims.intake_wizard') }}" class="btn btn-primary d-inline-flex align-items-center gap-1 shadow-sm">
+            <i class="bi bi-lightning-charge-fill"></i> File Warranty Claim
+        </a>
+    </div>
+</div>
+
+<!-- Key Performance & Claim Metric Widgets -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-lg-3">
+        <div class="stat-widget">
+            <div class="stat-icon-wrapper bg-primary-subtle text-primary">
+                <i class="bi bi-box-seam"></i>
+            </div>
+            <div>
+                <div class="text-muted small fw-semibold">Registered Products</div>
+                <div class="fs-4 fw-bold text-slate-900">{{ products|length }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="stat-widget">
+            <div class="stat-icon-wrapper bg-info-subtle text-info">
+                <i class="bi bi-hourglass-split"></i>
+            </div>
+            <div>
+                <div class="text-muted small fw-semibold">Under Evaluation</div>
+                <div class="fs-4 fw-bold text-slate-900">
+                    {{ claims|selectattr('status', 'in', ['Submitted', 'Under Evaluation', 'Manual Review'])|list|length }}
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="stat-widget">
+            <div class="stat-icon-wrapper bg-success-subtle text-success">
+                <i class="bi bi-check-circle"></i>
+            </div>
+            <div>
+                <div class="text-muted small fw-semibold">Approved Claims</div>
+                <div class="fs-4 fw-bold text-slate-900">
+                    {{ claims|selectattr('status', 'equalto', 'Approved')|list|length }}
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="stat-widget">
+            <div class="stat-icon-wrapper bg-warning-subtle text-warning">
+                <i class="bi bi-exclamation-octagon"></i>
+            </div>
+            <div>
+                <div class="text-muted small fw-semibold">Action Required</div>
+                <div class="fs-4 fw-bold text-slate-900">
+                    {{ claims|selectattr('status', 'equalto', 'Additional Information Required')|list|length }}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Unread System Notifications -->
+{% if notifications %}
+<div class="card border-0 shadow-sm rounded-4 mb-4 bg-white">
+    <div class="card-header-styled d-flex justify-content-between align-items-center">
+        <span class="text-primary"><i class="bi bi-bell-fill me-2"></i>Recent System Alerts</span>
+        <span class="badge bg-primary rounded-pill">{{ notifications|length }}</span>
+    </div>
+    <div class="list-group list-group-flush rounded-bottom-4">
+        {% for n in notifications %}
+            <div class="list-group-item d-flex justify-content-between align-items-center py-3">
+                <div class="d-flex align-items-center gap-3">
+                    <i class="bi bi-info-circle text-primary fs-5"></i>
+                    <div>
+                        <div class="fw-semibold small">{{ n.title }}</div>
+                        <div class="text-muted extra-small">{{ n.message }}</div>
+                    </div>
+                </div>
+                <span class="text-muted extra-small">{{ n.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Claims Registry Section -->
+<div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
+    <div class="card-header-styled d-flex justify-content-between align-items-center">
+        <span class="fw-bold text-slate-900"><i class="bi bi-journal-text text-primary me-2"></i>My Warranty Claims Registry</span>
+        <a href="{{ url_for('claims.intake_wizard') }}" class="btn btn-sm btn-primary">
+            <i class="bi bi-plus"></i> Submit New Claim
+        </a>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-custom align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Claim ID</th>
+                    <th>Product & Category</th>
+                    <th>Submission Date</th>
+                    <th>Status</th>
+                    <th>Final Decision</th>
+                    <th>Risk Rating</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if claims %}
+                    {% for c in claims %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('claims.track_claim_status', claim_id=c.claim_id) }}" class="fw-bold font-mono text-primary text-decoration-none">
+                                    {{ c.claim_id }}
+                                </a>
+                            </td>
+                            <td>
+                                <div class="fw-semibold">{{ c.product.product_name }}</div>
+                                <span class="badge bg-light text-secondary border extra-small">{{ c.product.category }}</span>
+                            </td>
+                            <td class="text-muted small">{{ c.claim_submission_date.strftime('%Y-%m-%d') }}</td>
+                            <td>
+                                {% if c.status == 'Approved' %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">Approved</span>
+                                {% elif c.status == 'Rejected' %}
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">Rejected</span>
+                                {% elif c.status == 'Manual Review' %}
+                                    <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1">Manual Review</span>
+                                {% elif c.status == 'Under Evaluation' %}
+                                    <span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1">Under Evaluation</span>
+                                {% elif c.status == 'Additional Information Required' %}
+                                    <span class="badge bg-warning text-dark px-2 py-1">Action Required</span>
+                                {% else %}
+                                    <span class="badge bg-secondary-subtle text-secondary px-2 py-1">{{ c.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if c.final_decision == 'Likely Valid' or c.final_decision == 'Valid Claim' %}
+                                    <span class="badge badge-decision-valid px-2 py-1">Valid Claim</span>
+                                {% elif c.final_decision == 'Likely Invalid' or c.final_decision == 'Invalid Claim' %}
+                                    <span class="badge badge-decision-invalid px-2 py-1">Invalid Claim</span>
+                                {% elif c.final_decision == 'Manual Review Required' or c.final_decision == 'Manual Review' %}
+                                    <span class="badge badge-decision-manual px-2 py-1">Manual Review</span>
+                                {% else %}
+                                    <span class="text-muted small">Pending</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if c.risk_level == 'Low' %}
+                                    <span class="text-success small fw-semibold"><i class="bi bi-shield-check"></i> Low</span>
+                                {% elif c.risk_level == 'High' %}
+                                    <span class="text-danger small fw-semibold"><i class="bi bi-shield-slash"></i> High</span>
+                                {% else %}
+                                    <span class="text-warning small fw-semibold"><i class="bi bi-shield-exclamation"></i> Medium</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('claims.track_claim_status', claim_id=c.claim_id) }}" class="btn btn-outline-primary" title="Track Live Lifecycle">
+                                        <i class="bi bi-broadcast"></i> Track
+                                    </a>
+                                    <a href="{{ url_for('claims.view_claim', claim_id=c.claim_id) }}" class="btn btn-outline-secondary" title="View Dossier">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <a href="{{ url_for('reports.download_claim_pdf', claim_id=c.claim_id) }}" class="btn btn-outline-dark" title="Download Official Certificate">
+                                        <i class="bi bi-file-earmark-pdf"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center py-5 text-muted">
+                            <i class="bi bi-inbox fs-1 d-block mb-2 text-secondary"></i>
+                            <div class="fw-semibold">No claims registered yet</div>
+                            <p class="small text-muted mb-3">You can file a warranty claim for any of your registered products.</p>
+                            <a href="{{ url_for('claims.intake_wizard') }}" class="btn btn-sm btn-primary">File Your First Claim</a>
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Registered Products Section -->
+<div class="card border-0 shadow-sm rounded-4 bg-white">
+    <div class="card-header-styled d-flex justify-content-between align-items-center">
+        <span class="fw-bold text-slate-900"><i class="bi bi-box-seam text-primary me-2"></i>My Registered Products Fleet</span>
+        <a href="{{ url_for('products.register_product') }}" class="btn btn-sm btn-outline-primary">
+            <i class="bi bi-plus-circle"></i> Add New Product
+        </a>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-custom align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Product Details</th>
+                    <th>Category</th>
+                    <th>Serial Number</th>
+                    <th>Purchase Date</th>
+                    <th>Warranty Expiry</th>
+                    <th>Coverage Status</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if products %}
+                    {% for p in products %}
+                        {% set w = p.warranty %}
+                        <tr>
+                            <td>
+                                <div class="fw-semibold text-slate-900">{{ p.product_name }}</div>
+                                <small class="text-muted">{{ p.brand }} &bull; {{ p.model_number }}</small>
+                            </td>
+                            <td><span class="badge bg-light text-dark border">{{ p.category }}</span></td>
+                            <td class="font-mono small">{{ p.serial_number }}</td>
+                            <td class="small text-muted">{{ p.purchase_date.strftime('%Y-%m-%d') }}</td>
+                            <td class="small">
+                                {% if w %}
+                                    {{ w.expiry_date.strftime('%Y-%m-%d') }}
+                                {% else %}
+                                    <span class="text-muted">N/A</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if w and w.is_active() %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                        Active ({{ w.remaining_days() }}d left)
+                                    </span>
+                                {% elif w %}
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Expired</span>
+                                {% else %}
+                                    <span class="badge bg-secondary-subtle text-secondary">No Warranty</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <a href="{{ url_for('products.view_product', product_id=p.product_id) }}" class="btn btn-sm btn-outline-secondary">
+                                    <i class="bi bi-info-circle"></i> Details
+                                </a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center py-5 text-muted">
+                            <i class="bi bi-box-seam fs-1 d-block mb-2 text-secondary"></i>
+                            <div class="fw-semibold">No registered products</div>
+                            <p class="small text-muted mb-3">Register your electronics, appliances, or tools to enable instant warranty protection.</p>
+                            <a href="{{ url_for('products.register_product') }}" class="btn btn-sm btn-primary">Register a Product</a>
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

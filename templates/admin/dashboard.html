@@ -1,0 +1,252 @@
+{% extends "components/base.html" %}
+
+{% block title %}Executive Analytics Dashboard{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+    <div>
+        <h2 class="fw-bold text-slate-900 mb-1">Executive Analytics & System Intelligence</h2>
+        <p class="text-muted mb-0">High-level operational metrics, dual-model consensus benchmarks, and fraud rate monitoring (Req xli)</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('admin.export_data', export_type='claims') }}" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1 shadow-sm">
+            <i class="bi bi-file-earmark-spreadsheet"></i> Export Claims CSV
+        </a>
+        <a href="{{ url_for('admin.export_data', export_type='products') }}" class="btn btn-outline-dark btn-sm d-inline-flex align-items-center gap-1 shadow-sm">
+            <i class="bi bi-box-seam"></i> Export Products CSV
+        </a>
+        <a href="{{ url_for('admin.export_data', export_type='audit') }}" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1 shadow-sm">
+            <i class="bi bi-shield-lock"></i> Export Audit Logs
+        </a>
+    </div>
+</div>
+
+<!-- Executive Metric Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-lg-3">
+        <div class="stat-widget">
+            <div class="stat-icon-wrapper bg-primary-subtle text-primary">
+                <i class="bi bi-journal-check"></i>
+            </div>
+            <div>
+                <div class="text-muted small fw-semibold">Total Claims Intake</div>
+                <div class="fs-4 fw-bold text-slate-900">{{ total_claims }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="stat-widget">
+            <div class="stat-icon-wrapper bg-success-subtle text-success">
+                <i class="bi bi-check-circle"></i>
+            </div>
+            <div>
+                <div class="text-muted small fw-semibold">Valid / Approved</div>
+                <div class="fs-4 fw-bold text-slate-900">{{ valid_claims }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="stat-widget">
+            <div class="stat-icon-wrapper bg-danger-subtle text-danger">
+                <i class="bi bi-x-circle"></i>
+            </div>
+            <div>
+                <div class="text-muted small fw-semibold">Rejected (Invalid)</div>
+                <div class="fs-4 fw-bold text-slate-900">{{ invalid_claims }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="stat-widget">
+            <div class="stat-icon-wrapper bg-warning-subtle text-warning">
+                <i class="bi bi-hourglass-split"></i>
+            </div>
+            <div>
+                <div class="text-muted small fw-semibold">Manual Triage Queue</div>
+                <div class="fs-4 fw-bold text-slate-900">{{ manual_review_claims }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Secondary AI Consensus Benchmarks -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-lg-3">
+        <div class="stat-widget">
+            <div class="stat-icon-wrapper bg-light text-dark">
+                <i class="bi bi-hdd-network"></i>
+            </div>
+            <div>
+                <div class="text-muted extra-small fw-semibold">Hardware Fleet Size</div>
+                <div class="fs-5 fw-bold text-slate-900">{{ total_products }} Units</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="stat-widget">
+            <div class="stat-icon-wrapper bg-light text-dark">
+                <i class="bi bi-people"></i>
+            </div>
+            <div>
+                <div class="text-muted extra-small fw-semibold">Registered Users</div>
+                <div class="fs-5 fw-bold text-slate-900">{{ total_users }} Accounts</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="stat-widget">
+            <div class="stat-icon-wrapper bg-light text-primary">
+                <i class="bi bi-diagram-3"></i>
+            </div>
+            <div>
+                <div class="text-muted extra-small fw-semibold">Model Disagreement Rate</div>
+                <div class="fs-5 fw-bold text-slate-900">{{ disagreement_rate }}%</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="stat-widget">
+            <div class="stat-icon-wrapper bg-light text-info">
+                <i class="bi bi-sliders"></i>
+            </div>
+            <div>
+                <div class="text-muted extra-small fw-semibold">Mean Conf Delta |Δconf|</div>
+                <div class="fs-5 fw-bold text-slate-900 font-mono">{{ avg_conf_diff }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Interactive Chart.js Visualizations -->
+<div class="row g-4 mb-4">
+    <!-- Claims by Status Doughnut -->
+    <div class="col-lg-5">
+        <div class="card border-0 shadow-sm rounded-4 bg-white h-100">
+            <div class="card-header-styled">
+                <i class="bi bi-pie-chart text-primary me-2"></i>Claims Status Distribution
+            </div>
+            <div class="card-body p-4 d-flex align-items-center justify-content-center">
+                <div style="max-height: 280px; width: 100%;">
+                    <canvas id="claimsStatusChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Category Fleet Distribution Bar Chart -->
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm rounded-4 bg-white h-100">
+            <div class="card-header-styled">
+                <i class="bi bi-bar-chart-line text-primary me-2"></i>Equipment Portfolio by Category
+            </div>
+            <div class="card-body p-4">
+                <div style="max-height: 280px; width: 100%;">
+                    <canvas id="categoryChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Security & Audit Event Log -->
+<div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
+    <div class="card-header-styled d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-fingerprint text-primary me-2"></i>Recent System Activity & Audit Trail</span>
+        <a href="{{ url_for('admin.audit_logs') }}" class="btn btn-sm btn-outline-secondary">View Full Log</a>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-custom align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Timestamp (UTC)</th>
+                    <th>Action</th>
+                    <th>Entity Type & ID</th>
+                    <th>User Role</th>
+                    <th>IP Address</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if recent_audits %}
+                    {% for a in recent_audits %}
+                        <tr>
+                            <td class="font-mono extra-small text-muted">{{ a.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                            <td><span class="badge bg-light text-dark border font-mono">{{ a.action }}</span></td>
+                            <td>
+                                <span class="fw-semibold">{{ a.entity_type }}</span>:
+                                <span class="font-mono text-muted small">{{ a.entity_id }}</span>
+                            </td>
+                            <td><span class="badge bg-secondary extra-small">{{ a.user_role or 'System' }}</span></td>
+                            <td class="font-mono extra-small text-muted">{{ a.ip_address or 'Local' }}</td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center py-4 text-muted">No audit events recorded yet.</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    // 1. Claims Status Distribution Chart
+    const statusCtx = document.getElementById('claimsStatusChart');
+    if (statusCtx) {
+        new Chart(statusCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Approved', 'Rejected', 'Manual Review', 'Pending / Under Eval'],
+                datasets: [{
+                    data: [
+                        {{ valid_claims }},
+                        {{ invalid_claims }},
+                        {{ manual_review_claims }},
+                        {{ pending_claims }}
+                    ],
+                    backgroundColor: ['#16a34a', '#dc2626', '#d97706', '#0284c7'],
+                    borderWidth: 2,
+                    borderColor: '#ffffff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom' }
+                }
+            }
+        });
+    }
+
+    // 2. Category Breakdown Chart
+    const catCtx = document.getElementById('categoryChart');
+    if (catCtx) {
+        const catLabels = {{ category_breakdown.keys()|list|tojson }};
+        const catValues = {{ category_breakdown.values()|list|tojson }};
+        new Chart(catCtx, {
+            type: 'bar',
+            data: {
+                labels: catLabels.length ? catLabels : ['Consumer Electronics', 'Home Appliances', 'Industrial Tools'],
+                datasets: [{
+                    label: 'Registered Assets',
+                    data: catValues.length ? catValues : [0, 0, 0],
+                    backgroundColor: '#2563eb',
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, ticks: { precision: 0 } }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

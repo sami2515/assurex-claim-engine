@@ -1,0 +1,300 @@
+{% extends "components/base.html" %}
+
+{% block title %}Claim Intake Wizard{% endblock %}
+
+{% block content %}
+<div class="wizard-container">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2 mb-4">
+        <div>
+            <h2 class="fw-bold text-slate-900 mb-1">Warranty Claim Intake Wizard</h2>
+            <p class="text-muted mb-0">Follow the 5-step guided process to prepare, verify documents, and submit for automated adjudication</p>
+        </div>
+        <a href="{{ url_for('claims.customer_dashboard') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-x-lg"></i> Exit Wizard
+        </a>
+    </div>
+
+    <!-- Stepper Navigation Header -->
+    <div class="wizard-steps bg-white rounded-4 shadow-sm px-3 pt-2 mb-4">
+        <div class="wizard-step-tab active" data-step="1">
+            <i class="bi bi-1-circle-fill me-1"></i> 1. Select Asset
+        </div>
+        <div class="wizard-step-tab" data-step="2">
+            <i class="bi bi-2-circle me-1"></i> 2. Defect Details
+        </div>
+        <div class="wizard-step-tab" data-step="3">
+            <i class="bi bi-3-circle me-1"></i> 3. Document OCR
+        </div>
+        <div class="wizard-step-tab" data-step="4">
+            <i class="bi bi-4-circle me-1"></i> 4. Summary Preview
+        </div>
+        <div class="wizard-step-tab" data-step="5">
+            <i class="bi bi-5-circle me-1"></i> 5. Submit & Evaluate
+        </div>
+    </div>
+
+    <!-- Main Wizard Form Container -->
+    <form id="claim-wizard-form" method="POST" action="{{ url_for('claims.create_claim_wizard') }}" enctype="multipart/form-data">
+        
+        <!-- ===================================================================
+             STEP 1: Asset & Warranty Selection
+             =================================================================== -->
+        <div class="wizard-step-pane active" id="step-1">
+            <div class="card border-0 shadow-sm rounded-4 bg-white p-4 p-md-5">
+                <h4 class="fw-bold text-slate-900 mb-2">Step 1: Choose Registered Product & Warranty</h4>
+                <p class="text-muted mb-4 small">Select the hardware unit experiencing malfunction from your active registered assets.</p>
+
+                <div class="mb-4">
+                    <label for="product_id" class="form-label fw-semibold small text-slate-700">Select Equipment <span class="text-danger">*</span></label>
+                    <select class="form-select form-select-lg bg-light" id="product_id" name="product_id" required>
+                        <option value="" disabled selected>-- Select a registered product --</option>
+                        {% for p in products %}
+                            {% set w = p.warranty %}
+                            <option value="{{ p.id }}">
+                                {{ p.product_name }} (Serial: {{ p.serial_number }}) - [{{ p.category }}] - {{ 'Active Warranty' if w and w.is_active() else 'Expired/No Policy' }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                {% if not products %}
+                    <div class="alert alert-warning d-flex align-items-center gap-3 mb-4">
+                        <i class="bi bi-exclamation-triangle-fill fs-3 text-warning"></i>
+                        <div>
+                            <strong>No registered products found!</strong>
+                            <div class="small">You must register your product before filing a warranty claim.</div>
+                            <a href="{{ url_for('products.register_product') }}" class="btn btn-sm btn-primary mt-2">Register Product Now</a>
+                        </div>
+                    </div>
+                {% endif %}
+
+                <div class="d-flex justify-content-end mt-4">
+                    <button type="button" class="btn btn-primary px-4 py-2 fw-semibold shadow-sm d-inline-flex align-items-center gap-2" onclick="goToWizardStep(2)">
+                        Next: Fault Declaration <i class="bi bi-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===================================================================
+             STEP 2: Defect Declaration & Incident Details
+             =================================================================== -->
+        <div class="wizard-step-pane" id="step-2">
+            <div class="card border-0 shadow-sm rounded-4 bg-white p-4 p-md-5">
+                <h4 class="fw-bold text-slate-900 mb-2">Step 2: Defect Declaration & Incident Details</h4>
+                <p class="text-muted mb-4 small">Accurately specify the nature of failure, first observation date, and diagnostic attempts.</p>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                        <label for="fault_occurrence_date" class="form-label fw-semibold small text-slate-700">Date Defect First Occurred <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control bg-light" id="fault_occurrence_date" name="fault_occurrence_date" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="fault_category" class="form-label fw-semibold small text-slate-700">Primary Fault Category <span class="text-danger">*</span></label>
+                        <select class="form-select bg-light" id="fault_category" name="fault_category" required>
+                            <option value="" disabled selected>Select Fault Classification</option>
+                            <option value="Screen Flickering">Screen Flickering & Display Lines</option>
+                            <option value="Battery Degradation">Battery Drainage / Inability to Charge</option>
+                            <option value="Audio Distortion">Speaker Distortion / No Audio Output</option>
+                            <option value="Compressor Failure">Compressor Failure / Refrigeration Fault</option>
+                            <option value="Drum Balance Error">Drum Imbalance / Motor Vibration</option>
+                            <option value="Thermostat Malfunction">Thermostat Regulation Failure</option>
+                            <option value="Motor Burnout">Motor Stalling / Thermal Burnout</option>
+                            <option value="Battery Cell Death">Lithium Battery Cell Deterioration</option>
+                            <option value="Chuck Misalignment">Mechanical Chuck Runout / Alignment Fault</option>
+                            <option value="Power Failure">Complete Electrical Failure</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="damage_type" class="form-label fw-semibold small text-slate-700">Suspected Physical Cause / Damage Nature</label>
+                        <select class="form-select bg-light" id="damage_type" name="damage_type">
+                            <option value="Normal Wear and Tear">Normal Usage / Component Degradation</option>
+                            <option value="Electrical Surge">Electrical Surge / Mains Voltage Spike</option>
+                            <option value="Mechanical Stress">Mechanical Stress under standard operation</option>
+                            <option value="Accidental Drop">Accidental Drop / Physical Impact</option>
+                            <option value="Water Ingress">Moisture Exposure / Liquid Ingress</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="claim_amount" class="form-label fw-semibold small text-slate-700">Estimated Repair / Replacement Value ($ USD)</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light text-muted">$</span>
+                            <input type="number" step="0.01" class="form-control bg-light" id="claim_amount" name="claim_amount" placeholder="0.00" value="150.00">
+                        </div>
+                    </div>
+
+                    <div class="col-12">
+                        <label for="fault_description" class="form-label fw-semibold small text-slate-700">Detailed Defect Description <span class="text-danger">*</span></label>
+                        <textarea class="form-control bg-light" id="fault_description" name="fault_description" rows="4" required minlength="10" placeholder="Describe symptoms, operational conditions when failure happened, and error codes displayed..."></textarea>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="form-check form-switch mt-2">
+                            <input class="form-check-input" type="checkbox" id="troubleshooting_attempted" name="troubleshooting_attempted" checked>
+                            <label class="form-check-label fw-semibold small" for="troubleshooting_attempted">
+                                Standard troubleshooting steps attempted (reboot, cable check, reset)
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="form-check form-switch mt-2">
+                            <input class="form-check-input" type="checkbox" id="service_center_visited" name="service_center_visited">
+                            <label class="form-check-label fw-semibold small" for="service_center_visited">
+                                Visited an authorized warranty service center prior to this claim
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between mt-4">
+                    <button type="button" class="btn btn-outline-secondary px-4" onclick="goToWizardStep(1)">
+                        <i class="bi bi-arrow-left"></i> Back
+                    </button>
+                    <button type="button" class="btn btn-primary px-4 py-2 fw-semibold shadow-sm d-inline-flex align-items-center gap-2" onclick="goToWizardStep(3)">
+                        Next: Upload Documents <i class="bi bi-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===================================================================
+             STEP 3: Document Intake & OCR Verification
+             =================================================================== -->
+        <div class="wizard-step-pane" id="step-3">
+            <div class="card border-0 shadow-sm rounded-4 bg-white p-4 p-md-5">
+                <h4 class="fw-bold text-slate-900 mb-2">Step 3: Document Intake & Automated OCR Verification</h4>
+                <p class="text-muted mb-4 small">Upload proof of purchase. AssureX scans invoices via OCR and verifies SHA-256 integrity (Req vi & vii).</p>
+
+                <!-- Drag & Drop Dropzone -->
+                <div class="upload-dropzone mb-3" id="receipt-dropzone">
+                    <i class="bi bi-cloud-arrow-up fs-1 text-primary mb-2 d-block"></i>
+                    <h5 class="fw-bold text-slate-800 mb-1">Click to Upload or Drag & Drop Invoice / Receipt</h5>
+                    <p class="text-muted extra-small mb-0">Supported formats: PDF, PNG, JPG, JPEG (Max file size: 16 MB)</p>
+                    <input type="file" class="d-none" id="invoice_document" name="invoice_document" accept=".pdf,.png,.jpg,.jpeg">
+                </div>
+
+                <div id="file-preview-info"></div>
+
+                <!-- Live OCR Verification Preview Card -->
+                <div class="card bg-light border-0 rounded-3 p-3 mt-4" id="ocr-results-panel">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="fw-bold small text-slate-800"><i class="bi bi-cpu text-primary me-2"></i>Optical Character Recognition (OCR) Engine</span>
+                        <span class="badge bg-secondary extra-small">Automated Verification Ready</span>
+                    </div>
+                    <p class="extra-small text-muted mb-0">
+                        Upon submission, your document is scanned by our intelligent OCR extractor. Extracted vendor credentials, invoice dates, and purchase totals are cross-referenced with policy rules to prevent fraud and duplicate submissions.
+                    </p>
+                </div>
+
+                <div class="d-flex justify-content-between mt-4">
+                    <button type="button" class="btn btn-outline-secondary px-4" onclick="goToWizardStep(2)">
+                        <i class="bi bi-arrow-left"></i> Back
+                    </button>
+                    <button type="button" class="btn btn-primary px-4 py-2 fw-semibold shadow-sm d-inline-flex align-items-center gap-2" onclick="goToWizardStep(4)">
+                        Next: Summary Card Preview <i class="bi bi-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===================================================================
+             STEP 4: Claim Summary Card Preview (Req xxxiii)
+             =================================================================== -->
+        <div class="wizard-step-pane" id="step-4">
+            <div class="card border-0 shadow-sm rounded-4 bg-white p-4 p-md-5">
+                <h4 class="fw-bold text-slate-900 mb-2">Step 4: Standardized Claim Summary Card Preview</h4>
+                <p class="text-muted mb-4 small">Preview the standardized 640x420 Claim Summary Card generated for Teachable Machine vision consensus (strictly neutral; no AI scores).</p>
+
+                <div class="row g-4 align-items-center">
+                    <div class="col-lg-7">
+                        <div class="bg-light p-4 rounded-4 border">
+                            <h6 class="fw-bold text-slate-800 border-bottom pb-2 mb-3">Structured Claim Metadata</h6>
+                            <dl class="row mb-0 small">
+                                <dt class="col-sm-4 text-muted">Claimant:</dt>
+                                <dd class="col-sm-8 fw-semibold">{{ current_user.full_name }}</dd>
+
+                                <dt class="col-sm-4 text-muted">Target Asset:</dt>
+                                <dd class="col-sm-8 fw-semibold" id="summary-product">Selected Product</dd>
+
+                                <dt class="col-sm-4 text-muted">Defect Category:</dt>
+                                <dd class="col-sm-8 fw-semibold text-primary" id="summary-category">Category</dd>
+
+                                <dt class="col-sm-4 text-muted">Incident Date:</dt>
+                                <dd class="col-sm-8" id="summary-date">YYYY-MM-DD</dd>
+
+                                <dt class="col-sm-4 text-muted">Defect Details:</dt>
+                                <dd class="col-sm-8 text-muted" id="summary-desc">Description</dd>
+
+                                <dt class="col-sm-4 text-muted">Estimated Claim:</dt>
+                                <dd class="col-sm-8 fw-bold text-success" id="summary-amount">$150.00</dd>
+                            </dl>
+                        </div>
+                    </div>
+                    <div class="col-lg-5 text-center">
+                        <div class="border rounded-4 p-4 bg-light">
+                            <i class="bi bi-file-earmark-richtext text-primary display-4 mb-2 d-block"></i>
+                            <div class="fw-bold text-slate-900">Standardized 640x420 Visual Card</div>
+                            <p class="text-muted extra-small mt-2 mb-0">
+                                This card will be rendered programmatically with exact contrast, layout headers, and metadata grid before entering the Google Teachable Machine vision classifier.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between mt-4">
+                    <button type="button" class="btn btn-outline-secondary px-4" onclick="goToWizardStep(3)">
+                        <i class="bi bi-arrow-left"></i> Back
+                    </button>
+                    <button type="button" class="btn btn-primary px-4 py-2 fw-semibold shadow-sm d-inline-flex align-items-center gap-2" onclick="goToWizardStep(5)">
+                        Next: Final Review & Evaluation <i class="bi bi-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===================================================================
+             STEP 5: Final Submission & Automated Dual-Model Evaluation
+             =================================================================== -->
+        <div class="wizard-step-pane" id="step-5">
+            <div class="card border-0 shadow-sm rounded-4 bg-white p-4 p-md-5">
+                <h4 class="fw-bold text-slate-900 mb-2">Step 5: Review & Submit for Automated Adjudication</h4>
+                <p class="text-muted mb-4 small">Review your details and execute the real-time dual-model decision pipeline.</p>
+
+                <div class="alert alert-primary d-flex align-items-start gap-3 rounded-4 p-3 mb-4">
+                    <i class="bi bi-cpu fs-3 text-primary mt-1"></i>
+                    <div class="small">
+                        <div class="fw-bold fs-6">Automated Dual-Model Machine Learning Pipeline</div>
+                        Upon clicking "Submit & Run Evaluation", AssureX will simultaneously execute:
+                        <ul class="mb-0 mt-1 ps-3">
+                            <li><b>Python Tabular Classifier:</b> Evaluates 22 structured numeric/categorical features.</li>
+                            <li><b>Google Teachable Machine Model:</b> Classifies the rendered visual Claim Summary Card.</li>
+                            <li><b>Policy Adjudication Engine:</b> Verifies coverage terms, grace periods, and exclusion lists.</li>
+                            <li><b>Integrity Analyzers:</b> Checks invoice hash uniqueness and chronological consistency.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="form-check mb-4">
+                    <input class="form-check-input" type="checkbox" id="confirmation_check" required checked>
+                    <label class="form-check-label extra-small text-muted" for="confirmation_check">
+                        I hereby declare under penalty of warranty revocation that the facts stated in this claim and the attached invoice documents are authentic, true, and unaltered.
+                    </label>
+                </div>
+
+                <div class="d-flex justify-content-between">
+                    <button type="button" class="btn btn-outline-secondary px-4" onclick="goToWizardStep(4)">
+                        <i class="bi bi-arrow-left"></i> Back
+                    </button>
+                    <button type="submit" class="btn btn-success px-5 py-2 fw-bold shadow-sm d-inline-flex align-items-center gap-2">
+                        <i class="bi bi-lightning-charge-fill"></i> Submit & Run Evaluation
+                    </button>
+                </div>
+            </div>
+        </div>
+
+    </form>
+</div>
+{% endblock %}

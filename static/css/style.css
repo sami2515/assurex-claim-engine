@@ -1,0 +1,373 @@
+/* ==========================================================================
+   AssureX Claim Engine - Enterprise Design System Stylesheet
+   Modern, accessible, high-contrast UI for warranty intelligence platform
+   ========================================================================== */
+
+:root {
+    --primary-color: #2563eb;
+    --primary-hover: #1d4ed8;
+    --primary-light: #eff6ff;
+    --slate-900: #0f172a;
+    --slate-800: #1e293b;
+    --slate-700: #334155;
+    --slate-600: #475569;
+    --slate-500: #64748b;
+    --slate-300: #cbd5e1;
+    --slate-200: #e2e8f0;
+    --slate-100: #f1f5f9;
+    --slate-50: #f8fafc;
+    
+    --success-green: #16a34a;
+    --success-bg: #dcfce7;
+    --danger-red: #dc2626;
+    --danger-bg: #fee2e2;
+    --warning-amber: #d97706;
+    --warning-bg: #fef3c7;
+    --info-cyan: #0284c7;
+    --info-bg: #e0f2fe;
+
+    --card-radius: 12px;
+    --card-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.07), 0 2px 4px -2px rgba(15, 23, 42, 0.05);
+    --card-shadow-hover: 0 10px 15px -3px rgba(15, 23, 42, 0.1), 0 4px 6px -4px rgba(15, 23, 42, 0.07);
+}
+
+body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    color: var(--slate-800);
+    background-color: #f8fafc;
+    -webkit-font-smoothing: antialiased;
+}
+
+code, pre, .font-mono {
+    font-family: 'JetBrains Mono', monospace;
+}
+
+/* ==========================================================================
+   Navbar & Header Components
+   ========================================================================== */
+.navbar-brand {
+    font-size: 1.35rem;
+    letter-spacing: -0.02em;
+}
+
+.avatar-circle {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    font-size: 0.9rem;
+}
+
+.extra-small {
+    font-size: 0.72rem;
+}
+
+/* ==========================================================================
+   Card System & Panels
+   ========================================================================== */
+.card {
+    border-radius: var(--card-radius);
+    border: 1px solid var(--slate-200);
+    box-shadow: var(--card-shadow);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--card-shadow-hover);
+}
+
+.card-header-styled {
+    background-color: var(--slate-50);
+    border-bottom: 1px solid var(--slate-200);
+    padding: 1rem 1.25rem;
+    font-weight: 600;
+}
+
+/* ==========================================================================
+   Metric & Statistic Cards
+   ========================================================================== */
+.stat-widget {
+    background: white;
+    border-radius: var(--card-radius);
+    padding: 1.25rem;
+    border: 1px solid var(--slate-200);
+    box-shadow: var(--card-shadow);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.stat-icon-wrapper {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+}
+
+/* ==========================================================================
+   Badges & Pills for Decisions, Consistency, Status
+   ========================================================================== */
+.badge-decision-valid {
+    background-color: var(--success-bg);
+    color: var(--success-green);
+    border: 1px solid #86efac;
+    font-weight: 600;
+}
+
+.badge-decision-invalid {
+    background-color: var(--danger-bg);
+    color: var(--danger-red);
+    border: 1px solid #fca5a5;
+    font-weight: 600;
+}
+
+.badge-decision-manual {
+    background-color: var(--warning-bg);
+    color: var(--warning-amber);
+    border: 1px solid #fde68a;
+    font-weight: 600;
+}
+
+.badge-consistency-strong {
+    background-color: #dcfce7;
+    color: #15803d;
+    border: 1px solid #86efac;
+}
+
+.badge-consistency-acceptable {
+    background-color: #e0f2fe;
+    color: #0369a1;
+    border: 1px solid #7dd3fc;
+}
+
+.badge-consistency-weak {
+    background-color: #fef3c7;
+    color: #b45309;
+    border: 1px solid #fcd34d;
+}
+
+.badge-consistency-disagreement {
+    background-color: #fee2e2;
+    color: #b91c1c;
+    border: 1px solid #fca5a5;
+}
+
+.badge-consistency-uncertain {
+    background-color: #f1f5f9;
+    color: #475569;
+    border: 1px solid #cbd5e1;
+}
+
+/* ==========================================================================
+   8-Stage Lifecycle Timeline Tracker (Req xxxviii)
+   Draft -> Submitted -> Under Evaluation -> Additional Info -> Manual Review -> Approved -> Rejected -> Closed
+   ========================================================================== */
+.timeline-stages {
+    display: flex;
+    justify-content: space-between;
+    position: relative;
+    padding: 2rem 0 1rem 0;
+    margin-bottom: 2rem;
+    overflow-x: auto;
+}
+
+.timeline-stages::before {
+    content: '';
+    position: absolute;
+    top: 40px;
+    left: 20px;
+    right: 20px;
+    height: 4px;
+    background-color: var(--slate-200);
+    z-index: 1;
+}
+
+.timeline-stage-item {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 100px;
+    text-align: center;
+}
+
+.timeline-stage-node {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: white;
+    border: 3px solid var(--slate-300);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    font-weight: bold;
+    color: var(--slate-500);
+    transition: all 0.2s ease;
+}
+
+.timeline-stage-item.completed .timeline-stage-node {
+    background-color: var(--success-green);
+    border-color: var(--success-green);
+    color: white;
+}
+
+.timeline-stage-item.active .timeline-stage-node {
+    background-color: var(--primary-color);
+    border-color: #93c5fd;
+    color: white;
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.2);
+}
+
+.timeline-stage-item.rejected .timeline-stage-node {
+    background-color: var(--danger-red);
+    border-color: var(--danger-red);
+    color: white;
+}
+
+.timeline-stage-label {
+    margin-top: 0.5rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--slate-600);
+    max-width: 100px;
+    line-height: 1.2;
+}
+
+.timeline-stage-item.active .timeline-stage-label {
+    color: var(--primary-color);
+    font-weight: 700;
+}
+
+/* ==========================================================================
+   5-Step Claim Intake Wizard Stepper
+   ========================================================================== */
+.wizard-steps {
+    display: flex;
+    border-bottom: 2px solid var(--slate-200);
+    margin-bottom: 2rem;
+}
+
+.wizard-step-tab {
+    flex: 1;
+    text-align: center;
+    padding: 1rem 0.5rem;
+    font-weight: 600;
+    font-size: 0.88rem;
+    color: var(--slate-500);
+    border-bottom: 3px solid transparent;
+    cursor: default;
+    transition: all 0.2s ease;
+}
+
+.wizard-step-tab.active {
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+    background-color: var(--primary-light);
+}
+
+.wizard-step-tab.completed {
+    color: var(--success-green);
+}
+
+.wizard-step-pane {
+    display: none;
+}
+
+.wizard-step-pane.active {
+    display: block;
+    animation: fadeIn 0.25s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ==========================================================================
+   Dual-Model Inspection Probability Bars
+   ========================================================================== */
+.confidence-bar-container {
+    height: 10px;
+    background-color: var(--slate-100);
+    border-radius: 9999px;
+    overflow: hidden;
+    position: relative;
+    border: 1px solid var(--slate-200);
+}
+
+.confidence-bar-fill {
+    height: 100%;
+    border-radius: 9999px;
+    transition: width 0.4s ease;
+}
+
+/* ==========================================================================
+   Claim Summary Card Visual Container
+   ========================================================================== */
+.summary-card-frame {
+    border: 2px solid var(--slate-300);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.1);
+    background: #ffffff;
+    max-width: 640px;
+    margin: 0 auto;
+}
+
+.summary-card-frame img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* ==========================================================================
+   File Upload Dropzone
+   ========================================================================== */
+.upload-dropzone {
+    border: 2px dashed var(--slate-300);
+    border-radius: 12px;
+    padding: 2.5rem 1.5rem;
+    text-align: center;
+    background-color: var(--slate-50);
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.upload-dropzone:hover, .upload-dropzone.dragover {
+    border-color: var(--primary-color);
+    background-color: var(--primary-light);
+}
+
+/* ==========================================================================
+   Tables
+   ========================================================================== */
+.table-custom {
+    margin-bottom: 0;
+}
+
+.table-custom thead th {
+    background-color: var(--slate-50);
+    color: var(--slate-600);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 700;
+    border-bottom: 1px solid var(--slate-200);
+    padding: 0.85rem 1rem;
+}
+
+.table-custom tbody td {
+    padding: 0.85rem 1rem;
+    vertical-align: middle;
+    font-size: 0.88rem;
+    border-bottom: 1px solid var(--slate-200);
+}
+
+.table-custom tbody tr:hover {
+    background-color: #f8fafc;
+}

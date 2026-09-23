@@ -1,0 +1,99 @@
+{% extends "components/base.html" %}
+
+{% block title %}My Registered Products{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+    <div>
+        <h2 class="fw-bold text-slate-900 mb-1">Registered Products Fleet</h2>
+        <p class="text-muted mb-0">Overview of all active and expired hardware assets registered under your warranty portfolio</p>
+    </div>
+    <div>
+        <a href="{{ url_for('products.register_product') }}" class="btn btn-primary d-inline-flex align-items-center gap-1 shadow-sm">
+            <i class="bi bi-plus-circle"></i> Register New Product
+        </a>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm rounded-4 bg-white">
+    <div class="table-responsive">
+        <table class="table table-custom align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Product Name & Brand</th>
+                    <th>Category</th>
+                    <th>Model & Serial Number</th>
+                    <th>Purchase Date & Price</th>
+                    <th>Warranty Provider</th>
+                    <th>Status & Remaining Term</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if products %}
+                    {% for p in products %}
+                        {% set w = p.warranty %}
+                        <tr>
+                            <td>
+                                <div class="fw-bold text-slate-900">{{ p.product_name }}</div>
+                                <small class="text-muted">{{ p.brand }}</small>
+                            </td>
+                            <td>
+                                <span class="badge bg-light text-secondary border">{{ p.category }}</span>
+                            </td>
+                            <td>
+                                <div><small class="text-muted">Model:</small> <span class="font-mono small">{{ p.model_number }}</span></div>
+                                <div><small class="text-muted">Serial:</small> <span class="font-mono small fw-semibold text-primary">{{ p.serial_number }}</span></div>
+                            </td>
+                            <td>
+                                <div>{{ p.purchase_date.strftime('%Y-%m-%d') }}</div>
+                                <small class="text-muted">${{ "%.2f"|format(p.purchase_price) }}</small>
+                            </td>
+                            <td>
+                                {% if w %}
+                                    <div class="small fw-semibold">{{ w.warranty_provider }}</div>
+                                    <small class="text-muted">Expires: {{ w.expiry_date.strftime('%Y-%m-%d') }}</small>
+                                {% else %}
+                                    <span class="text-muted small">No Policy</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if w and w.is_active() %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                                        <i class="bi bi-shield-check"></i> Active ({{ w.remaining_days() }}d)
+                                    </span>
+                                {% elif w %}
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">
+                                        <i class="bi bi-shield-x"></i> Expired
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-secondary px-2 py-1">Inactive</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ url_for('products.view_product', product_id=p.product_id) }}" class="btn btn-outline-secondary" title="View Full Details">
+                                        <i class="bi bi-eye"></i> View
+                                    </a>
+                                    <a href="{{ url_for('claims.intake_wizard') }}?product_id={{ p.id }}" class="btn btn-outline-primary" title="File Claim for this product">
+                                        <i class="bi bi-lightning-charge"></i> Claim
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center py-5 text-muted">
+                            <i class="bi bi-box-seam fs-1 d-block mb-2 text-secondary"></i>
+                            <div class="fw-semibold">No registered products found</div>
+                            <p class="small text-muted mb-3">Register your first equipment to get active warranty protection.</p>
+                            <a href="{{ url_for('products.register_product') }}" class="btn btn-sm btn-primary">Register Now</a>
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

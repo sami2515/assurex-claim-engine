@@ -134,3 +134,19 @@ def export_data(export_type):
         mimetype="text/csv",
         headers={"Content-Disposition": f"attachment;filename={filename}"}
     )
+
+
+@admin_bp.route("/policy-editor", methods=["GET"])
+@login_required
+@role_required(Config.ROLE_ADMIN)
+def policy_editor():
+    """Alias for policy editor."""
+    return redirect(url_for("admin.manage_policies"))
+
+
+@admin_bp.route("/export-claims", methods=["GET"])
+@login_required
+@role_required(Config.ROLE_ADMIN)
+def export_claims():
+    """Alias for claims CSV export."""
+    return export_data("claims")

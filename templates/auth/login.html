@@ -1,0 +1,69 @@
+{% extends "components/base.html" %}
+
+{% block title %}Sign In{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center py-4">
+    <div class="col-md-6 col-lg-5">
+        <!-- Main Login Card -->
+        <div class="card shadow-sm border-0 rounded-4 bg-white overflow-hidden">
+            <div class="bg-primary text-white p-4 text-center">
+                <i class="bi bi-shield-lock fs-1 mb-2 d-block"></i>
+                <h4 class="fw-bold mb-1">AssureX Claim Engine</h4>
+                <p class="mb-0 text-white-50 small">Secure Authentication & Warranty Intelligence Portal</p>
+            </div>
+
+            <div class="card-body p-4 p-md-5">
+                <form method="POST" action="{{ url_for('auth.login') }}">
+                    <div class="mb-3">
+                        <label for="email" class="form-label fw-semibold small text-slate-700">Email Address</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-envelope"></i></span>
+                            <input type="email" class="form-control bg-light border-start-0 ps-0" id="email" name="email" required placeholder="name@domain.com">
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="password" class="form-label fw-semibold small text-slate-700">Password</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-key"></i></span>
+                            <input type="password" class="form-control bg-light border-start-0 ps-0" id="password" name="password" required placeholder="Enter password">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 py-2 fw-semibold shadow-sm d-flex align-items-center justify-content-center gap-2">
+                        <i class="bi bi-box-arrow-in-right"></i> Sign In to Portal
+                    </button>
+                </form>
+
+                <div class="text-center mt-4 pt-3 border-top border-light-subtle">
+                    <span class="text-muted small">Don't have an account?</span>
+                    <a href="{{ url_for('auth.register') }}" class="text-primary small fw-semibold ms-1">Register Now</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Demo Credentials Box -->
+        <div class="card border-0 bg-white shadow-sm rounded-4 mt-4 p-3">
+            <div class="d-flex align-items-center gap-2 mb-2 text-primary fw-semibold small">
+                <i class="bi bi-lightning-charge-fill"></i> Instant Demo Quick-Fill Roles
+            </div>
+            <p class="text-muted extra-small mb-3">Click any credential below to immediately load credentials for testing:</p>
+            <div class="d-grid gap-2">
+                <button type="button" class="btn btn-sm btn-outline-primary text-start d-flex justify-content-between align-items-center" onclick="fillCredentials('admin@assurex.local', 'AdminSecure123!')">
+                    <span><i class="bi bi-person-badge-fill me-1"></i> <b>System Administrator</b> (admin@assurex.local)</span>
+                    <span class="badge bg-primary">Admin</span>
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-dark text-start d-flex justify-content-between align-items-center" onclick="fillCredentials('reviewer@assurex.local', 'ReviewerSecure123!')">
+                    <span><i class="bi bi-shield-check me-1"></i> <b>Staff Claim Reviewer</b> (reviewer@assurex.local)</span>
+                    <span class="badge bg-dark">Reviewer</span>
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-success text-start d-flex justify-content-between align-items-center" onclick="fillCredentials('customer@assurex.local', 'CustomerSecure123!')">
+                    <span><i class="bi bi-person-circle me-1"></i> <b>Verified Customer</b> (customer@assurex.local)</span>
+                    <span class="badge bg-success">Customer</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
