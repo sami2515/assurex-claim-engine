@@ -1,5 +1,12 @@
 import os
+import sys
 from pathlib import Path
+
+# Ensure workspace root is in sys.path
+BASE_DIR = Path(__file__).resolve().parent.parent
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+
 from flask import Flask, render_template, redirect, url_for, session
 from config.config import Config
 from database.db import init_db, db
