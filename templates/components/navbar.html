@@ -79,44 +79,38 @@
                         </li>
                     {% endif %}
                     <li class="nav-item">
-                        <a class="nav-link px-3 fw-medium" href="{{ url_for('public.view_blog') }}">
-                            <i class="bi bi-journal-richtext me-1 text-secondary"></i> Technical Blog
+                        <a class="nav-link px-3 fw-medium text-secondary" href="{{ url_for('public.view_blog') }}">
+                            Technical Blog
                         </a>
                     </li>
                 {% else %}
                     <li class="nav-item">
-                        <a class="nav-link px-3 fw-medium" href="{{ url_for('public.landing_page') }}">
-                            <i class="bi bi-house-door me-1 text-primary"></i> Home
+                        <a class="nav-link px-3 fw-medium text-secondary" href="{{ url_for('public.landing_page') }}#how-it-works">
+                            How It Works
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link px-3 fw-medium" href="{{ url_for('public.landing_page') }}#how-it-works">
-                            <i class="bi bi-gear-wide-connected me-1 text-primary"></i> How It Works
+                        <a class="nav-link px-3 fw-medium text-secondary" href="{{ url_for('public.landing_page') }}#architecture">
+                            Architecture
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link px-3 fw-medium" href="{{ url_for('public.landing_page') }}#features">
-                            <i class="bi bi-stars me-1 text-primary"></i> Features
+                        <a class="nav-link px-3 fw-medium text-secondary" href="{{ url_for('public.landing_page') }}#features">
+                            Features
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link px-3 fw-medium" href="{{ url_for('public.landing_page') }}#architecture">
-                            <i class="bi bi-diagram-3 me-1 text-primary"></i> Architecture
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link px-3 fw-medium" href="{{ url_for('public.view_blog') }}">
-                            <i class="bi bi-journal-code me-1 text-primary"></i> Technical Blog
-                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle extra-small ms-1">2.7k words</span>
+                        <a class="nav-link px-3 fw-medium text-secondary" href="{{ url_for('public.view_blog') }}">
+                            Technical Blog
                         </a>
                     </li>
                 {% endif %}
             </ul>
 
             <!-- Right-Hand User Profile & Auth Controls -->
-            <div class="d-flex align-items-center gap-3 mt-3 mt-lg-0">
+            <div class="d-flex align-items-center gap-2 mt-3 mt-lg-0">
                 {% if current_user %}
-                    <div class="d-flex align-items-center gap-2">
+                    <div class="d-flex align-items-center gap-2 me-2">
                         <div class="avatar-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold shadow-sm">
                             {{ current_user.full_name[0] }}
                         </div>
@@ -127,18 +121,18 @@
                             </div>
                         </div>
                     </div>
-                    <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-danger btn-sm d-inline-flex align-items-center gap-1" title="Sign out of AssureX">
-                        <i class="bi bi-box-arrow-right"></i> Sign Out
+                    <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-danger btn-sm" title="Sign out of AssureX">
+                        Sign Out
                     </a>
                 {% else %}
-                    <a href="{{ url_for('public.landing_page') }}#demo-sandbox" class="btn btn-outline-secondary btn-sm px-2 px-xxl-3 d-none d-xl-inline-flex align-items-center gap-1" title="Jump to Competition Evaluation Sandbox">
-                        <i class="bi bi-shield-check text-primary"></i> Demo Sandbox
+                    <a href="{{ url_for('public.landing_page') }}#demo-sandbox" class="nav-link px-3 text-primary fw-medium small d-none d-xl-inline-block">
+                        Demo Sandbox
                     </a>
-                    <a href="{{ url_for('auth.login') }}" class="btn btn-outline-primary btn-sm px-3">
-                        <i class="bi bi-box-arrow-in-right me-1"></i> Sign In
+                    <a href="{{ url_for('auth.login') }}" class="btn btn-outline-secondary btn-sm px-3 text-dark border-light-subtle">
+                        Sign In
                     </a>
                     <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-sm px-3 shadow-sm">
-                        <i class="bi bi-person-plus me-1"></i> Create Account
+                        Create Account
                     </a>
                 {% endif %}
             </div>

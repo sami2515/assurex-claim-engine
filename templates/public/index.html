@@ -1,197 +1,201 @@
 {% extends 'components/base.html' %}
 
-{% block title %}AssureX Claim Engine | Dual-Model AI Warranty Intelligence{% endblock %}
+{% block title %}AssureX | Autonomous Warranty Claim Intelligence{% endblock %}
 
 {% block main_wrapper %}
-<div class="landing-page-wrapper">
-    <!-- Hero Section -->
-    <section class="hero-section text-white py-5 position-relative overflow-hidden">
-        <div class="hero-bg-glow position-absolute top-0 start-50 translate-middle-x"></div>
-        <div class="container position-relative z-1 py-4 py-lg-5">
+<div class="landing-page-clean">
+    <!-- Top Hero Canvas -->
+    <section class="hero-clean pt-5 pb-5 position-relative">
+        <div class="container py-3 py-lg-4">
             {% if current_user %}
-                <div class="alert alert-primary bg-primary-subtle border-primary-subtle text-primary d-inline-flex align-items-center gap-2 mb-4 px-3 py-2 rounded-pill shadow-sm">
-                    <i class="bi bi-person-check-fill fs-5"></i>
-                    <span>Signed in as <strong>{{ current_user.full_name }}</strong> ({{ current_user.role }})</span>
-                    <a href="{{ url_for('auth.portal_redirect') }}" class="btn btn-sm btn-primary rounded-pill px-3 ms-2">
-                        Go to Your Portal <i class="bi bi-arrow-right"></i>
+                <div class="d-flex align-items-center justify-content-between p-3 mb-4 rounded-3 bg-white border border-light-subtle shadow-xs">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="avatar-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold">
+                            {{ current_user.full_name[0] }}
+                        </div>
+                        <div>
+                            <div class="small fw-semibold text-dark">Signed in as {{ current_user.full_name }}</div>
+                            <div class="extra-small text-muted">Active Role: {{ current_user.role }}</div>
+                        </div>
+                    </div>
+                    <a href="{{ url_for('auth.portal_redirect') }}" class="btn btn-sm btn-primary px-3 rounded-pill">
+                        Open Portal &rarr;
                     </a>
                 </div>
             {% endif %}
 
-            <div class="row align-items-center g-4">
-                <div class="col-lg-7 text-center text-lg-start">
-                    <div class="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill bg-white bg-opacity-10 border border-white border-opacity-20 mb-3 text-light small fw-medium">
-                        <span class="badge bg-primary rounded-pill px-2 py-1">APTECH NEXTWAVE</span>
-                        <span>AI-Powered Document Ops & Warranty Adjudication</span>
+            <div class="row align-items-center g-5">
+                <div class="col-lg-6 text-center text-lg-start">
+                    <div class="hero-eyebrow text-uppercase fw-semibold tracking-wider text-primary small mb-3">
+                        AssureX Enterprise &middot; Dual-Model Warranty Engine
                     </div>
 
-                    <h1 class="display-4 fw-bold lh-sm mb-3">
-                        Dual-Model AI Consensus for Automated <span class="text-gradient-cyan">Warranty Intelligence</span>
+                    <h1 class="display-4 fw-bolder tracking-tight text-dark mb-3 lh-sm">
+                        Autonomous warranty adjudication with dual-model intelligence.
                     </h1>
 
-                    <p class="lead text-light text-opacity-75 mb-4 pe-lg-4 fs-6">
-                        AssureX combines <strong>Python Tabular Machine Learning</strong> with <strong>Google Teachable Machine Vision Models</strong>, document OCR, cryptographic duplicate fingerprinting, and configurable policy rules to eliminate warranty fraud and deliver sub-second claims adjudication.
+                    <p class="lead text-secondary mb-4 fs-6 lh-base pe-lg-3">
+                        Built for high-volume equipment manufacturers. AssureX couples tabular machine learning with computer vision consensus, document OCR, and configurable business rules to eliminate fraudulent claims and accelerate approvals from weeks to seconds.
                     </p>
 
                     <div class="d-flex flex-wrap align-items-center justify-content-center justify-content-lg-start gap-3">
-                        <a href="#demo-sandbox" class="btn btn-primary btn-lg px-4 shadow-lg d-inline-flex align-items-center gap-2">
-                            <i class="bi bi-shield-check"></i> Launch Demo Sandbox
+                        <a href="#demo-sandbox" class="btn btn-dark btn-lg px-4 py-2 rounded-pill shadow-sm fs-6 fw-medium">
+                            Launch Demo Sandbox
                         </a>
-                        <a href="#how-it-works" class="btn btn-outline-light btn-lg px-4 d-inline-flex align-items-center gap-2">
-                            <i class="bi bi-diagram-3"></i> How It Works
+                        <a href="{{ url_for('public.view_blog') }}" class="btn btn-outline-secondary btn-lg px-4 py-2 rounded-pill fs-6 fw-medium text-dark border-light-subtle">
+                            Technical Blog
                         </a>
-                        <a href="{{ url_for('public.view_blog') }}" class="btn btn-dark bg-dark bg-opacity-50 border-secondary btn-lg px-3 d-inline-flex align-items-center gap-2 text-light" title="Read the 2,784-word technical deep dive">
-                            <i class="bi bi-journal-code text-cyan"></i> Technical Blog
+                        <a href="#how-it-works" class="btn btn-link text-decoration-none text-secondary fs-6 px-2">
+                            How it works &darr;
                         </a>
-                    </div>
-
-                    <div class="mt-4 pt-2 d-flex flex-wrap align-items-center justify-content-center justify-content-lg-start gap-4 text-light text-opacity-75 small">
-                        <div><i class="bi bi-check2-circle text-success me-1"></i> Exactly 3 Claim Classes</div>
-                        <div><i class="bi bi-check2-circle text-success me-1"></i> Exactly 5 Consistency Statuses</div>
-                        <div><i class="bi bi-check2-circle text-success me-1"></i> 8 Lifecycle Stages</div>
                     </div>
                 </div>
 
-                <div class="col-lg-5 text-center">
-                    <div class="hero-visual-card p-3 p-sm-4 rounded-4 shadow-2xl bg-white bg-opacity-10 border border-white border-opacity-15 backdrop-blur">
-                        <div class="d-flex align-items-center justify-content-between border-bottom border-white border-opacity-10 pb-3 mb-3">
+                <div class="col-lg-6">
+                    <!-- Real Product Adjudication Preview Mockup -->
+                    <div class="product-preview-surface bg-white rounded-4 shadow-sm border border-light-subtle p-4">
+                        <div class="d-flex align-items-center justify-content-between border-bottom border-light-subtle pb-3 mb-3">
                             <div class="d-flex align-items-center gap-2">
-                                <span class="status-dot-pulse"></span>
-                                <span class="small fw-semibold text-light">Consensus Adjudication Engine</span>
+                                <span class="badge bg-light text-dark border border-light-subtle font-monospace extra-small">CLM-2026-9041</span>
+                                <span class="small fw-semibold text-dark">Industrial Rotary Hammer</span>
                             </div>
-                            <span class="badge bg-success bg-opacity-25 text-success-emphasis border border-success border-opacity-50">Online</span>
-                        </div>
-
-                        <!-- Mini Process Schematic -->
-                        <div class="text-start bg-black bg-opacity-40 p-3 rounded-3 font-monospace small mb-3">
-                            <div class="text-muted extra-small mb-1">// INTAKE & OCR EXTRACTION</div>
-                            <div class="text-cyan"><i class="bi bi-file-earmark-text"></i> Invoice: INV-2024-88912 (Verified)</div>
-                            <div class="text-light extra-small"><i class="bi bi-fingerprint"></i> SHA-256: 8f4b...c91a (Unique)</div>
-                            <hr class="my-2 border-secondary border-opacity-25">
-                            <div class="text-muted extra-small mb-1">// DUAL-BRANCH AI EVALUATION</div>
-                            <div class="d-flex justify-content-between text-info">
-                                <span>Branch A (Tabular RF):</span>
-                                <span class="fw-bold">Valid Claim (99.8%)</span>
-                            </div>
-                            <div class="d-flex justify-content-between text-warning">
-                                <span>Branch B (GTM Vision):</span>
-                                <span class="fw-bold">Valid Claim (98.9%)</span>
-                            </div>
-                            <hr class="my-2 border-secondary border-opacity-25">
-                            <div class="d-flex justify-content-between text-light">
-                                <span>Delta Confidence |&Delta;conf|:</span>
-                                <span class="text-success fw-bold">0.009 (Strong Match)</span>
-                            </div>
-                            <div class="d-flex justify-content-between text-light mt-1">
-                                <span>Category Policy Engine:</span>
-                                <span class="text-success fw-bold">0 Violations</span>
-                            </div>
-                            <hr class="my-2 border-secondary border-opacity-25">
-                            <div class="text-muted extra-small mb-1">// SYNTHESIZED DECISION</div>
-                            <div class="d-flex align-items-center justify-content-between bg-success bg-opacity-20 border border-success border-opacity-30 p-2 rounded">
-                                <span class="text-success fw-bold"><i class="bi bi-check-circle-fill"></i> LIKELY VALID</span>
-                                <span class="badge bg-success">Auto-Approved</span>
-                            </div>
-                        </div>
-
-                        <div class="d-flex align-items-center justify-content-around text-center text-light extra-small pt-1">
-                            <div>
-                                <div class="fw-bold text-cyan fs-6">&lt; 150 ms</div>
-                                <div class="text-muted">Inference Latency</div>
-                            </div>
-                            <div class="vr bg-secondary opacity-50"></div>
-                            <div>
-                                <div class="fw-bold text-success fs-6">100.0%</div>
-                                <div class="text-muted">Test Split Accuracy</div>
-                            </div>
-                            <div class="vr bg-secondary opacity-50"></div>
-                            <div>
-                                <div class="fw-bold text-warning fs-6">38 / 38</div>
-                                <div class="text-muted">Tests Passing</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Verified Metrics Section -->
-    <section class="py-4 bg-white border-bottom border-light-subtle shadow-xs">
-        <div class="container">
-            <div class="row g-3 text-center align-items-center justify-content-center">
-                <div class="col-6 col-md-3">
-                    <div class="p-3">
-                        <div class="display-6 fw-bolder text-primary mb-1">{{ metrics.dataset_size | default(1500) }}</div>
-                        <div class="text-muted small fw-medium">Balanced Claim Dataset</div>
-                        <div class="extra-small text-secondary">500 Valid / 500 Invalid / 500 Manual</div>
-                    </div>
-                </div>
-                <div class="col-6 col-md-3">
-                    <div class="p-3 border-start-md border-light-subtle">
-                        <div class="display-6 fw-bolder text-success mb-1">{{ metrics.measured_test_accuracy | default('100.0%') }}</div>
-                        <div class="text-muted small fw-medium">Unseen Test Accuracy</div>
-                        <div class="extra-small text-secondary">Exceeds SRS target ({{ metrics.srs_target_accuracy }})</div>
-                    </div>
-                </div>
-                <div class="col-6 col-md-3">
-                    <div class="p-3 border-start-md border-light-subtle">
-                        <div class="display-6 fw-bolder text-dark mb-1">{{ metrics.passing_tests | default(38) }} / 38</div>
-                        <div class="text-muted small fw-medium">Automated Tests Verified</div>
-                        <div class="extra-small text-secondary">Across all 18 SRS test categories</div>
-                    </div>
-                </div>
-                <div class="col-6 col-md-3">
-                    <div class="p-3 border-start-md border-light-subtle">
-                        <div class="display-6 fw-bolder text-info mb-1">Dual-AI</div>
-                        <div class="text-muted small fw-medium">Consensus Architecture</div>
-                        <div class="extra-small text-secondary">Tabular RF + Vision GTM Cards</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- Competition Evaluation & Demo Sandbox -->
-    <section id="demo-sandbox" class="py-5 bg-light border-bottom border-light-subtle">
-        <div class="container">
-            <div class="text-center max-w-700 mx-auto mb-5">
-                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1 rounded-pill mb-2">
-                    <i class="bi bi-shield-lock me-1"></i> EVALUATOR DEMO SANDBOX
-                </span>
-                <h2 class="fw-bold text-dark mb-3">1-Click Competition Evaluation Access</h2>
-                <p class="text-secondary small mb-0">
-                    Per Aptech NextWave SRS standards, this system enforces multi-role access control (RBAC). Use the pre-configured evaluator buttons below to immediately explore any of the 4 dedicated role portals without manual login credentials.
-                </p>
-            </div>
-
-            <div class="row g-4 justify-content-center">
-                {% for acc in demo_accounts %}
-                <div class="col-md-6 col-lg-3">
-                    <div class="card h-100 border border-light-subtle shadow-sm hover-elevate transition-all">
-                        <div class="card-header bg-white border-bottom border-light-subtle py-3 d-flex align-items-center justify-content-between">
-                            <span class="badge bg-{{ acc.badge_color }}-subtle text-{{ acc.badge_color }} border border-{{ acc.badge_color }}-subtle px-2 py-1">
-                                <i class="bi {{ acc.icon }} me-1"></i> {{ acc.role }}
+                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                                Strong Match &middot; Approved
                             </span>
-                            <span class="badge bg-light text-muted border border-light-subtle extra-small">Sandbox Mode</span>
                         </div>
-                        <div class="card-body d-flex flex-column justify-content-between p-4">
-                            <div>
-                                <div class="small fw-semibold text-dark mb-1">{{ acc.role }} Portal</div>
-                                <p class="text-secondary extra-small mb-3 lh-sm">{{ acc.desc }}</p>
-                                
-                                <div class="bg-light p-2 rounded border border-light-subtle extra-small font-monospace mb-3">
-                                    <div class="text-truncate text-muted"><strong>User:</strong> {{ acc.email }}</div>
-                                    <div class="text-muted"><strong>Pass:</strong> {{ acc.password }}</div>
+
+                        <!-- Side by side comparison row -->
+                        <div class="row g-3 mb-3">
+                            <div class="col-6">
+                                <div class="p-3 rounded-3 bg-light border border-light-subtle">
+                                    <div class="text-uppercase extra-small text-muted fw-semibold mb-1">Branch A: Tabular RF</div>
+                                    <div class="fw-bold text-dark small mb-2">Valid Claim &middot; 99.8%</div>
+                                    <div class="progress" style="height: 4px;">
+                                        <div class="progress-bar bg-primary" role="progressbar" style="width: 99.8%"></div>
+                                    </div>
+                                    <div class="extra-small text-muted mt-2">Features: 14 &middot; Latency: 3ms</div>
                                 </div>
                             </div>
+                            <div class="col-6">
+                                <div class="p-3 rounded-3 bg-light border border-light-subtle">
+                                    <div class="text-uppercase extra-small text-muted fw-semibold mb-1">Branch B: GTM Vision</div>
+                                    <div class="fw-bold text-dark small mb-2">Valid Claim &middot; 98.9%</div>
+                                    <div class="progress" style="height: 4px;">
+                                        <div class="progress-bar bg-info" role="progressbar" style="width: 98.9%"></div>
+                                    </div>
+                                    <div class="extra-small text-muted mt-2">Card: 640&times;420 &middot; Aug: 2x</div>
+                                </div>
+                            </div>
+                        </div>
 
+                        <!-- Verification Indicators -->
+                        <div class="d-flex flex-column gap-2 mb-3 extra-small">
+                            <div class="d-flex align-items-center justify-content-between text-secondary">
+                                <span>Absolute Confidence Delta |&Delta;conf|</span>
+                                <span class="font-monospace fw-semibold text-dark">0.009 (&le; 0.150 threshold)</span>
+                            </div>
+                            <div class="d-flex align-items-center justify-content-between text-secondary">
+                                <span>Cryptographic Document Fingerprint</span>
+                                <span class="font-monospace text-success fw-medium">SHA-256 Unique (0 collisions)</span>
+                            </div>
+                            <div class="d-flex align-items-center justify-content-between text-secondary">
+                                <span>Category Policy Engine (Industrial Tools)</span>
+                                <span class="text-success fw-medium">All 6 rule groups passed</span>
+                            </div>
+                        </div>
+
+                        <!-- Decision Banner -->
+                        <div class="d-flex align-items-center justify-content-between p-3 rounded-3 bg-success-subtle border border-success-subtle">
+                            <div>
+                                <div class="extra-small text-success fw-semibold text-uppercase">Adjudication Outcome</div>
+                                <div class="fw-bold text-dark small">Likely Valid &mdash; Authorized for Warranty Servicing</div>
+                            </div>
+                            <span class="badge bg-success text-white px-3 py-2 rounded-pill font-monospace">118ms</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Verified Metrics Strip (No heavy boxes, pure typography) -->
+    <section class="border-top border-bottom border-light-subtle bg-white py-4">
+        <div class="container">
+            <div class="row g-4 text-center text-md-start">
+                <div class="col-6 col-md-3">
+                    <div class="pe-md-3 border-end-md">
+                        <div class="metric-numeral fw-bold text-dark mb-0">{{ metrics.dataset_size | default(1500) }}</div>
+                        <div class="small fw-semibold text-dark">Common Claim Records</div>
+                        <div class="extra-small text-secondary">Equal 3-class distribution across categories</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="px-md-3 border-end-md">
+                        <div class="metric-numeral fw-bold text-dark mb-0">{{ metrics.measured_test_accuracy | default('100.0%') }}</div>
+                        <div class="small fw-semibold text-dark">Held-Out Test Accuracy</div>
+                        <div class="extra-small text-secondary">Exceeds minimum {{ metrics.srs_target_accuracy }} threshold</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="px-md-3 border-end-md">
+                        <div class="metric-numeral fw-bold text-dark mb-0">{{ metrics.passing_tests | default(41) }} / 41</div>
+                        <div class="small fw-semibold text-dark">Automated Test Suite</div>
+                        <div class="extra-small text-secondary">18 SRS categories and 11 demo cases</div>
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="ps-md-3">
+                        <div class="metric-numeral fw-bold text-dark mb-0">Dual-Branch</div>
+                        <div class="small fw-semibold text-dark">Consensus Architecture</div>
+                        <div class="extra-small text-secondary">Tabular Random Forest &amp; Vision GTM</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Competition Evaluation Demo Sandbox -->
+    <section id="demo-sandbox" class="py-5 bg-white border-bottom border-light-subtle">
+        <div class="container py-3">
+            <div class="row align-items-end justify-content-between mb-4 pb-2 border-bottom border-light-subtle">
+                <div class="col-lg-8">
+                    <div class="text-uppercase extra-small fw-semibold tracking-wider text-primary mb-1">Evaluator Access Sandbox</div>
+                    <h2 class="fw-bold text-dark mb-1 fs-3">Explore the 4 Role Portals</h2>
+                    <p class="text-secondary small mb-0">
+                        In accordance with the Role-Based Access Control (RBAC) requirements of Aptech NextWave SRS, choose any role below for instant 1-click evaluation.
+                    </p>
+                </div>
+                <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
+                    <span class="badge bg-light text-muted border border-light-subtle px-3 py-2 rounded-pill small">
+                        Seeded Demo Accounts Active
+                    </span>
+                </div>
+            </div>
+
+            <div class="row g-3">
+                {% for acc in demo_accounts %}
+                <div class="col-md-6 col-lg-3">
+                    <div class="role-selector-card p-4 rounded-3 border border-light-subtle bg-white h-100 d-flex flex-column justify-content-between">
+                        <div>
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="fw-bold text-dark small">{{ acc.role }}</span>
+                                <span class="badge bg-light text-muted border border-light-subtle extra-small">{{ acc.email.split('@')[0] }}</span>
+                            </div>
+                            <p class="text-secondary extra-small mb-3 lh-sm">
+                                {{ acc.desc }}
+                            </p>
+                        </div>
+
+                        <div>
+                            <div class="extra-small font-monospace text-muted mb-3 bg-light p-2 rounded">
+                                <div><strong>ID:</strong> {{ acc.email }}</div>
+                                <div><strong>PW:</strong> {{ acc.password }}</div>
+                            </div>
                             <form action="{{ url_for('auth.login') }}" method="POST">
                                 <input type="hidden" name="email" value="{{ acc.email }}">
                                 <input type="hidden" name="password" value="{{ acc.password }}">
-                                <button type="submit" class="btn btn-outline-{{ acc.badge_color }} w-100 btn-sm d-flex align-items-center justify-content-center gap-2 fw-medium">
-                                    <span>Access {{ acc.role }}</span>
-                                    <i class="bi bi-arrow-right"></i>
+                                <button type="submit" class="btn btn-sm btn-outline-dark w-100 rounded-pill fw-medium">
+                                    Sign In as {{ acc.role }} &rarr;
                                 </button>
                             </form>
                         </div>
@@ -199,218 +203,216 @@
                 </div>
                 {% endfor %}
             </div>
-
-            <div class="text-center mt-4">
-                <span class="text-muted extra-small">
-                    <i class="bi bi-info-circle me-1"></i> Need a custom claimant profile? You can also <a href="{{ url_for('auth.register') }}" class="text-decoration-none fw-semibold">create an independent customer account</a> anytime.
-                </span>
-            </div>
         </div>
     </section>
 
-    <!-- How It Works: Interactive 5-Step Process Pipeline -->
-    <section id="how-it-works" class="py-5 bg-white border-bottom border-light-subtle">
+    <!-- How It Works: Clean Numbered Timeline -->
+    <section id="how-it-works" class="py-5 bg-light border-bottom border-light-subtle">
         <div class="container py-3">
-            <div class="text-center max-w-700 mx-auto mb-5">
-                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1 rounded-pill mb-2">
-                    <i class="bi bi-gear-wide-connected me-1"></i> APPLICATION PIPELINE
-                </span>
-                <h2 class="fw-bold text-dark mb-3">How the AssureX Claim Engine Works</h2>
+            <div class="mb-5 text-center text-md-start">
+                <div class="text-uppercase extra-small fw-semibold tracking-wider text-primary mb-1">Architecture Flowchart</div>
+                <h2 class="fw-bold text-dark mb-2 fs-3">The 5-Stage Adjudication Pipeline</h2>
                 <p class="text-secondary small mb-0">
-                    A rigorous 5-step processing pipeline designed strictly around Page 5 of the official architecture diagram.
+                    Direct translation of the Page 5 system architecture diagram into an autonomous execution sequence.
                 </p>
             </div>
 
-            <div class="row g-4">
-                <div class="col-md-6 col-lg-4">
-                    <div class="card h-100 p-4 border border-light-subtle shadow-xs rounded-3 bg-light">
-                        <div class="d-flex align-items-center gap-3 mb-3">
-                            <div class="step-badge bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold shadow-sm">1</div>
-                            <h5 class="fw-bold mb-0 fs-6 text-dark">Intake & Multi-Document Upload</h5>
+            <div class="timeline-clean">
+                <div class="row g-4">
+                    <div class="col-md-4">
+                        <div class="timeline-step pe-lg-3">
+                            <div class="timeline-number text-primary fw-bolder mb-2">01</div>
+                            <h3 class="fw-bold text-dark fs-6 mb-2">Intake &amp; Document Ingestion</h3>
+                            <p class="text-secondary small mb-0">
+                                Guided 5-step wizard captures equipment metadata, incident descriptions, purchase invoices, warranty certificates, and previous repair histories.
+                            </p>
                         </div>
-                        <p class="text-secondary small mb-0">
-                            Claimants submit product details and upload proof-of-purchase receipts, warranty cards, damage photos, and prior repair invoices through a 5-step guided intake wizard.
-                        </p>
                     </div>
-                </div>
 
-                <div class="col-md-6 col-lg-4">
-                    <div class="card h-100 p-4 border border-light-subtle shadow-xs rounded-3 bg-light">
-                        <div class="d-flex align-items-center gap-3 mb-3">
-                            <div class="step-badge bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold shadow-sm">2</div>
-                            <h5 class="fw-bold mb-0 fs-6 text-dark">SHA-256 Hashing & OCR Extraction</h5>
+                    <div class="col-md-4">
+                        <div class="timeline-step pe-lg-3">
+                            <div class="timeline-number text-primary fw-bolder mb-2">02</div>
+                            <h3 class="fw-bold text-dark fs-6 mb-2">OCR &amp; Cryptographic Hashing</h3>
+                            <p class="text-secondary small mb-0">
+                                Ingested files are fingerprinted with SHA-256 to stop duplicate submissions. OCR regex extracts invoice numbers, dates, and backplate serials for matching.
+                            </p>
                         </div>
-                        <p class="text-secondary small mb-0">
-                            Uploaded files are cryptographically fingerprinted with SHA-256 hashes to detect duplicate claims. Document OCR extracts invoice IDs, purchase dates, serial stamps, and retail vendors.
-                        </p>
                     </div>
-                </div>
 
-                <div class="col-md-6 col-lg-4">
-                    <div class="card h-100 p-4 border border-light-subtle shadow-xs rounded-3 bg-light">
-                        <div class="d-flex align-items-center gap-3 mb-3">
-                            <div class="step-badge bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold shadow-sm">3</div>
-                            <h5 class="fw-bold mb-0 fs-6 text-dark">Dual-Branch AI Parallel Evaluation</h5>
+                    <div class="col-md-4">
+                        <div class="timeline-step pe-lg-3">
+                            <div class="timeline-number text-primary fw-bolder mb-2">03</div>
+                            <h3 class="fw-bold text-dark fs-6 mb-2">Dual AI Parallel Evaluation</h3>
+                            <p class="text-secondary small mb-0">
+                                <strong>Branch A</strong> evaluates 14 tabular risk metrics via Random Forest. Simultaneously, <strong>Branch B</strong> converts the dossier into a 640&times;420 visual card evaluated by Google Teachable Machine.
+                            </p>
                         </div>
-                        <p class="text-secondary small mb-0">
-                            <strong>Branch A</strong> (Python Tabular Random Forest) processes structured risk factors. Simultaneously, <strong>Branch B</strong> converts the claim into a standardized 640x420 Claim Summary Card evaluated by a Google Teachable Machine vision classifier.
-                        </p>
                     </div>
-                </div>
 
-                <div class="col-md-6 col-lg-4">
-                    <div class="card h-100 p-4 border border-light-subtle shadow-xs rounded-3 bg-light">
-                        <div class="d-flex align-items-center gap-3 mb-3">
-                            <div class="step-badge bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold shadow-sm">4</div>
-                            <h5 class="fw-bold mb-0 fs-6 text-dark">Consensus Engine & Delta &Delta;conf</h5>
+                    <div class="col-md-6 mt-4">
+                        <div class="timeline-step pe-lg-3">
+                            <div class="timeline-number text-primary fw-bolder mb-2">04</div>
+                            <h3 class="fw-bold text-dark fs-6 mb-2">Consensus &amp; Confidence Divergence</h3>
+                            <p class="text-secondary small mb-0">
+                                The Comparator assesses top-class agreement and calculates |&Delta;conf|. Assigns 1 of 5 formal statuses (Strong Match, Acceptable Match, Weak Match, Model Disagreement, Uncertain Result).
+                            </p>
                         </div>
-                        <p class="text-secondary small mb-0">
-                            The Dual-Model Comparator calculates top-class confidence divergence |&Delta;conf| and assigns one of 5 formal statuses (Strong Match, Acceptable Match, Weak Match, Model Disagreement, Uncertain Result).
-                        </p>
                     </div>
-                </div>
 
-                <div class="col-md-6 col-lg-4">
-                    <div class="card h-100 p-4 border border-light-subtle shadow-xs rounded-3 bg-light">
-                        <div class="d-flex align-items-center gap-3 mb-3">
-                            <div class="step-badge bg-primary text-white rounded-circle d-flex align-items-center justify-content-center fw-bold shadow-sm">5</div>
-                            <h5 class="fw-bold mb-0 fs-6 text-dark">Configurable Policy & Fraud Gating</h5>
+                    <div class="col-md-6 mt-4">
+                        <div class="timeline-step pe-lg-3">
+                            <div class="timeline-number text-primary fw-bolder mb-2">05</div>
+                            <h3 class="fw-bold text-dark fs-6 mb-2">Policy Gating &amp; 8-Stage Tracker</h3>
+                            <p class="text-secondary small mb-0">
+                                Category rules (grace periods, damage exclusions, authorized centers) validate eligibility. Generates the final 3-class decision, ReportLab PDF certificate, and updates the live tracker.
+                            </p>
                         </div>
-                        <p class="text-secondary small mb-0">
-                            Business rules in category JSON schemas validate coverage duration, grace periods, authorized repair centers, excluded damage keywords, and chronological contradictions.
-                        </p>
-                    </div>
-                </div>
-
-                <div class="col-md-6 col-lg-4">
-                    <div class="card h-100 p-4 border border-primary border-opacity-25 shadow-xs rounded-3 bg-primary-subtle">
-                        <div class="d-flex align-items-center gap-3 mb-3">
-                            <div class="step-badge bg-success text-white rounded-circle d-flex align-items-center justify-content-center fw-bold shadow-sm">
-                                <i class="bi bi-check2"></i>
-                            </div>
-                            <h5 class="fw-bold mb-0 fs-6 text-primary">Master Adjudication & 8-Stage Tracker</h5>
-                        </div>
-                        <p class="text-secondary small mb-0">
-                            Synthesizes the final decision into exactly 3 classes: Likely Valid, Likely Invalid, or Manual Review Required. Generates official ReportLab PDF certificates and updates the customer's 8-stage live tracker.
-                        </p>
                     </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Core Features & System Capabilities -->
-    <section id="features" class="py-5 bg-light border-bottom border-light-subtle">
+    <!-- Features: Editorial 3-Pillar Breakdown -->
+    <section id="features" class="py-5 bg-white border-bottom border-light-subtle">
         <div class="container py-3">
-            <div class="text-center max-w-700 mx-auto mb-5">
-                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1 rounded-pill mb-2">
-                    <i class="bi bi-stars me-1"></i> ENTERPRISE CAPABILITIES
-                </span>
-                <h2 class="fw-bold text-dark mb-3">Engineered for Competition Rigor</h2>
-                <p class="text-secondary small mb-0">
-                    Every feature is built strictly against the Aptech NextWave Software Requirements Specification (SRS Version 1.0).
-                </p>
+            <div class="row g-5 align-items-center mb-5 pb-4 border-bottom border-light-subtle">
+                <div class="col-lg-6">
+                    <div class="text-uppercase extra-small fw-semibold tracking-wider text-primary mb-1">Core Innovation</div>
+                    <h3 class="fw-bold text-dark mb-3 fs-4">Dual-Branch Multimodal Consensus</h3>
+                    <p class="text-secondary small mb-3 lh-base">
+                        Traditional warranty fraud models rely on single-algorithm classifiers that are prone to dataset shift. AssureX implements two independent branches that evaluate distinct representations of the same claim.
+                    </p>
+                    <ul class="list-unstyled small text-secondary d-flex flex-column gap-2 mb-0">
+                        <li class="d-flex align-items-start gap-2">
+                            <span class="text-primary fw-bold">&bull;</span>
+                            <span><strong>Branch A:</strong> Tabular Random Forest processing numerical ratios and one-hot categorical vectors.</span>
+                        </li>
+                        <li class="d-flex align-items-start gap-2">
+                            <span class="text-primary fw-bold">&bull;</span>
+                            <span><strong>Branch B:</strong> Google Teachable Machine vision classifier inspecting standardized 640&times;420 summary cards.</span>
+                        </li>
+                        <li class="d-flex align-items-start gap-2">
+                            <span class="text-primary fw-bold">&bull;</span>
+                            <span><strong>Consensus Rule:</strong> Automated approval requires mutual agreement and |&Delta;conf| &le; 0.150. Disagreements automatically route to human reviewers.</span>
+                        </li>
+                    </ul>
+                </div>
+                <div class="col-lg-6">
+                    <div class="p-4 rounded-3 bg-light border border-light-subtle">
+                        <div class="small fw-bold text-dark mb-2">5 Model-Consistency Statuses</div>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-borderless extra-small mb-0">
+                                <thead>
+                                    <tr class="text-muted border-bottom border-light-subtle">
+                                        <th>Status</th>
+                                        <th>Condition</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td class="fw-semibold text-success">Strong Match</td>
+                                        <td>Classes Match, |&Delta;conf| &le; 0.15</td>
+                                        <td>Proceed to Rules</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-semibold text-primary">Acceptable Match</td>
+                                        <td>Classes Match, |&Delta;conf| &le; 0.30</td>
+                                        <td>Proceed to Rules</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-semibold text-warning">Weak Match</td>
+                                        <td>Classes Match, |&Delta;conf| &gt; 0.30</td>
+                                        <td>Warning Flagged</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-semibold text-danger">Model Disagreement</td>
+                                        <td>Predictions Diverge</td>
+                                        <td>Manual Triage Queue</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fw-semibold text-secondary">Uncertain Result</td>
+                                        <td>Top Conf &lt; 0.60</td>
+                                        <td>Manual Triage Queue</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <div class="row g-4">
-                <div class="col-md-4">
-                    <div class="card h-100 p-4 border border-light-subtle shadow-sm bg-white">
-                        <div class="feature-icon-box bg-primary-subtle text-primary rounded-3 d-flex align-items-center justify-content-center mb-3">
-                            <i class="bi bi-cpu fs-4"></i>
-                        </div>
-                        <h5 class="fw-bold text-dark fs-6 mb-2">Dual-Model Consensus</h5>
-                        <p class="text-secondary small mb-0">
-                            Combines tabular machine learning with visual card classification. Neither model holds absolute veto; decisions require bounded confidence and mutual class consensus.
-                        </p>
-                    </div>
+            <!-- Second Pillar: Fraud Defense & Policy Engine -->
+            <div id="architecture" class="row g-5 align-items-center">
+                <div class="col-lg-6 order-lg-2">
+                    <div class="text-uppercase extra-small fw-semibold tracking-wider text-primary mb-1">Defense-in-Depth</div>
+                    <h3 class="fw-bold text-dark mb-3 fs-4">Deterministic Policy Gating &amp; Fraud Defense</h3>
+                    <p class="text-secondary small mb-3 lh-base">
+                        AI predictions are cross-examined by deterministic business rules maintained in category-specific JSON schemas. No black-box model can override a policy exclusion or approved repair network mandate.
+                    </p>
+                    <ul class="list-unstyled small text-secondary d-flex flex-column gap-2 mb-0">
+                        <li class="d-flex align-items-start gap-2">
+                            <span class="text-primary fw-bold">&bull;</span>
+                            <span><strong>Cryptographic Hashing:</strong> SHA-256 fingerprinting intercepts duplicate invoices and receipt re-submissions.</span>
+                        </li>
+                        <li class="d-flex align-items-start gap-2">
+                            <span class="text-primary fw-bold">&bull;</span>
+                            <span><strong>Chronological Verification:</strong> Detects faults dated prior to retail purchase or past reporting deadlines.</span>
+                        </li>
+                        <li class="d-flex align-items-start gap-2">
+                            <span class="text-primary fw-bold">&bull;</span>
+                            <span><strong>Configurable Policies:</strong> JSON rules for Consumer Electronics, Home Appliances, and Industrial Tools.</span>
+                        </li>
+                    </ul>
                 </div>
-
-                <div class="col-md-4">
-                    <div class="card h-100 p-4 border border-light-subtle shadow-sm bg-white">
-                        <div class="feature-icon-box bg-danger-subtle text-danger rounded-3 d-flex align-items-center justify-content-center mb-3">
-                            <i class="bi bi-shield-x fs-4"></i>
+                <div class="col-lg-6 order-lg-1">
+                    <div class="p-4 rounded-3 bg-light border border-light-subtle">
+                        <div class="small fw-bold text-dark mb-2">8-Stage Lifecycle State Machine</div>
+                        <div class="d-flex flex-wrap gap-1 extra-small">
+                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle py-1 px-2">1. Draft</span>
+                            <span class="text-muted align-self-center">&rarr;</span>
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle py-1 px-2">2. Submitted</span>
+                            <span class="text-muted align-self-center">&rarr;</span>
+                            <span class="badge bg-info-subtle text-info border border-info-subtle py-1 px-2">3. Under Evaluation</span>
+                            <span class="text-muted align-self-center">&rarr;</span>
+                            <span class="badge bg-warning-subtle text-warning border border-warning-subtle py-1 px-2">4. Info Required</span>
+                            <span class="text-muted align-self-center">&rarr;</span>
+                            <span class="badge bg-dark-subtle text-dark border border-dark-subtle py-1 px-2">5. Manual Review</span>
+                            <span class="text-muted align-self-center">&rarr;</span>
+                            <span class="badge bg-success-subtle text-success border border-success-subtle py-1 px-2">6. Approved</span>
+                            <span class="text-muted align-self-center">/</span>
+                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle py-1 px-2">7. Rejected</span>
+                            <span class="text-muted align-self-center">&rarr;</span>
+                            <span class="badge bg-light text-muted border border-light-subtle py-1 px-2">8. Closed</span>
                         </div>
-                        <h5 class="fw-bold text-dark fs-6 mb-2">Cryptographic Duplicate Detection</h5>
-                        <p class="text-secondary small mb-0">
-                            SHA-256 fingerprinting catches identical receipts submitted across different claims or users, blocking serial re-submissions and multi-channel warranty fraud.
-                        </p>
-                    </div>
-                </div>
-
-                <div class="col-md-4">
-                    <div class="card h-100 p-4 border border-light-subtle shadow-sm bg-white">
-                        <div class="feature-icon-box bg-info-subtle text-info rounded-3 d-flex align-items-center justify-content-center mb-3">
-                            <i class="bi bi-file-earmark-diff fs-4"></i>
+                        <div class="extra-small text-muted mt-3">
+                            Strict state transitions prevent skipping verification stages or issuing automated approvals without complete evidence dossiers.
                         </div>
-                        <h5 class="fw-bold text-dark fs-6 mb-2">Side-by-Side OCR Discrepancy Matching</h5>
-                        <p class="text-secondary small mb-0">
-                            Compares user-entered serial numbers and invoice dates directly with OCR extracted values, flagging discrepancies and chronological paradoxes for review.
-                        </p>
-                    </div>
-                </div>
-
-                <div class="col-md-4">
-                    <div class="card h-100 p-4 border border-light-subtle shadow-sm bg-white">
-                        <div class="feature-icon-box bg-success-subtle text-success rounded-3 d-flex align-items-center justify-content-center mb-3">
-                            <i class="bi bi-sliders fs-4"></i>
-                        </div>
-                        <h5 class="fw-bold text-dark fs-6 mb-2">Configurable Category Policies</h5>
-                        <p class="text-secondary small mb-0">
-                            JSON warranty policies for Consumer Electronics, Home Appliances, and Industrial Tools. Administrators can adjust grace periods and exclusion rules without redeploying code.
-                        </p>
-                    </div>
-                </div>
-
-                <div class="col-md-4">
-                    <div class="card h-100 p-4 border border-light-subtle shadow-sm bg-white">
-                        <div class="feature-icon-box bg-warning-subtle text-warning rounded-3 d-flex align-items-center justify-content-center mb-3">
-                            <i class="bi bi-clock-history fs-4"></i>
-                        </div>
-                        <h5 class="fw-bold text-dark fs-6 mb-2">8-Stage Lifecycle State Machine</h5>
-                        <p class="text-secondary small mb-0">
-                            Tracks claims across 8 strict lifecycle stages: Draft &rarr; Submitted &rarr; Under Evaluation &rarr; Info Required &rarr; Manual Review &rarr; Approved &rarr; Rejected &rarr; Closed.
-                        </p>
-                    </div>
-                </div>
-
-                <div class="col-md-4">
-                    <div class="card h-100 p-4 border border-light-subtle shadow-sm bg-white">
-                        <div class="feature-icon-box bg-purple-subtle text-purple rounded-3 d-flex align-items-center justify-content-center mb-3">
-                            <i class="bi bi-file-earmark-pdf fs-4"></i>
-                        </div>
-                        <h5 class="fw-bold text-dark fs-6 mb-2">Official PDF Certificates</h5>
-                        <p class="text-secondary small mb-0">
-                            ReportLab engine generates official multi-page claim adjudication certificates with verification QR codes, complete rule breakdowns, and audit signatures.
-                        </p>
                     </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Technical Blog Callout Banner -->
-    <section class="py-5 bg-dark text-white">
-        <div class="container">
-            <div class="row align-items-center g-4">
-                <div class="col-lg-8">
-                    <div class="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill bg-white bg-opacity-10 border border-white border-opacity-20 mb-3 text-light small">
-                        <span class="badge bg-info text-dark rounded-pill px-2">SRS DELIVERABLE #14</span>
-                        <span>Official Technical Blog Publication</span>
-                    </div>
-                    <h3 class="fw-bold text-white mb-2">Read the Full 2,784-Word Technical Deep Dive</h3>
-                    <p class="text-light text-opacity-75 small mb-0 pe-lg-4">
-                        Structured across <strong>all 23 SRS-listed discussion topics</strong>, including dual-model consensus mathematics, dataset engineering (1,500 claims), algorithm comparisons, OCR anomaly handling, and security hardening.
+    <!-- Technical Blog Callout -->
+    <section class="py-5 bg-white">
+        <div class="container py-2">
+            <div class="p-4 p-md-5 rounded-4 bg-light border border-light-subtle d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-4">
+                <div>
+                    <div class="text-uppercase extra-small fw-semibold tracking-wider text-primary mb-1">SRS Deliverable #14</div>
+                    <h3 class="fw-bold text-dark fs-4 mb-2">Technical Blog &amp; Engineering Dossier</h3>
+                    <p class="text-secondary small mb-0 max-w-700">
+                        Read the comprehensive 2,784-word technical article addressing all 23 SRS-listed discussion topics, including dataset creation, model benchmarking, OCR extraction, and lessons learned.
                     </p>
                 </div>
-                <div class="col-lg-4 text-lg-end">
-                    <div class="d-flex flex-column flex-sm-row justify-content-lg-end gap-2">
-                        <a href="{{ url_for('public.view_blog') }}" class="btn btn-primary px-4 shadow-sm d-inline-flex align-items-center justify-content-center gap-2">
-                            <i class="bi bi-journal-richtext"></i> Read Article In-App
-                        </a>
-                        <a href="{{ url_for('public.raw_blog') }}" target="_blank" class="btn btn-outline-light px-3 d-inline-flex align-items-center justify-content-center gap-2">
-                            <i class="bi bi-code-slash"></i> View Raw Markdown
-                        </a>
-                    </div>
+                <div class="d-flex flex-wrap gap-2 flex-shrink-0">
+                    <a href="{{ url_for('public.view_blog') }}" class="btn btn-dark rounded-pill px-4 py-2 small fw-medium">
+                        Read Technical Blog &rarr;
+                    </a>
+                    <a href="{{ url_for('public.raw_blog') }}" target="_blank" class="btn btn-outline-secondary rounded-pill px-3 py-2 small text-dark border-light-subtle">
+                        Raw Markdown
+                    </a>
                 </div>
             </div>
         </div>
