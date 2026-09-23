@@ -40,17 +40,16 @@
     </main>
 
     <!-- Enterprise Footer -->
-    <footer class="bg-dark text-white-50 py-4 mt-auto border-top border-secondary">
+    <footer class="bg-white text-muted py-4 mt-auto border-top border-light-subtle shadow-sm">
         <div class="container d-flex flex-column flex-md-row justify-content-between align-items-center gap-3">
-            <div class="d-flex align-items-center gap-2">
-                <i class="bi bi-shield-check text-primary fs-4"></i>
-                <span class="text-white fw-bold">AssureX Claim Engine</span>
-                <span class="badge bg-secondary text-light ms-2">v1.0.0 Enterprise</span>
+            <div class="d-flex align-items-center gap-3">
+                <img src="{{ url_for('static', filename='img/logo2.png') }}" alt="AssureX Claim Engine" height="42" class="d-inline-block">
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle ms-1">v1.0.0 Enterprise</span>
             </div>
-            <div class="text-center text-md-start small">
+            <div class="text-center text-md-start small text-secondary">
                 Dual-Model Machine Learning Consensus & Automated Policy Adjudication Engine
             </div>
-            <div class="small">
+            <div class="small text-secondary">
                 &copy; {{ current_year or 2026 }} AssureX Systems. All rights reserved.
             </div>
         </div>

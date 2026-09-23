@@ -1,11 +1,8 @@
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top border-bottom border-secondary shadow-sm">
+<nav class="navbar navbar-expand-lg navbar-light bg-white sticky-top border-bottom border-light-subtle shadow-sm py-2">
     <div class="container">
         <!-- Brand Logo -->
-        <a class="navbar-brand d-flex align-items-center py-1 text-decoration-none" href="{{ url_for('index') }}">
-            <div class="d-inline-flex align-items-center bg-white px-2.5 py-1 rounded-3 shadow-sm border border-light-subtle">
-                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="AssureX Shield" height="34" class="me-2">
-                <img src="{{ url_for('static', filename='img/brand_text.png') }}" alt="AssureX Claim Engine" height="26">
-            </div>
+        <a class="navbar-brand d-flex align-items-center py-0 text-decoration-none" href="{{ url_for('index') }}">
+            <img src="{{ url_for('static', filename='img/logo2.png') }}" alt="AssureX Claim Engine" height="52" style="max-height: 52px; width: auto;" class="d-inline-block">
         </a>
 
         <!-- Mobile Toggle Button -->
@@ -15,59 +12,59 @@
 
         <!-- Navbar Links -->
         <div class="collapse navbar-collapse" id="navbarMain">
-            <ul class="navbar-nav me-auto mb-2 mb-lg-0 align-items-lg-center">
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0 align-items-lg-center ms-lg-3">
                 {% if current_user %}
                     {% if current_user.role == app_config.ROLE_CUSTOMER %}
                         <li class="nav-item">
-                            <a class="nav-link px-3" href="{{ url_for('claims.customer_dashboard') }}">
-                                <i class="bi bi-speedometer2 me-1"></i> Dashboard
+                            <a class="nav-link px-3 fw-medium" href="{{ url_for('claims.customer_dashboard') }}">
+                                <i class="bi bi-speedometer2 me-1 text-primary"></i> Dashboard
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link px-3" href="{{ url_for('products.list_products') }}">
-                                <i class="bi bi-box-seam me-1"></i> My Products
+                            <a class="nav-link px-3 fw-medium" href="{{ url_for('products.list_products') }}">
+                                <i class="bi bi-box-seam me-1 text-primary"></i> My Products
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link px-3" href="{{ url_for('products.register_product') }}">
-                                <i class="bi bi-plus-circle me-1"></i> Register Product
+                            <a class="nav-link px-3 fw-medium" href="{{ url_for('products.register_product') }}">
+                                <i class="bi bi-plus-circle me-1 text-primary"></i> Register Product
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link px-3" href="{{ url_for('claims.list_my_claims') }}">
-                                <i class="bi bi-journal-text me-1"></i> My Claims
+                            <a class="nav-link px-3 fw-medium" href="{{ url_for('claims.list_my_claims') }}">
+                                <i class="bi bi-journal-text me-1 text-primary"></i> My Claims
                             </a>
                         </li>
                         <li class="nav-item ms-lg-2 my-1 my-lg-0">
-                            <a class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1" href="{{ url_for('claims.intake_wizard') }}">
+                            <a class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1 shadow-sm px-3" href="{{ url_for('claims.intake_wizard') }}">
                                 <i class="bi bi-lightning-charge-fill"></i> File Claim
                             </a>
                         </li>
                     {% elif current_user.role == app_config.ROLE_REVIEWER %}
                         <li class="nav-item">
-                            <a class="nav-link px-3" href="{{ url_for('reviewer.queue') }}">
-                                <i class="bi bi-inbox-fill me-1"></i> Adjudication Queue
+                            <a class="nav-link px-3 fw-medium" href="{{ url_for('reviewer.queue') }}">
+                                <i class="bi bi-inbox-fill me-1 text-primary"></i> Adjudication Queue
                             </a>
                         </li>
                     {% elif current_user.role == app_config.ROLE_ADMIN %}
                         <li class="nav-item">
-                            <a class="nav-link px-3" href="{{ url_for('admin.dashboard') }}">
-                                <i class="bi bi-graph-up-arrow me-1"></i> Executive Analytics
+                            <a class="nav-link px-3 fw-medium" href="{{ url_for('admin.dashboard') }}">
+                                <i class="bi bi-graph-up-arrow me-1 text-primary"></i> Executive Analytics
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link px-3" href="{{ url_for('reviewer.queue') }}">
-                                <i class="bi bi-shield-exclamation me-1"></i> Reviewer Queue
+                            <a class="nav-link px-3 fw-medium" href="{{ url_for('reviewer.queue') }}">
+                                <i class="bi bi-shield-exclamation me-1 text-primary"></i> Reviewer Queue
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link px-3" href="{{ url_for('admin.policy_editor') }}">
-                                <i class="bi bi-sliders me-1"></i> Warranty Policies
+                            <a class="nav-link px-3 fw-medium" href="{{ url_for('admin.policy_editor') }}">
+                                <i class="bi bi-sliders me-1 text-primary"></i> Warranty Policies
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link px-3" href="{{ url_for('admin.audit_logs') }}">
-                                <i class="bi bi-fingerprint me-1"></i> Audit Trail
+                            <a class="nav-link px-3 fw-medium" href="{{ url_for('admin.audit_logs') }}">
+                                <i class="bi bi-fingerprint me-1 text-primary"></i> Audit Trail
                             </a>
                         </li>
                     {% endif %}
@@ -77,25 +74,25 @@
             <!-- Right-Hand User Profile & Auth Controls -->
             <div class="d-flex align-items-center gap-3 mt-3 mt-lg-0">
                 {% if current_user %}
-                    <div class="d-flex align-items-center gap-2 text-light">
-                        <div class="avatar-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold">
+                    <div class="d-flex align-items-center gap-2">
+                        <div class="avatar-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold shadow-sm">
                             {{ current_user.full_name[0] }}
                         </div>
                         <div class="d-none d-md-block text-start">
-                            <div class="fw-semibold small leading-none">{{ current_user.full_name }}</div>
-                            <div class="text-white-50 extra-small">
-                                <span class="badge bg-secondary py-0">{{ current_user.role }}</span>
+                            <div class="fw-semibold small leading-none text-dark">{{ current_user.full_name }}</div>
+                            <div class="extra-small">
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle py-0">{{ current_user.role }}</span>
                             </div>
                         </div>
                     </div>
-                    <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-light btn-sm d-inline-flex align-items-center gap-1" title="Sign out of AssureX">
+                    <a href="{{ url_for('auth.logout') }}" class="btn btn-outline-danger btn-sm d-inline-flex align-items-center gap-1" title="Sign out of AssureX">
                         <i class="bi bi-box-arrow-right"></i> Sign Out
                     </a>
                 {% else %}
-                    <a href="{{ url_for('auth.login') }}" class="btn btn-outline-light btn-sm px-3">
+                    <a href="{{ url_for('auth.login') }}" class="btn btn-outline-primary btn-sm px-3">
                         <i class="bi bi-box-arrow-in-right me-1"></i> Sign In
                     </a>
-                    <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-sm px-3">
+                    <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-sm px-3 shadow-sm">
                         <i class="bi bi-person-plus me-1"></i> Create Account
                     </a>
                 {% endif %}
