@@ -14,7 +14,7 @@
             </div>
 
             <div class="card-body p-4 p-md-5">
-                <form method="POST" action="{{ url_for('auth.login') }}">
+                <form id="loginForm" method="POST" action="{{ url_for('auth.login') }}">
                     <div class="mb-3">
                         <label for="email" class="form-label fw-semibold small text-slate-700">Email Address</label>
                         <div class="input-group">
@@ -46,22 +46,29 @@
         <!-- Quick Demo Credentials Box -->
         <div class="card border-0 bg-white shadow-sm rounded-4 mt-4 p-3">
             <div class="d-flex align-items-center gap-2 mb-2 text-primary fw-semibold small">
-                <i class="bi bi-lightning-charge-fill"></i> Instant Demo Quick-Fill Roles
+                <i class="bi bi-lightning-charge-fill"></i> 1-Click Instant Demo Login
             </div>
-            <p class="text-muted extra-small mb-3">Click any credential below to immediately load credentials for testing:</p>
+            <p class="text-muted extra-small mb-3">Click any role below to instantly log in as that user:</p>
             <div class="d-grid gap-2">
-                <button type="button" class="btn btn-sm btn-outline-primary text-start d-flex justify-content-between align-items-center" onclick="fillCredentials('admin@assurex.local', 'AdminSecure123!')">
+                <button type="button" class="btn btn-sm btn-outline-primary text-start d-flex justify-content-between align-items-center" onclick="quickLogin('admin@assurex.local', 'AdminPass123!')">
                     <span><i class="bi bi-person-badge-fill me-1"></i> <b>System Administrator</b> (admin@assurex.local)</span>
-                    <span class="badge bg-primary">Admin</span>
+                    <span class="badge bg-primary">1-Click Sign In</span>
                 </button>
-                <button type="button" class="btn btn-sm btn-outline-dark text-start d-flex justify-content-between align-items-center" onclick="fillCredentials('reviewer@assurex.local', 'ReviewerSecure123!')">
+                <button type="button" class="btn btn-sm btn-outline-dark text-start d-flex justify-content-between align-items-center" onclick="quickLogin('reviewer@assurex.local', 'ReviewerPass123!')">
                     <span><i class="bi bi-shield-check me-1"></i> <b>Staff Claim Reviewer</b> (reviewer@assurex.local)</span>
-                    <span class="badge bg-dark">Reviewer</span>
+                    <span class="badge bg-dark">1-Click Sign In</span>
                 </button>
-                <button type="button" class="btn btn-sm btn-outline-success text-start d-flex justify-content-between align-items-center" onclick="fillCredentials('customer@assurex.local', 'CustomerSecure123!')">
+                <button type="button" class="btn btn-sm btn-outline-secondary text-start d-flex justify-content-between align-items-center" onclick="quickLogin('staff@assurex.local', 'StaffPass123!')">
+                    <span><i class="bi bi-tools me-1"></i> <b>Service Staff</b> (staff@assurex.local)</span>
+                    <span class="badge bg-secondary">1-Click Sign In</span>
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-success text-start d-flex justify-content-between align-items-center" onclick="quickLogin('customer@assurex.local', 'CustomerPass123!')">
                     <span><i class="bi bi-person-circle me-1"></i> <b>Verified Customer</b> (customer@assurex.local)</span>
-                    <span class="badge bg-success">Customer</span>
+                    <span class="badge bg-success">1-Click Sign In</span>
                 </button>
+            </div>
+            <div class="mt-2 text-center text-muted extra-small">
+                Default password for all demo accounts: <code>AdminPass123!</code> / <code>ReviewerPass123!</code> / <code>StaffPass123!</code> / <code>CustomerPass123!</code>
             </div>
         </div>
     </div>

@@ -144,6 +144,6 @@ def portal_redirect():
     elif role == Config.ROLE_REVIEWER:
         return redirect(url_for("reviewer.queue"))
     elif role == Config.ROLE_STAFF:
-        return redirect(url_for("claims.claims_list"))
+        return redirect(url_for("claims.customer_dashboard"))
     else:
         return redirect(url_for("claims.customer_dashboard"))

@@ -171,13 +171,26 @@ document.addEventListener("DOMContentLoaded", function () {
         `;
     }
 
-    // 5. Quick Demo Credentials Auto-Fill on Login Page
+    // 5. Quick Demo Credentials Auto-Fill & Instant 1-Click Login
     window.fillCredentials = function (email, password) {
         const emailInput = document.getElementById("email");
         const passwordInput = document.getElementById("password");
         if (emailInput && passwordInput) {
             emailInput.value = email;
             passwordInput.value = password;
+        }
+    };
+
+    window.quickLogin = function (email, password) {
+        const emailInput = document.getElementById("email");
+        const passwordInput = document.getElementById("password");
+        const form = document.getElementById("loginForm");
+        if (emailInput && passwordInput) {
+            emailInput.value = email;
+            passwordInput.value = password;
+        }
+        if (form) {
+            form.submit();
         }
     };
 });
