@@ -130,14 +130,11 @@
                         Sign Out
                     </a>
                 {% else %}
-                    <a href="{{ url_for('public.landing_page') }}#demo-sandbox" class="nav-link px-3 text-primary fw-medium small d-none d-xl-inline-block">
+                    <a href="{{ url_for('public.landing_page') }}#demo-sandbox" class="nav-link px-3 text-primary fw-medium small d-none d-lg-inline-block navbar-hover-link">
                         Demo Sandbox
                     </a>
-                    <a href="{{ url_for('auth.login') }}" class="btn btn-outline-secondary btn-sm px-3 text-dark border-light-subtle">
+                    <a href="{{ url_for('auth.login') }}" class="btn btn-sm btn-primary rounded-pill px-4 shadow-xs navbar-btn-hover">
                         Sign In
-                    </a>
-                    <a href="{{ url_for('auth.register') }}" class="btn btn-primary btn-sm px-3 shadow-sm">
-                        Create Account
                     </a>
                 {% endif %}
             </div>
