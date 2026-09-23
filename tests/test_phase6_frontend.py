@@ -103,6 +103,37 @@ class TestPhase6Frontend(unittest.TestCase):
         self.assertIn(b"404", res_404.data)
         self.assertIn(b"Resource Not Found", res_404.data)
 
+    def test_public_landing_page_renders(self):
+        """Verify public landing page renders with hero, verified metrics, and demo sandbox."""
+        res = self.client.get("/")
+        self.assertEqual(res.status_code, 200)
+        self.assertIn(b"Dual-Model AI Consensus", res.data)
+        self.assertIn(b"APTECH NEXTWAVE", res.data)
+        self.assertIn(b"EVALUATOR DEMO SANDBOX", res.data)
+        self.assertIn(b"How the AssureX Claim Engine Works", res.data)
+        self.assertIn(b"admin@assurex.local", res.data)
+        self.assertIn(b"reviewer@assurex.local", res.data)
+        self.assertIn(b"staff@assurex.local", res.data)
+        self.assertIn(b"customer@assurex.local", res.data)
+
+    def test_technical_blog_renders(self):
+        """Verify Technical Blog fulfills SRS Deliverable #14 with 2,000+ words and 23 topics."""
+        res = self.client.get("/blog")
+        self.assertEqual(res.status_code, 200)
+        self.assertIn(b"SRS DELIVERABLE #14", res.data)
+        self.assertIn(b"Building AssureX", res.data)
+        self.assertIn(b"23 SRS Topics", res.data)
+        self.assertIn(b"Copy Markdown for Medium / Blogger", res.data)
+
+    def test_technical_blog_raw_export(self):
+        """Verify raw markdown export stream for external publishing."""
+        res = self.client.get("/blog/raw")
+        self.assertEqual(res.status_code, 200)
+        self.assertIn("text/markdown", res.content_type)
+        self.assertTrue(len(res.data) > 15000)
+        self.assertIn(b"Business Problem", res.data)
+        self.assertIn(b"Google Teachable Machine Training", res.data)
+
 
 if __name__ == "__main__":
     unittest.main()

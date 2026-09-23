@@ -19,6 +19,7 @@ from src.api.claims import claim_bp
 from src.api.reviewer import reviewer_bp
 from src.api.admin import admin_bp
 from src.api.reports import report_bp
+from src.api.public import public_bp, landing_page
 
 
 def create_app(config_class=Config):
@@ -34,6 +35,7 @@ def create_app(config_class=Config):
     init_db(app)
 
     # Register API / UI Blueprints
+    app.register_blueprint(public_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(product_bp)
     app.register_blueprint(claim_bp)
@@ -52,12 +54,10 @@ def create_app(config_class=Config):
             "claim_statuses": Config.ALL_CLAIM_STATUSES
         }
 
-    # Root Route
+    # Root Route (Serves the public landing page with evaluator sandbox)
     @app.route("/")
     def index():
-        if session.get("user_id"):
-            return redirect(url_for("auth.portal_redirect"))
-        return redirect(url_for("auth.login"))
+        return landing_page()
 
     # Custom Error Handlers
     @app.errorhandler(404)

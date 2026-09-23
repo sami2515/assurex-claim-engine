@@ -34,9 +34,11 @@
 
     <!-- Main Content Body -->
     <main class="flex-grow-1 pb-5">
+        {% block main_wrapper %}
         <div class="container mt-3">
             {% block content %}{% endblock %}
         </div>
+        {% endblock %}
     </main>
 
     <!-- Enterprise Footer -->

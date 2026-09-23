@@ -78,6 +78,38 @@
                             </a>
                         </li>
                     {% endif %}
+                    <li class="nav-item">
+                        <a class="nav-link px-3 fw-medium" href="{{ url_for('public.view_blog') }}">
+                            <i class="bi bi-journal-richtext me-1 text-secondary"></i> Technical Blog
+                        </a>
+                    </li>
+                {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link px-3 fw-medium" href="{{ url_for('public.landing_page') }}">
+                            <i class="bi bi-house-door me-1 text-primary"></i> Home
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link px-3 fw-medium" href="{{ url_for('public.landing_page') }}#how-it-works">
+                            <i class="bi bi-gear-wide-connected me-1 text-primary"></i> How It Works
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link px-3 fw-medium" href="{{ url_for('public.landing_page') }}#features">
+                            <i class="bi bi-stars me-1 text-primary"></i> Features
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link px-3 fw-medium" href="{{ url_for('public.landing_page') }}#architecture">
+                            <i class="bi bi-diagram-3 me-1 text-primary"></i> Architecture
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link px-3 fw-medium" href="{{ url_for('public.view_blog') }}">
+                            <i class="bi bi-journal-code me-1 text-primary"></i> Technical Blog
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle extra-small ms-1">2.7k words</span>
+                        </a>
+                    </li>
                 {% endif %}
             </ul>
 
@@ -99,6 +131,9 @@
                         <i class="bi bi-box-arrow-right"></i> Sign Out
                     </a>
                 {% else %}
+                    <a href="{{ url_for('public.landing_page') }}#demo-sandbox" class="btn btn-outline-secondary btn-sm px-2 px-xxl-3 d-none d-xl-inline-flex align-items-center gap-1" title="Jump to Competition Evaluation Sandbox">
+                        <i class="bi bi-shield-check text-primary"></i> Demo Sandbox
+                    </a>
                     <a href="{{ url_for('auth.login') }}" class="btn btn-outline-primary btn-sm px-3">
                         <i class="bi bi-box-arrow-in-right me-1"></i> Sign In
                     </a>
