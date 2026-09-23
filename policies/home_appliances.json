@@ -1,0 +1,52 @@
+{
+  "category": "Home Appliances",
+  "policy_name": "Major Home Appliances Comprehensive Protection Policy",
+  "coverage_duration_months": 24,
+  "start_conditions": "Commences upon certified delivery and verified technician installation date.",
+  "covered_faults": [
+    "Compressor failure",
+    "Motor burnout",
+    "Thermostat failure",
+    "Drum spin malfunction",
+    "Electronic PCB failure",
+    "Water pump leakage",
+    "Heating element failure",
+    "Door gasket hermetic seal failure"
+  ],
+  "exclusions": [
+    "Commercial heavy utilization",
+    "Pest infestation inside chassis",
+    "Rust and environmental corrosion",
+    "Improper electrical supply rating",
+    "Third-party modifications",
+    "External water pipe burst impact",
+    "Installation by non-certified technician"
+  ],
+  "claim_reporting_period_days": 45,
+  "repair_conditions": "On-site diagnostic inspection by certified brand technician required prior to part dispatch.",
+  "authorized_service_center_required": true,
+  "replacement_conditions": "Sealed system compressor failure within 180 days entitles claimant to replacement compressor assembly with extended seal warranty.",
+  "grace_period_days": 14,
+  "mandatory_documents": [
+    "Original Tax Invoice",
+    "Installation Certificate",
+    "Model Serial Plate Photo"
+  ],
+  "hard_fail_rules": [
+    "Appliance operated beyond residential domestic parameters",
+    "Severe rust or chemical corrosion caused by harsh industrial detergents",
+    "Electrical motor burnout resulting from ungrounded high-voltage power lines",
+    "Attempted compressor repair or gas refilling by unauthorized local mechanic"
+  ],
+  "warning_rules": [
+    "Multiple service visits logged for cooling or vibration within 90 days",
+    "Installation certificate submitted without technician signature stamp",
+    "Claim submitted in the second year with no routine filter maintenance logged"
+  ],
+  "manual_review_rules": [
+    "Conflict between customer reported failure date and telemetry log",
+    "Disputed previous compressor replacement history",
+    "Document hash matches an existing processed claim record in another household",
+    "Model consistency status is Weak Match or Model Disagreement"
+  ]
+}

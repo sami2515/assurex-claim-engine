@@ -1,0 +1,56 @@
+{
+  "category": "Consumer Electronics",
+  "policy_name": "Standard Consumer Electronics Warranty Policy",
+  "coverage_duration_months": 12,
+  "start_conditions": "Commences strictly on the retail purchase date verified by official invoice.",
+  "covered_faults": [
+    "Screen flickering",
+    "Motherboard failure",
+    "Battery failure to charge",
+    "Speaker malfunction",
+    "Unresponsive touch panel",
+    "Bluetooth/Wi-Fi failure",
+    "Camera sensor defect",
+    "Charging port internal failure"
+  ],
+  "exclusions": [
+    "Liquid ingress damage",
+    "Screen shattering from drops",
+    "Third-party unauthorized disassembly",
+    "Cosmetic casing cracks",
+    "Power surge overvoltage",
+    "Rooted firmware malfunction",
+    "Cosmetic wear and tear",
+    "Commercial rental use"
+  ],
+  "claim_reporting_period_days": 30,
+  "repair_conditions": "Repairs must be conducted solely at authorized service hubs utilizing genuine OEM components.",
+  "authorized_service_center_required": true,
+  "replacement_conditions": "Full unit replacement is authorized only if primary motherboard failure recurs more than twice within first 90 days.",
+  "grace_period_days": 7,
+  "mandatory_documents": [
+    "Purchase Invoice",
+    "Warranty Card",
+    "Serial Number Photo",
+    "Fault Evidence Photo"
+  ],
+  "hard_fail_rules": [
+    "Claim submitted after warranty expiry and grace period has elapsed",
+    "Evidence of liquid ingress or immersion detected",
+    "Physical impact shattering or structural casing rupture",
+    "Disassembly, repair, or tampering performed by an unauthorized service center",
+    "Serial number on unit defaced, missing, or mismatched against invoice"
+  ],
+  "warning_rules": [
+    "Claim reported more than 21 days after fault manifestation date",
+    "Claim filed during post-expiry grace period window (within 7 days)",
+    "More than one previous component repair logged in past 6 months"
+  ],
+  "manual_review_rules": [
+    "Dual-model prediction disagreement between Python and Teachable Machine",
+    "Model confidence score falls below configurable minimum threshold",
+    "OCR extracted invoice serial differs by minor character variance from registration",
+    "Affidavit submitted in lieu of official tax invoice",
+    "Duplicate claim or invoice number detected in registry"
+  ]
+}

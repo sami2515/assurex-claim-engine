@@ -1,0 +1,48 @@
+{
+  "category": "Industrial & Automotive Tools",
+  "policy_name": "Heavy Duty Industrial Equipment & Power Tools Policy",
+  "coverage_duration_months": 36,
+  "start_conditions": "Commences upon equipment dispatch and registration in commercial distributor portal.",
+  "covered_faults": [
+    "Armature burning",
+    "Hydraulic pressure seal failure",
+    "Gearbox seizure",
+    "Chuck bearing breakdown",
+    "Trigger switch failure",
+    "Internal clutch breakdown",
+    "Pneumatic cylinder air leak"
+  ],
+  "exclusions": [
+    "Abnormal overload beyond specified torque limits",
+    "Normal consumable wear (carbon brushes, chuck teeth, power cords)",
+    "Unlubricated operation",
+    "Use of non-spec hydraulic oil",
+    "Tool dropped into wet concrete slurry or submerged in solvent",
+    "Serial plate defaced, stamped over, or removed"
+  ],
+  "claim_reporting_period_days": 30,
+  "repair_conditions": "Tool must be submitted to accredited regional warranty depot with complete original gear casing intact.",
+  "authorized_service_center_required": true,
+  "replacement_conditions": "Unit replacement approved only for catastrophic gearbox fracture occurring within initial 6 months of delivery.",
+  "grace_period_days": 10,
+  "mandatory_documents": [
+    "Commercial Tax Invoice",
+    "Authorized Service Logbook",
+    "Damage Site Photo"
+  ],
+  "hard_fail_rules": [
+    "Operating hydraulic or pneumatic system without manufacturer approved lubrication",
+    "Serial plate completely defaced, drilled out, or altered",
+    "Defect caused by documented mechanical overload exceeding tool duty-cycle rating",
+    "Disassembly performed by non-certified workshop facility"
+  ],
+  "warning_rules": [
+    "Tool operating hours exceed scheduled preventative maintenance cycle",
+    "High frequency heavy vibration marks observed on motor casing"
+  ],
+  "manual_review_rules": [
+    "Discrepancy in recorded operating duty hours versus date of purchase",
+    "Ambiguous diagnostic report on whether failure was carbon brush wear or motor defect",
+    "Dual-model agreement is Uncertain or Disagreement"
+  ]
+}

@@ -3,6 +3,7 @@ from src.core.preprocessor import extract_features, load_preprocessor
 from src.core.python_classifier import PythonClaimClassifier, get_python_classifier
 from src.core.teachable_machine_classifier import TeachableMachineClaimClassifier, get_gtm_classifier
 from src.core.model_comparator import DualModelComparator, get_model_comparator
+from src.core.decision_engine import MasterDecisionEngine, get_decision_engine
 
 __all__ = [
     "render_claim_summary_card",
@@ -14,5 +15,7 @@ __all__ = [
     "TeachableMachineClaimClassifier",
     "get_gtm_classifier",
     "DualModelComparator",
-    "get_model_comparator"
+    "get_model_comparator",
+    "MasterDecisionEngine",
+    "get_decision_engine"
 ]
