@@ -514,6 +514,7 @@ The primary takeaway from this project is that practical warranty adjudication i
 ---
 
 ### Project Links
+- **Published Live on Medium**: [https://medium.com/@samikhan031027/building-assurex-a-dual-model-warranty-claim-evaluation-system-8a30d3684111](https://medium.com/@samikhan031027/building-assurex-a-dual-model-warranty-claim-evaluation-system-8a30d3684111)
 - **Source Code Repository**: [https://github.com/sami2515/assurex-claim-engine](https://github.com/sami2515/assurex-claim-engine)
 - **Publication Record**: [`documentation/BLOG_PUBLICATION.md`](file:///c:/Users/sami/Desktop/techwiz%207/documentation/BLOG_PUBLICATION.md)
 - **Local Interactive Reader**: [http://127.0.0.1:5000/blog](http://127.0.0.1:5000/blog)

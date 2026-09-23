@@ -177,13 +177,12 @@ assurex-claim-engine/
 
 ## 📝 Technical Blog & Publication (Deliverable #14)
 
-In accordance with SRS Page 35–36 (Section 1.10 Deliverable 14), a comprehensive 2,784-word technical blog addressing **all 23 mandatory SRS discussion topics** has been authored and prepared for publication:
+In accordance with SRS Page 35–36 (Section 1.10 Deliverable 14), a comprehensive 3,790+ word technical blog addressing **all 23 mandatory SRS discussion topics** has been authored and published:
 
+- **Published Live on Medium:** [https://medium.com/@samikhan031027/building-assurex-a-dual-model-warranty-claim-evaluation-system-8a30d3684111](https://medium.com/@samikhan031027/building-assurex-a-dual-model-warranty-claim-evaluation-system-8a30d3684111)
 - **Source Technical Article:** [`documentation/TECHNICAL_BLOG.md`](file:///c:/Users/sami/Desktop/techwiz%207/documentation/TECHNICAL_BLOG.md)
 - **Official Publication Record:** [`documentation/BLOG_PUBLICATION.md`](file:///c:/Users/sami/Desktop/techwiz%207/documentation/BLOG_PUBLICATION.md)
 - **In-App Interactive Reader:** `http://127.0.0.1:5000/blog`
-- **Raw Markdown Stream:** `http://127.0.0.1:5000/blog/raw`
-- **Published Article URL:** [https://medium.com/@assurex-team/building-assurex-dual-model-ai-warranty-engine-2026](https://medium.com/@assurex-team/building-assurex-dual-model-ai-warranty-engine-2026)
 
 ---
 

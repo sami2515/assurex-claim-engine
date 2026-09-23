@@ -129,14 +129,14 @@
             </div>
 
             <div class="d-flex flex-wrap align-items-center gap-2">
-                <button type="button" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1 shadow-sm" onclick="copyMarkdownToClipboard()">
-                    <i class="bi bi-clipboard"></i> <span id="copyBtnText">Copy Markdown for Medium / Blogger</span>
-                </button>
-                <a href="{{ url_for('public.raw_blog') }}" target="_blank" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1">
-                    <i class="bi bi-file-earmark-code"></i> Raw Markdown
+                <a href="https://medium.com/@samikhan031027/building-assurex-a-dual-model-warranty-claim-evaluation-system-8a30d3684111" target="_blank" class="btn btn-dark btn-sm rounded-pill px-3 py-1 d-inline-flex align-items-center gap-2 shadow-xs text-decoration-none">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M9.025 8c0 2.485-2.02 4.5-4.513 4.5A4.5 4.5 0 0 1 0 8c0-2.486 2.02-4.5 4.512-4.5A4.5 4.5 0 0 1 9.025 8m5.016 0c0 2.333-1.01 4.225-2.257 4.225s-2.257-1.892-2.257-4.225c0-2.334 1.01-4.226 2.257-4.226s2.257 1.892 2.257 4.226M16 8c0 2.072-.375 3.75-.838 3.75s-.838-1.678-.838-3.75c0-2.073.375-3.75.838-3.75s.838 1.677.838 3.75"/>
+                    </svg>
+                    <span>Read on Medium &nearr;</span>
                 </a>
-                <button type="button" class="btn btn-light border border-light-subtle btn-sm d-inline-flex align-items-center gap-1 text-secondary" data-bs-toggle="modal" data-bs-target="#publicationModal">
-                    <i class="bi bi-box-arrow-up-right"></i> Publication Record
+                <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-3 py-1 d-inline-flex align-items-center gap-1 border-light-subtle text-secondary" onclick="copyMarkdownToClipboard()">
+                    <i class="bi bi-clipboard"></i> <span id="copyBtnText">Copy Markdown</span>
                 </button>
             </div>
         </div>
@@ -183,80 +183,19 @@
                 <!-- Article Footer & Attribution -->
                 <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3 bg-light p-4 rounded-3 border border-light-subtle">
                     <div>
-                        <div class="fw-bold text-dark small mb-1">Aptech NextWave Competition Deliverable</div>
-                        <div class="extra-small text-muted">Authored by AssureX Engineering Team strictly honoring SRS Version 1.0 guidelines.</div>
+                        <div class="fw-bold text-dark small mb-1">Published on Medium &middot; Aptech NextWave Deliverable #14</div>
+                        <div class="extra-small text-muted">Authored by Sami Khan &amp; AssureX Engineering Team honoring SRS Version 1.0 guidelines.</div>
                     </div>
                     <div class="d-flex gap-2">
-                        <a href="https://github.com/sami2515/techwiz-7" target="_blank" class="btn btn-outline-dark btn-sm d-inline-flex align-items-center gap-1">
-                            <i class="bi bi-github"></i> Repository
+                        <a href="https://medium.com/@samikhan031027/building-assurex-a-dual-model-warranty-claim-evaluation-system-8a30d3684111" target="_blank" class="btn btn-dark btn-sm rounded-pill px-3 d-inline-flex align-items-center gap-1">
+                            Read on Medium &nearr;
                         </a>
-                        <a href="{{ url_for('public.landing_page') }}#demo-sandbox" class="btn btn-primary btn-sm d-inline-flex align-items-center gap-1">
-                            <i class="bi bi-play-circle"></i> Launch App
+                        <a href="https://github.com/sami2515/techwiz-7" target="_blank" class="btn btn-outline-dark btn-sm rounded-pill px-3 d-inline-flex align-items-center gap-1">
+                            <i class="bi bi-github"></i> Repository
                         </a>
                     </div>
                 </div>
             </article>
-        </div>
-    </div>
-</div>
-
-<!-- Publication Record Modal -->
-<div class="modal fade" id="publicationModal" tabindex="-1" aria-labelledby="publicationModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content border-0 shadow-lg">
-            <div class="modal-header bg-dark text-white py-3">
-                <h5 class="modal-title fs-6 fw-bold" id="publicationModalLabel">
-                    <i class="bi bi-journal-bookmark-fill me-2 text-primary"></i> Official SRS Publication Record (Deliverable #14)
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body p-4">
-                <div class="alert alert-info py-2 px-3 small d-flex align-items-center gap-2 mb-3">
-                    <i class="bi bi-info-circle-fill"></i>
-                    <span>This metadata satisfies Aptech NextWave SRS Section 1.10 (Page 35–36).</span>
-                </div>
-
-                <table class="table table-bordered table-sm small mb-4">
-                    <tbody>
-                        <tr>
-                            <th class="bg-light w-25">Article Title</th>
-                            <td>Building AssureX: A Dual-Model Warranty Claim Evaluation System</td>
-                        </tr>
-                        <tr>
-                            <th class="bg-light">Author / Team</th>
-                            <td>AssureX Engineering Team (Aptech NextWave AI and ML)</td>
-                        </tr>
-                        <tr>
-                            <th class="bg-light">Publication Date</th>
-                            <td>September 2026</td>
-                        </tr>
-                        <tr>
-                            <th class="bg-light">Word Count</th>
-                            <td><strong>{{ word_count }} Words</strong> (&ge; 2,000 words mandatory requirement satisfied)</td>
-                        </tr>
-                        <tr>
-                            <th class="bg-light">Primary Live URL</th>
-                            <td><a href="https://medium.com/@assurex-team/building-assurex-dual-model-ai-warranty-engine-2026" target="_blank" class="text-break">https://medium.com/@assurex-team/building-assurex-dual-model-ai-warranty-engine-2026</a></td>
-                        </tr>
-                        <tr>
-                            <th class="bg-light">Mirror Archive URL</th>
-                            <td><a href="https://assurex.ghost.io/engineering-dual-model-ai-warranty-engine/" target="_blank" class="text-break">https://assurex.ghost.io/engineering-dual-model-ai-warranty-engine/</a></td>
-                        </tr>
-                        <tr>
-                            <th class="bg-light">Local Source</th>
-                            <td><code>documentation/TECHNICAL_BLOG.md</code></td>
-                        </tr>
-                        <tr>
-                            <th class="bg-light">Publication Record</th>
-                            <td><code>documentation/BLOG_PUBLICATION.md</code></td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                <div class="text-end">
-                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
-                </div>
-            </div>
         </div>
     </div>
 </div>

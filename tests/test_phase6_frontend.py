@@ -122,8 +122,8 @@ class TestPhase6Frontend(unittest.TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertIn(b"SRS DELIVERABLE #14", res.data)
         self.assertIn(b"Building AssureX", res.data)
-        self.assertIn(b"23 SRS Topics", res.data)
-        self.assertIn(b"Copy Markdown for Medium / Blogger", res.data)
+        self.assertIn(b"Read on Medium", res.data)
+        self.assertIn(b"samikhan031027", res.data)
 
     def test_technical_blog_raw_export(self):
         """Verify raw markdown export stream for external publishing."""
