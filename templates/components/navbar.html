@@ -55,21 +55,23 @@
                 <!-- Right-Hand User Profile & Auth Controls -->
                 <div class="d-flex align-items-center gap-2 mt-3 mt-lg-0">
                     {% if current_user %}
-                        <!-- Authenticated User Profile Dropdown (Req 1.6.ii) -->
+                        <!-- Authenticated User Profile Dropdown -->
                         <div class="dropdown">
-                            <button class="btn btn-light border bg-white rounded-pill px-3 py-1 d-flex align-items-center gap-2 shadow-xs dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                <div class="avatar-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold shadow-xs" style="width: 30px; height: 30px; font-size: 0.85rem;">
+                            <button class="btn bg-white border border-slate-200 rounded-pill py-1 ps-2 pe-3 d-flex align-items-center gap-2 shadow-xs dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                <div class="avatar-circle bg-primary text-white d-flex align-items-center justify-content-center fw-bold shadow-xs" style="width: 32px; height: 32px; font-size: 0.85rem;">
                                     {{ current_user.full_name[0]|upper }}
                                 </div>
                                 <div class="text-start d-none d-sm-block">
                                     <span class="fw-semibold small text-dark d-block leading-tight">{{ current_user.full_name.split()[0] }}</span>
-                                    <span class="badge bg-primary-subtle text-primary border border-primary-subtle py-0 extra-small" style="font-size: 0.65rem;">
-                                        {% if current_user.role == app_config.ROLE_CUSTOMER %}Customer
-                                        {% elif current_user.role == app_config.ROLE_REVIEWER %}Reviewer
-                                        {% elif current_user.role == app_config.ROLE_ADMIN %}Admin
-                                        {% elif current_user.role == app_config.ROLE_STAFF %}Staff
-                                        {% else %}{{ current_user.role|title }}{% endif %}
-                                    </span>
+                                    {% if current_user.role in [app_config.ROLE_REVIEWER, 'reviewer', 'claim_reviewer'] %}
+                                        <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle py-0 extra-small" style="font-size: 0.65rem; font-weight: 600;">Reviewer</span>
+                                    {% elif current_user.role in [app_config.ROLE_ADMIN, 'admin', 'administrator'] %}
+                                        <span class="badge bg-danger-subtle text-danger border border-danger-subtle py-0 extra-small" style="font-size: 0.65rem; font-weight: 600;">Admin</span>
+                                    {% elif current_user.role in [app_config.ROLE_STAFF, 'staff', 'service_center_staff'] %}
+                                        <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle py-0 extra-small" style="font-size: 0.65rem; font-weight: 600;">Staff</span>
+                                    {% else %}
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle py-0 extra-small" style="font-size: 0.65rem; font-weight: 600;">Customer</span>
+                                    {% endif %}
                                 </div>
                             </button>
                             <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 rounded-4 mt-2 p-2" style="min-width: 250px;">
@@ -78,15 +80,20 @@
                                     <div class="text-muted extra-small text-truncate">{{ current_user.email }}</div>
                                     <div class="mt-2 d-flex align-items-center justify-content-between">
                                         <span class="badge font-mono bg-white text-primary border extra-small">ID: {{ current_user.user_id }}</span>
-                                        <span class="badge bg-success-subtle text-success extra-small">Active</span>
+                                        <span class="badge {% if current_user.role in [app_config.ROLE_REVIEWER, 'reviewer', 'claim_reviewer'] %}bg-warning-subtle text-warning-emphasis border-warning-subtle{% elif current_user.role in [app_config.ROLE_ADMIN, 'admin', 'administrator'] %}bg-danger-subtle text-danger border-danger-subtle{% elif current_user.role in [app_config.ROLE_STAFF, 'staff', 'service_center_staff'] %}bg-info-subtle text-info-emphasis border-info-subtle{% else %}bg-success-subtle text-success border-success-subtle{% endif %} border extra-small">
+                                            {% if current_user.role in [app_config.ROLE_REVIEWER, 'reviewer', 'claim_reviewer'] %}Claim Reviewer
+                                            {% elif current_user.role in [app_config.ROLE_ADMIN, 'admin', 'administrator'] %}Administrator
+                                            {% elif current_user.role in [app_config.ROLE_STAFF, 'staff', 'service_center_staff'] %}Service Staff
+                                            {% else %}Customer{% endif %}
+                                        </span>
                                     </div>
                                 </li>
                                 <li>
                                     <a class="dropdown-item rounded-3 py-2 small d-flex align-items-center gap-2" href="{{ url_for('auth.profile') }}">
                                         <i class="bi bi-person-gear text-primary fs-6"></i>
                                         <div>
-                                            <div class="fw-semibold text-slate-800">My Profile & Settings</div>
-                                            <div class="extra-small text-muted">Manage contact & credentials</div>
+                                            <div class="fw-semibold text-slate-800">My Profile &amp; Settings</div>
+                                            <div class="extra-small text-muted">Manage contact &amp; credentials</div>
                                         </div>
                                     </a>
                                 </li>
@@ -94,7 +101,12 @@
                                     <a class="dropdown-item rounded-3 py-2 small d-flex align-items-center gap-2" href="{{ url_for('auth.portal_redirect') }}">
                                         <i class="bi bi-grid-fill text-primary fs-6"></i>
                                         <div>
-                                            <div class="fw-semibold text-slate-800">{{ current_user.role }} Workspace</div>
+                                            <div class="fw-semibold text-slate-800">
+                                                {% if current_user.role in [app_config.ROLE_REVIEWER, 'reviewer', 'claim_reviewer'] %}Reviewer Workbench
+                                                {% elif current_user.role in [app_config.ROLE_ADMIN, 'admin', 'administrator'] %}Executive Console
+                                                {% elif current_user.role in [app_config.ROLE_STAFF, 'staff', 'service_center_staff'] %}Staff Intake Desk
+                                                {% else %}Customer Portal{% endif %}
+                                            </div>
                                             <div class="extra-small text-muted">Go to active portal dashboard</div>
                                         </div>
                                     </a>

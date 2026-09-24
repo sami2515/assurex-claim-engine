@@ -1,22 +1,31 @@
 {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
-        <div class="row">
-            <div class="col-12">
+        <div class="row justify-content-center">
+            <div class="col-12 col-md-10 col-lg-8">
                 {% for category, message in messages %}
-                    <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show shadow-sm d-flex align-items-center gap-2 mb-3" role="alert">
-                        {% if category == 'success' %}
-                            <i class="bi bi-check-circle-fill fs-5 text-success"></i>
-                        {% elif category == 'danger' or category == 'error' %}
-                            <i class="bi bi-exclamation-triangle-fill fs-5 text-danger"></i>
-                        {% elif category == 'warning' %}
-                            <i class="bi bi-exclamation-circle-fill fs-5 text-warning"></i>
+                    {% set cat_class = category if category != 'error' else 'danger' %}
+                    <div class="alert alert-{{ cat_class }} border-0 shadow-sm rounded-4 d-flex align-items-center gap-3 py-2 px-3 mb-3 fade show" role="alert">
+                        {% if cat_class == 'success' %}
+                            <div class="bg-success text-white rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 28px; height: 28px;">
+                                <i class="bi bi-check-lg small"></i>
+                            </div>
+                        {% elif cat_class == 'danger' %}
+                            <div class="bg-danger text-white rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 28px; height: 28px;">
+                                <i class="bi bi-exclamation-triangle-fill extra-small"></i>
+                            </div>
+                        {% elif cat_class == 'warning' %}
+                            <div class="bg-warning text-dark rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 28px; height: 28px;">
+                                <i class="bi bi-exclamation-circle-fill extra-small"></i>
+                            </div>
                         {% else %}
-                            <i class="bi bi-info-circle-fill fs-5 text-primary"></i>
+                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 28px; height: 28px;">
+                                <i class="bi bi-info-lg small"></i>
+                            </div>
                         {% endif %}
-                        <div class="flex-grow-1">
+                        <div class="flex-grow-1 small fw-medium">
                             {{ message }}
                         </div>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        <button type="button" class="btn-close ms-auto extra-small" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
                 {% endfor %}
             </div>

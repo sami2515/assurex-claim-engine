@@ -275,7 +275,7 @@ def logout():
         db.session.commit()
 
     session.clear()
-    flash("You have been signed out safely.", "info")
+    flash("Signed out successfully.", "success")
     return redirect(url_for("auth.login"))
 
 
