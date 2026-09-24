@@ -183,9 +183,10 @@ class TestPhase6Frontend(unittest.TestCase):
             self.assertIn(b"submitted and evaluated", res.data)
         finally:
             with self.app.app_context():
-                for c in Claim.query.all():
-                    db.session.delete(c)
-                db.session.commit()
+                test_claim = Claim.query.filter_by(fault_description=post_data["fault_description"]).first()
+                if test_claim:
+                    db.session.delete(test_claim)
+                    db.session.commit()
 
 
 if __name__ == "__main__":

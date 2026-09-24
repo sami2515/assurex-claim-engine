@@ -239,6 +239,15 @@ class Claim(db.Model):
         db.session.add(history_entry)
         return history_entry
 
+    @property
+    def claim_amount(self) -> float:
+        """Estimated claim repair / replacement amount based on product valuation."""
+        if hasattr(self, "_override_amount") and self._override_amount is not None:
+            return float(self._override_amount)
+        if self.product and self.product.purchase_price:
+            return round(self.product.purchase_price * 0.22, 2)
+        return 125.00
+
     def to_dict(self):
         return {
             "claim_id": self.claim_id,
