@@ -1,8 +1,9 @@
 import os
+import io
 import unittest
 from src.app import create_app
 from database.db import db
-from src.models.entities import User, Product, WarrantyPolicy, ProductWarranty, Claim, ModelEvaluation
+from src.models.entities import User, Product, WarrantyPolicy, ProductWarranty, Claim, ModelEvaluation, ClaimDocument
 from config.config import Config
 
 
@@ -220,6 +221,113 @@ class TestPhase6Frontend(unittest.TestCase):
             with self.app.app_context():
                 cleanup = Product.query.filter_by(serial_number=test_serial).first()
                 if cleanup:
+                    ProductWarranty.query.filter_by(product_id=cleanup.id).delete()
+                    db.session.delete(cleanup)
+                    db.session.commit()
+
+    def test_req_1_6_v_and_vi_receipt_upload_and_extraction(self):
+        """
+        SRS 1.6.v: Upload and securely store purchase receipts, invoices in PDF, JPG, JPEG, PNG.
+        SRS 1.6.vi: Receipt scanning and data extraction (purchase date, invoice number, product name,
+                    model number, serial number, retailer, purchase amount, warranty duration).
+        """
+        with self.client.session_transaction() as sess:
+            with self.app.app_context():
+                user = User.query.filter_by(role=Config.ROLE_CUSTOMER).first()
+                sess["user_id"] = user.id
+                sess["user_code"] = user.user_id
+                sess["role"] = user.role
+                sess["user_name"] = user.full_name
+                sess["email"] = user.email
+
+        # 1. Test POST /products/scan-receipt with simulated receipt file
+        sample_receipt_text = (
+            "OFFICIAL TAX INVOICE & PROOF OF PURCHASE\n"
+            "Retailer: Best Buy Electronics\n"
+            "Product Name: ApexBook Pro 16 Laptop\n"
+            "Model Number: ABP-16-M3\n"
+            "Serial Number: SN-APX-8829104\n"
+            "Purchase Date: 2026-05-15\n"
+            "Invoice Number: INV-2026-88192\n"
+            "Purchase Amount: $1,249.99\n"
+            "Warranty Duration: 24 Months Extended Coverage"
+        )
+        data = {
+            "receipt_document": (io.BytesIO(sample_receipt_text.encode("utf-8")), "purchase_receipt.png")
+        }
+        res_scan = self.client.post("/products/scan-receipt", data=data, content_type="multipart/form-data")
+        self.assertEqual(res_scan.status_code, 200)
+        scan_json = res_scan.get_json()
+        self.assertTrue(scan_json["success"])
+        self.assertEqual(len(scan_json["sha256"]), 64)
+        entities = scan_json["entities"]
+
+        # Verify all 8 fields required by SRS 1.6.vi
+        self.assertEqual(entities["purchase_date"], "2026-05-15")
+        self.assertEqual(entities["invoice_number"], "INV-2026-88192")
+        self.assertEqual(entities["product_name"], "ApexBook Pro 16 Laptop")
+        self.assertEqual(entities["model_number"], "ABP-16-M3")
+        self.assertEqual(entities["serial_number"], "SN-APX-8829104")
+        self.assertEqual(entities["retailer"], "Best Buy")
+        self.assertEqual(entities["purchase_amount"], 1249.99)
+        self.assertEqual(entities["warranty_duration"], 24)
+
+        # 2. Test POST /products/register with uploaded receipt attachment (Req 1.6.v)
+        test_sn = "SN-OCR-TEST-7788"
+        with self.app.app_context():
+            old = Product.query.filter_by(serial_number=test_sn).first()
+            if old:
+                ClaimDocument.query.filter_by(product_id=old.id).delete()
+                ProductWarranty.query.filter_by(product_id=old.id).delete()
+                db.session.delete(old)
+                db.session.commit()
+
+        try:
+            reg_data = {
+                "product_name": entities["product_name"],
+                "category": "Consumer Electronics",
+                "brand": "ApexTech",
+                "model_number": entities["model_number"],
+                "serial_number": test_sn,
+                "purchase_date": entities["purchase_date"],
+                "purchase_price": str(entities["purchase_amount"]),
+                "retailer": entities["retailer"],
+                "invoice_number": entities["invoice_number"],
+                "warranty_duration": str(entities["warranty_duration"]),
+                "warranty_type": "standard",
+                "receipt_document": (io.BytesIO(b"%PDF-1.4 sample invoice content for testing"), "official_tax_invoice.pdf")
+            }
+            res_reg = self.client.post("/products/register", data=reg_data, content_type="multipart/form-data", follow_redirects=True)
+            self.assertEqual(res_reg.status_code, 200)
+
+            with self.app.app_context():
+                prod = Product.query.filter_by(serial_number=test_sn).first()
+                self.assertIsNotNone(prod)
+                self.assertEqual(len(prod.documents), 1)
+                doc = prod.documents[0]
+                self.assertEqual(doc.original_filename, "official_tax_invoice.pdf")
+                self.assertEqual(doc.document_type, "receipt")
+                self.assertEqual(len(doc.file_hash_sha256), 64)
+                doc_id = doc.document_id
+                prod_id = prod.product_id
+
+            # 3. Test Product Detail displays document archive (Req 1.6.v & xiv)
+            res_view = self.client.get(f"/products/{prod_id}")
+            self.assertEqual(res_view.status_code, 200)
+            self.assertIn(b"Proof-of-Purchase & Document Archive", res_view.data)
+            self.assertIn(b"official_tax_invoice.pdf", res_view.data)
+
+            # 4. Test Document Download Route
+            res_dl = self.client.get(f"/products/documents/{doc_id}/download")
+            self.assertEqual(res_dl.status_code, 200)
+            self.assertIn(b"%PDF-1.4 sample invoice", res_dl.data)
+            res_dl.close()
+
+        finally:
+            with self.app.app_context():
+                cleanup = Product.query.filter_by(serial_number=test_sn).first()
+                if cleanup:
+                    ClaimDocument.query.filter_by(product_id=cleanup.id).delete()
                     ProductWarranty.query.filter_by(product_id=cleanup.id).delete()
                     db.session.delete(cleanup)
                     db.session.commit()

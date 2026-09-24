@@ -89,6 +89,7 @@ class Product(db.Model):
     warranty = db.relationship("ProductWarranty", backref="product", uselist=False, cascade="all, delete-orphan")
     claims = db.relationship("Claim", backref="product", lazy=True)
     repair_records = db.relationship("RepairHistory", backref="product", lazy=True, cascade="all, delete-orphan")
+    documents = db.relationship("ClaimDocument", backref="product", lazy=True, cascade="all, delete-orphan")
 
     @property
     def product_category(self):

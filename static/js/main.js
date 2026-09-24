@@ -163,12 +163,71 @@ document.addEventListener("DOMContentLoaded", function () {
         filePreview.innerHTML = `
             <div class="alert alert-success d-flex align-items-center gap-2 mt-3 mb-0">
                 <i class="bi bi-file-earmark-check-fill fs-4 text-success"></i>
-                <div>
+                <div class="flex-grow-1">
                     <div class="fw-bold">${file.name}</div>
                     <small class="text-muted">Size: ${fileSizeMB} MB | MIME: ${file.type || 'Document'}</small>
                 </div>
+                <span class="badge bg-primary">Ready for OCR</span>
             </div>
         `;
+
+        // Live OCR extraction preview (Req 1.6.vi & vii)
+        const ocrPanel = document.getElementById("ocr-results-panel");
+        if (ocrPanel) {
+            ocrPanel.innerHTML = `
+                <div class="text-center py-2">
+                    <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+                    <span class="extra-small text-muted">Running live OCR entity extraction & cryptographic hash computation...</span>
+                </div>
+            `;
+            const formData = new FormData();
+            formData.append("document", file);
+            fetch("/claims/ocr-extract", {
+                method: "POST",
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success && data.entities) {
+                    const e = data.entities;
+                    ocrPanel.innerHTML = `
+                        <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
+                            <span class="fw-bold small text-slate-800"><i class="bi bi-cpu text-primary me-2"></i>Live OCR Extraction Results (Req 1.6.vi)</span>
+                            <span class="badge bg-success-subtle text-success extra-small">Verified</span>
+                        </div>
+                        <div class="row g-2 extra-small">
+                            <div class="col-sm-4">
+                                <span class="text-muted d-block">Invoice #:</span>
+                                <strong class="font-mono text-dark">${e.invoice_number || 'N/A'}</strong>
+                            </div>
+                            <div class="col-sm-4">
+                                <span class="text-muted d-block">Purchase Date:</span>
+                                <strong class="text-dark">${e.purchase_date || 'N/A'}</strong>
+                            </div>
+                            <div class="col-sm-4">
+                                <span class="text-muted d-block">Serial Number:</span>
+                                <strong class="font-mono text-primary">${e.serial_number || 'N/A'}</strong>
+                            </div>
+                            <div class="col-sm-4">
+                                <span class="text-muted d-block">Purchase Price:</span>
+                                <strong class="text-success">$${e.purchase_amount ? parseFloat(e.purchase_amount).toFixed(2) : '0.00'}</strong>
+                            </div>
+                            <div class="col-sm-8">
+                                <span class="text-muted d-block">Merchant / Retailer:</span>
+                                <strong class="text-dark">${e.retailer || 'N/A'}</strong>
+                            </div>
+                            <div class="col-12 mt-1">
+                                <span class="text-muted d-block">SHA-256 Digest:</span>
+                                <code class="extra-small text-secondary">${data.sha256 || 'N/A'}</code>
+                            </div>
+                        </div>
+                    `;
+                }
+            })
+            .catch(err => {
+                console.error("Live OCR extraction preview failed:", err);
+            });
+        }
     }
 
     // 5. Quick Demo Credentials Auto-Fill & Instant 1-Click Login

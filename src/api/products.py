@@ -1,9 +1,13 @@
+import json
+from pathlib import Path
 from datetime import datetime, date, timedelta
-from flask import Blueprint, request, session, redirect, url_for, flash, jsonify, render_template
+from werkzeug.utils import secure_filename
+from flask import Blueprint, request, session, redirect, url_for, flash, jsonify, render_template, send_file
 from config.config import Config
 from database.db import db
-from src.models.entities import Product, ProductWarranty, WarrantyPolicy, RepairHistory, Notification, AuditLog
+from src.models.entities import Product, ProductWarranty, WarrantyPolicy, RepairHistory, Notification, AuditLog, ClaimDocument
 from src.api.auth import login_required, get_current_user
+from src.ocr.document_processor import get_document_processor
 
 product_bp = Blueprint("products", __name__, url_prefix="/products")
 
@@ -159,6 +163,34 @@ def register_product():
         )
         db.session.add(warranty)
 
+        # 3. Securely Store Uploaded Receipt / Invoice Document (Req 1.6.v & vi)
+        receipt_file = request.files.get("receipt_document") or request.files.get("receipt_file") or request.files.get("invoice_document")
+        if receipt_file and receipt_file.filename:
+            ext = receipt_file.filename.rsplit(".", 1)[-1].lower() if "." in receipt_file.filename else ""
+            if ext in Config.ALLOWED_DOCUMENT_EXTENSIONS:
+                upload_folder = Path(Config.UPLOAD_DIR)
+                upload_folder.mkdir(parents=True, exist_ok=True)
+                sec_filename = f"{product.product_id}_receipt_{secure_filename(receipt_file.filename)}"
+                save_dest = upload_folder / sec_filename
+                receipt_file.save(save_dest)
+
+                doc_processor = get_document_processor()
+                doc_info = doc_processor.process_document(save_dest, document_type="receipt")
+
+                claim_doc = ClaimDocument(
+                    product_id=product.id,
+                    claim_id=None,
+                    document_type="receipt",
+                    file_path=str(save_dest),
+                    original_filename=receipt_file.filename,
+                    file_size_bytes=doc_info["file_size_bytes"],
+                    file_hash_sha256=doc_info["sha256_hash"],
+                    ocr_extracted_text=doc_info["raw_text"],
+                    ocr_data_json=json.dumps(doc_info["entities"]),
+                    verified_by_user=True
+                )
+                db.session.add(claim_doc)
+
         # Record Audit Log
         audit = AuditLog(
             user_id=user.id,
@@ -181,12 +213,69 @@ def register_product():
     return render_template("customer/product_register.html", policies=policies)
 
 
+@product_bp.route("/scan-receipt", methods=["POST"])
+@login_required
+def scan_receipt():
+    """
+    Req vi & vii: Document scanning and extracted data verification endpoint for product registration.
+    Extracts purchase date, invoice number, product name, model number, serial number,
+    retailer, purchase amount, and warranty duration from PDF, JPG, JPEG, and PNG files.
+    """
+    uploaded_file = request.files.get("receipt_document") or request.files.get("document") or request.files.get("file")
+    if not uploaded_file or not uploaded_file.filename:
+        return jsonify({"success": False, "error": "No file uploaded. Please select an invoice or receipt."}), 400
+
+    ext = uploaded_file.filename.rsplit(".", 1)[-1].lower() if "." in uploaded_file.filename else ""
+    if ext not in Config.ALLOWED_DOCUMENT_EXTENSIONS:
+        return jsonify({
+            "success": False,
+            "error": f"Unsupported format '.{ext}'. Allowed formats: PDF, JPG, JPEG, PNG (Req 1.6.v)."
+        }), 400
+
+    upload_folder = Path(Config.UPLOAD_DIR)
+    upload_folder.mkdir(parents=True, exist_ok=True)
+    temp_filename = f"scan_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{secure_filename(uploaded_file.filename)}"
+    temp_path = upload_folder / temp_filename
+    uploaded_file.save(temp_path)
+
+    doc_processor = get_document_processor()
+    doc_info = doc_processor.process_document(temp_path, document_type="receipt")
+
+    return jsonify({
+        "success": True,
+        "filename": doc_info["filename"],
+        "temp_path": str(temp_path),
+        "sha256": doc_info["sha256_hash"],
+        "file_size_bytes": doc_info["file_size_bytes"],
+        "entities": doc_info["entities"],
+        "raw_text_snippet": doc_info["raw_text"][:250]
+    })
+
+
+@product_bp.route("/documents/<string:document_id>/download", methods=["GET"])
+@login_required
+def download_document(document_id):
+    """
+    Req v & xiv: Securely serves uploaded purchase receipts, invoices, and warranty cards.
+    """
+    doc = ClaimDocument.query.filter_by(document_id=document_id).first_or_404()
+    file_path = Path(doc.file_path)
+    if not file_path.exists():
+        flash("Document file not found on disk.", "warning")
+        return redirect(request.referrer or url_for("products.list_products"))
+    return send_file(
+        file_path,
+        as_attachment=False,
+        download_name=doc.original_filename
+    )
+
+
 @product_bp.route("/<string:product_id>", methods=["GET"])
 @login_required
 def view_product(product_id):
     """
     Detailed product overview showing hardware specifications, warranty lifecycle countdown,
-    policy coverage conditions, exclusions, and historical service records (Req iii & iv).
+    policy coverage conditions, exclusions, historical service records, and uploaded proof documents (Req iii, iv, v).
     """
     product = Product.query.filter_by(product_id=product_id).first_or_404()
     policy_rules = product.warranty.policy.get_rules() if product.warranty and product.warranty.policy else {}

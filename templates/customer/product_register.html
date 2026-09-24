@@ -14,18 +14,84 @@
                             <i class="bi bi-box-seam me-2"></i>Register Equipment & Activate Warranty
                         </h4>
                         <p class="mb-0 text-white-50 small">
-                            Fulfills SRS 1.6.iii & 1.6.iv: Enter hardware provenance, duration, and warranty coverage details.
+                            Fulfills SRS 1.6.iii, 1.6.iv, 1.6.v, & 1.6.vi: Hardware provenance, proof upload, and AI receipt scanning.
                         </p>
                     </div>
                     <span class="badge bg-white text-primary fw-bold font-mono px-3 py-2 shadow-xs">
-                        Req iii & iv
+                        Req iii, iv, v, vi, vii
                     </span>
                 </div>
             </div>
 
             <div class="card-body p-4 p-md-5">
-                <form method="POST" action="{{ url_for('products.register_product') }}">
+                <!-- Smart AI Receipt & Invoice Scanner Dropzone (Req 1.6.v & vi) -->
+                <div class="card border-primary border-dashed bg-primary-subtle bg-opacity-25 rounded-4 p-4 mb-4" id="scanner-box">
+                    <div class="d-flex flex-column flex-md-row align-items-center gap-3">
+                        <div class="text-primary fs-1">
+                            <i class="bi bi-file-earmark-text-fill"></i>
+                        </div>
+                        <div class="flex-grow-1 text-center text-md-start">
+                            <h5 class="fw-bold text-slate-900 mb-1">
+                                <i class="bi bi-lightning-charge-fill text-warning me-1"></i>AI Receipt & Invoice Scanner (Req 1.6.v & vi)
+                            </h5>
+                            <p class="text-muted extra-small mb-0">
+                                Upload purchase receipts or invoices in <strong>PDF, JPG, JPEG, PNG</strong>. AssureX scans the document via OCR to auto-extract date, invoice #, product, model, serial, retailer, price, and warranty duration.
+                            </p>
+                        </div>
+                        <div>
+                            <button type="button" class="btn btn-outline-primary btn-sm px-3 py-2 fw-semibold d-inline-flex align-items-center gap-2 shadow-xs" onclick="document.getElementById('receipt_document').click()">
+                                <i class="bi bi-upload"></i> Upload & Scan Invoice
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Scanning Progress Spinner (hidden by default) -->
+                    <div id="scan-loading-spinner" class="d-none mt-3 p-3 bg-white rounded-3 border text-center">
+                        <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                        <span class="small fw-semibold text-slate-800">Scanning receipt with OCR engine & extracting entities...</span>
+                        <div class="progress mt-2" style="height: 4px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary" style="width: 100%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Extracted Data Verification Panel (Req 1.6.vii) -->
+                    <div id="extracted-verification-panel" class="d-none mt-3 p-3 bg-white rounded-3 border">
+                        <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                    <i class="bi bi-check-circle-fill"></i> OCR Extraction Successful
+                                </span>
+                                <span class="extra-small text-muted" id="extracted-file-name">receipt.pdf</span>
+                            </div>
+                            <span class="badge bg-light text-secondary border font-mono extra-small" id="extracted-sha256">SHA-256 Verified</span>
+                        </div>
+                        <p class="extra-small text-slate-700 mb-2">
+                            <strong>Extracted Data Verification (Req 1.6.vii):</strong> The values below were parsed from your uploaded invoice and automatically populated into the form. Please review and modify any field if needed before submitting.
+                        </p>
+                        <div class="row g-2 extra-small" id="extracted-summary-grid">
+                            <!-- Populated dynamically via JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <form method="POST" action="{{ url_for('products.register_product') }}" enctype="multipart/form-data" id="product-registration-form">
                     
+                    <!-- Hidden or Explicit File Input (Req 1.6.v) -->
+                    <div class="mb-4">
+                        <label for="receipt_document" class="form-label fw-semibold small text-slate-700">
+                            Proof-of-Purchase Document File <span class="text-muted fw-normal">(Optional for manual entry, mandatory for OCR scan)</span>
+                        </label>
+                        <div class="input-group">
+                            <input type="file" class="form-control" id="receipt_document" name="receipt_document" accept=".pdf,.png,.jpg,.jpeg" onchange="handleReceiptFileSelected(this)">
+                            <button class="btn btn-primary d-inline-flex align-items-center gap-1" type="button" onclick="triggerOcrScan()">
+                                <i class="bi bi-cpu"></i> Scan via OCR
+                            </button>
+                        </div>
+                        <div class="form-text extra-small text-muted">
+                            Supported proof documents: Purchase invoices, store receipts, warranty certificates in <strong>PDF, JPG, JPEG, PNG</strong> (Max 16 MB).
+                        </div>
+                    </div>
+
                     <!-- Section 1: Hardware Asset Provenance (Req 1.6.iii) -->
                     <div class="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom">
                         <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Step 1</span>
@@ -61,7 +127,7 @@
                         <div class="col-md-6">
                             <label for="serial_number" class="form-label fw-semibold small text-slate-700">Hardware Serial Number <span class="text-danger">*</span></label>
                             <input type="text" class="form-control font-mono" id="serial_number" name="serial_number" required placeholder="e.g. SN-APX-994821">
-                            <div class="form-text extra-small">Unique alphanumeric identifier stamped on device backplate.</div>
+                            <div class="form-text extra-small">Unique alphanumeric identifier stamped on device backplate or invoice.</div>
                         </div>
 
                         <div class="col-md-6">
@@ -95,7 +161,7 @@
                     </div>
 
                     <div class="row g-3 mb-4">
-                        <!-- Warranty Duration (Mandatory in Req 1.6.iii) -->
+                        <!-- Warranty Duration (Mandatory in Req 1.6.iii & vi) -->
                         <div class="col-md-4">
                             <label for="warranty_duration" class="form-label fw-semibold small text-slate-700">
                                 Warranty Duration (Months) <span class="text-danger">*</span>
@@ -106,7 +172,7 @@
                                 <option value="36">36 Months (3 Years Extended)</option>
                                 <option value="48">48 Months (4 Years Extended)</option>
                             </select>
-                            <div class="form-text extra-small">Coverage duration as specified on your invoice or purchase agreement.</div>
+                            <div class="form-text extra-small">Extracted from invoice or selected per warranty plan.</div>
                         </div>
 
                         <!-- Standard vs Extended Warranty (Req 1.6.iv) -->
@@ -142,8 +208,8 @@
                     <div class="alert alert-light border shadow-xs d-flex align-items-start gap-3 mb-4 rounded-3 p-3">
                         <i class="bi bi-shield-check fs-3 text-primary mt-1"></i>
                         <div class="small">
-                            <div class="fw-bold text-slate-900 mb-1">Automated System Unique Product ID & Policy Contract Binding</div>
-                            Upon submission, AssureX assigns a permanent <b>Unique Product ID (PRD-XXXXXXXX)</b> to this hardware and binds an active warranty contract storing complete coverage rules, exclusions, and service-center specifications (SRS Section 1.6.iii & 1.6.iv).
+                            <div class="fw-bold text-slate-900 mb-1">Automated System Unique Product ID & Secure Document Archiving</div>
+                            Upon submission, AssureX assigns a permanent <b>Unique Product ID (PRD-XXXXXXXX)</b>, stores your uploaded receipt with its <b>cryptographic SHA-256 hash</b>, and binds an active warranty contract (SRS Section 1.6.iii, 1.6.iv, & 1.6.v).
                         </div>
                     </div>
 
@@ -176,6 +242,125 @@ function updateWarrantyDefaults(category) {
         durationSelect.value = '36';
         providerInput.placeholder = brandInput + ' Heavy Duty Industrial Care';
     }
+}
+
+function handleReceiptFileSelected(input) {
+    if (input.files && input.files[0]) {
+        triggerOcrScan();
+    }
+}
+
+function triggerOcrScan() {
+    const fileInput = document.getElementById('receipt_document');
+    if (!fileInput.files || !fileInput.files[0]) {
+        alert('Please choose a receipt or invoice document file first.');
+        return;
+    }
+
+    const file = fileInput.files[0];
+    const formData = new FormData();
+    formData.append('receipt_document', file);
+
+    const spinner = document.getElementById('scan-loading-spinner');
+    const verificationPanel = document.getElementById('extracted-verification-panel');
+    spinner.classList.remove('d-none');
+    verificationPanel.classList.add('d-none');
+
+    fetch("{{ url_for('products.scan_receipt') }}", {
+        method: "POST",
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+        spinner.classList.add('d-none');
+        if (data.success && data.entities) {
+            const e = data.entities;
+            verificationPanel.classList.remove('d-none');
+            document.getElementById('extracted-file-name').innerText = data.filename;
+            document.getElementById('extracted-sha256').innerText = 'SHA-256: ' + (data.sha256 ? data.sha256.substring(0, 12) + '...' : 'Verified');
+
+            // 1. Auto-fill form inputs (Req 1.6.vi)
+            if (e.product_name) document.getElementById('product_name').value = e.product_name;
+            if (e.model_number) document.getElementById('model_number').value = e.model_number;
+            if (e.serial_number && e.serial_number !== 'SN-UNKNOWN') document.getElementById('serial_number').value = e.serial_number;
+            if (e.purchase_date) document.getElementById('purchase_date').value = e.purchase_date;
+            if (e.purchase_amount) document.getElementById('purchase_price').value = e.purchase_amount;
+            if (e.retailer) document.getElementById('retailer').value = e.retailer;
+            if (e.invoice_number) document.getElementById('invoice_number').value = e.invoice_number;
+
+            // Warranty duration & tier
+            if (e.warranty_duration) {
+                const durationSelect = document.getElementById('warranty_duration');
+                const valStr = String(e.warranty_duration);
+                if (['12', '24', '36', '48'].includes(valStr)) {
+                    durationSelect.value = valStr;
+                }
+                if (parseInt(valStr) > 24) {
+                    document.getElementById('warranty_type').value = 'extended';
+                }
+            }
+
+            // Infer brand if available in product name
+            const brandInput = document.getElementById('brand');
+            if (!brandInput.value && e.product_name) {
+                const firstWord = e.product_name.split(' ')[0];
+                if (firstWord.length > 2) brandInput.value = firstWord;
+            }
+
+            // Infer category if available
+            const catSelect = document.getElementById('category');
+            if (catSelect.value === '') {
+                const pLower = (e.product_name || '').toLowerCase();
+                if (pLower.includes('laptop') || pLower.includes('tv') || pLower.includes('phone') || pLower.includes('oled')) {
+                    catSelect.value = 'Consumer Electronics';
+                } else if (pLower.includes('refrigerator') || pLower.includes('washer') || pLower.includes('microwave')) {
+                    catSelect.value = 'Home Appliances';
+                } else if (pLower.includes('hammer') || pLower.includes('drill') || pLower.includes('saw')) {
+                    catSelect.value = 'Industrial & Automotive Tools';
+                }
+            }
+
+            // Render Extracted Summary Grid for verification (Req 1.6.vii)
+            const summaryGrid = document.getElementById('extracted-summary-grid');
+            summaryGrid.innerHTML = `
+                <div class="col-sm-6 col-md-3 p-2 bg-light rounded border">
+                    <span class="text-muted d-block">Invoice #</span>
+                    <strong class="font-mono text-dark">${e.invoice_number || 'N/A'}</strong>
+                </div>
+                <div class="col-sm-6 col-md-3 p-2 bg-light rounded border">
+                    <span class="text-muted d-block">Purchase Date</span>
+                    <strong class="text-dark">${e.purchase_date || 'N/A'}</strong>
+                </div>
+                <div class="col-sm-6 col-md-3 p-2 bg-light rounded border">
+                    <span class="text-muted d-block">Serial Number</span>
+                    <strong class="font-mono text-primary">${e.serial_number || 'N/A'}</strong>
+                </div>
+                <div class="col-sm-6 col-md-3 p-2 bg-light rounded border">
+                    <span class="text-muted d-block">Purchase Price</span>
+                    <strong class="text-success">$${e.purchase_amount ? parseFloat(e.purchase_amount).toFixed(2) : '0.00'}</strong>
+                </div>
+                <div class="col-sm-6 col-md-4 p-2 bg-light rounded border">
+                    <span class="text-muted d-block">Product Name</span>
+                    <strong class="text-dark">${e.product_name || 'N/A'}</strong>
+                </div>
+                <div class="col-sm-6 col-md-4 p-2 bg-light rounded border">
+                    <span class="text-muted d-block">Model Number</span>
+                    <strong class="font-mono text-dark">${e.model_number || 'N/A'}</strong>
+                </div>
+                <div class="col-sm-12 col-md-4 p-2 bg-light rounded border">
+                    <span class="text-muted d-block">Retailer & Duration</span>
+                    <strong class="text-dark">${e.retailer || 'N/A'} (${e.warranty_duration || 12}m)</strong>
+                </div>
+            `;
+        } else {
+            alert('Scan error: ' + (data.error || 'Could not parse document.'));
+        }
+    })
+    .catch(err => {
+        spinner.classList.add('d-none');
+        alert('Server communication error during OCR scan.');
+        console.error(err);
+    });
 }
 </script>
 {% endblock %}

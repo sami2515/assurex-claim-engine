@@ -302,4 +302,63 @@
         </table>
     </div>
 </div>
+
+<!-- Proof-of-Purchase & Warranty Documents Archive (Req 1.6.v & xiv) -->
+<div class="card border-0 shadow-sm rounded-4 bg-white mt-4">
+    <div class="card-header-styled d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-file-earmark-check text-primary me-2"></i>Proof-of-Purchase & Document Archive (Req 1.6.v)</span>
+        <span class="badge bg-light text-secondary border">{{ product.documents|length }} Verified Documents</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-custom align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Document Type</th>
+                    <th>Original Filename</th>
+                    <th>Format & Size</th>
+                    <th>Cryptographic SHA-256 Hash</th>
+                    <th>Uploaded Date</th>
+                    <th class="text-end">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if product.documents %}
+                    {% for doc in product.documents %}
+                        <tr>
+                            <td>
+                                <span class="badge bg-primary-subtle text-primary border border-primary-subtle text-uppercase">
+                                    <i class="bi bi-file-earmark-text me-1"></i>{{ doc.document_type }}
+                                </span>
+                            </td>
+                            <td class="fw-semibold text-slate-800 small">{{ doc.original_filename }}</td>
+                            <td>
+                                {% set ext = doc.original_filename.rsplit('.', 1)[-1]|upper if '.' in doc.original_filename else 'DOC' %}
+                                <span class="badge bg-light text-secondary border font-mono">{{ ext }}</span>
+                                <small class="text-muted ms-1">{{ (doc.file_size_bytes / 1024)|round(1) }} KB</small>
+                            </td>
+                            <td>
+                                <span class="badge bg-light text-muted font-mono border extra-small" title="{{ doc.file_hash_sha256 }}">
+                                    <i class="bi bi-shield-lock text-success me-1"></i>{{ doc.file_hash_sha256[:16] }}...
+                                </span>
+                            </td>
+                            <td class="small text-muted">{{ doc.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td class="text-end">
+                                <a href="{{ url_for('products.download_document', document_id=doc.document_id) }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-download"></i> View / Download
+                                </a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-muted">
+                            <i class="bi bi-file-earmark-x fs-2 d-block mb-2 text-secondary"></i>
+                            No purchase receipts or invoices attached to this equipment yet.
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
 {% endblock %}
