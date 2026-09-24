@@ -1,9 +1,10 @@
 """
-AssureX Claim Engine - Data Validation Engine
-Fulfills Req 1.6.xv: Data Validation.
-Checks mandatory fields, date formats, numerical values, uploaded file types,
-file sizes, and duplicate Claim IDs. Prevents incomplete or invalid information
-from being submitted without appropriate warnings.
+AssureX Claim Engine - Data Validation & Missing Document Detection Engine
+Fulfills:
+- Req 1.6.xv: Data Validation (mandatory fields, date formats, numerical values, file types & sizes, duplicate IDs).
+- Req 1.6.xxix: Missing Document Detection (identifies missing purchase receipt, warranty card, product image,
+  serial-number evidence, fault evidence, or repair report, informing user of required documentation).
+- Req 1.6.xxx: Duplicate Claim Detection integration.
 """
 
 import os
@@ -19,7 +20,119 @@ MAX_FILE_SIZE_BYTES = 16 * 1024 * 1024  # 16 MB max per evidence item
 
 
 class ClaimValidator:
-    """Validates claim intake data and supporting documents."""
+    """Validates claim intake data, detects missing documents, and enforces upload constraints."""
+
+    MANDATORY_DOCUMENT_SPECS = [
+        {
+            "key": "receipt",
+            "aliases": ["receipt", "invoice_document", "invoice"],
+            "name": "Purchase Receipt / Invoice",
+            "description": "Proof of purchase detailing transaction date, price, and authorized retailer."
+        },
+        {
+            "key": "warranty_card",
+            "aliases": ["warranty_card", "warranty_certificate"],
+            "name": "Warranty Card",
+            "description": "Manufacturer or retailer warranty card verifying coverage terms."
+        },
+        {
+            "key": "product_photo",
+            "aliases": ["product_photo", "product_image"],
+            "name": "Product Photograph",
+            "description": "Clear photograph of the entire equipment showing current physical condition."
+        },
+        {
+            "key": "serial_photo",
+            "aliases": ["serial_photo", "serial_number_evidence"],
+            "name": "Serial-Number Evidence",
+            "description": "Photograph of the manufacturer serial-number barcode or chassis stamp."
+        },
+        {
+            "key": "fault_evidence",
+            "aliases": ["damage_photo", "fault_video", "fault_evidence"],
+            "name": "Fault / Damage Evidence",
+            "description": "Photo or video capturing the defect, hardware damage, or malfunction."
+        }
+    ]
+
+    REPAIR_REPORT_SPEC = {
+        "key": "repair_report",
+        "aliases": ["diagnostic_report", "repair_report"],
+        "name": "Service / Repair Report",
+        "description": "Service center diagnostic report documenting previous repairs or maintenance."
+    }
+
+    @classmethod
+    def identify_missing_documents(cls, documents_or_files, has_previous_repairs: bool = False) -> dict:
+        """
+        Req 1.6.xxix: Missing Document Detection.
+        Evaluates submitted documents or attached claim files against mandatory requirements:
+        - Purchase receipt or invoice
+        - Warranty card
+        - Product image
+        - Serial-number evidence
+        - Fault evidence (damage photo or defect video)
+        - Repair report (required when product has prior repair history)
+        """
+        present_types = set()
+
+        if isinstance(documents_or_files, dict):
+            # Form files dictionary (e.g. request.files or files_dict)
+            for k, v in documents_or_files.items():
+                if v:
+                    if hasattr(v, "filename") and v.filename:
+                        present_types.add(k.lower())
+                    elif isinstance(v, str) and v.strip():
+                        present_types.add(k.lower())
+                    elif isinstance(v, (list, tuple)) and len(v) > 0:
+                        present_types.add(k.lower())
+        elif isinstance(documents_or_files, (list, tuple)):
+            for item in documents_or_files:
+                if hasattr(item, "document_type") and item.document_type:
+                    present_types.add(item.document_type.lower())
+                elif isinstance(item, dict) and item.get("document_type"):
+                    present_types.add(item["document_type"].lower())
+                elif isinstance(item, str):
+                    present_types.add(item.lower())
+
+        missing_documents = []
+        for spec in cls.MANDATORY_DOCUMENT_SPECS:
+            is_present = any(alias.lower() in present_types for alias in spec["aliases"])
+            if not is_present:
+                missing_documents.append({
+                    "key": spec["key"],
+                    "name": spec["name"],
+                    "description": spec["description"],
+                    "mandatory": True
+                })
+
+        # Check repair report requirement
+        if has_previous_repairs:
+            has_report = any(alias.lower() in present_types for alias in cls.REPAIR_REPORT_SPEC["aliases"])
+            if not has_report:
+                missing_documents.append({
+                    "key": cls.REPAIR_REPORT_SPEC["key"],
+                    "name": cls.REPAIR_REPORT_SPEC["name"],
+                    "description": cls.REPAIR_REPORT_SPEC["description"],
+                    "mandatory": True
+                })
+
+        has_missing = len(missing_documents) > 0
+        missing_labels = [d["name"] for d in missing_documents]
+        user_message = (
+            f"Missing mandatory document(s): {', '.join(missing_labels)}."
+            if has_missing
+            else "All mandatory claim documents are present and verified."
+        )
+
+        return {
+            "has_missing": has_missing,
+            "missing_count": len(missing_documents),
+            "missing_documents": missing_documents,
+            "missing_labels": missing_labels,
+            "present_documents": list(present_types),
+            "user_message": user_message
+        }
 
     @staticmethod
     def validate_file(file_storage) -> Tuple[bool, str]:
@@ -69,7 +182,7 @@ class ClaimValidator:
         user_role: str = Config.ROLE_CUSTOMER
     ) -> Tuple[bool, List[str], List[str], Dict[str, Any]]:
         """
-        Validates claim intake submission against SRS Req 1.6.xv specifications.
+        Validates claim intake submission against SRS Req 1.6.xv & xxix specifications.
         Returns:
             - is_valid (bool): True if all mandatory checks pass.
             - errors (List[str]): Critical blocking validation failures.
@@ -158,7 +271,7 @@ class ClaimValidator:
             # Default to product purchase price if omitted
             cleaned["claim_amount"] = product.purchase_price if product else 0.0
 
-        # 5. Uploaded File Types & Size Validation
+        # 5. Uploaded File Types & Size Validation & Missing Document Detection (Req 1.6.xxix)
         evidence_keys = [
             "invoice_document", "receipt", "warranty_card", "damage_photo",
             "product_photo", "fault_video", "serial_photo", "diagnostic_report", "other_evidence"
@@ -173,10 +286,20 @@ class ClaimValidator:
                 if not ok:
                     errors.append(file_err)
 
-        if not has_any_proof:
-            warnings.append("Advisory: No supporting purchase receipt or photo evidence was attached. Document verification score will be reduced.")
+        has_repairs = bool(product and (
+            (hasattr(product, "repair_records") and len(product.repair_records) > 0) or
+            getattr(product, "has_prior_repairs", False)
+        ))
+        missing_info = cls.identify_missing_documents(files_dict, has_previous_repairs=has_repairs)
+        cleaned["missing_documents_info"] = missing_info
 
-        # 6. Duplicate Claim ID Check & Duplicate Claim Safeguard
+        if missing_info["has_missing"]:
+            for m_doc in missing_info["missing_documents"]:
+                warnings.append(
+                    f"Missing Mandatory Document: '{m_doc['name']}' is required. {m_doc['description']}"
+                )
+
+        # 6. Duplicate Claim ID Check & Duplicate Claim Safeguard (Req 1.6.xxx)
         # Verify generated / submitted Claim ID does not already exist
         custom_claim_id = form_data.get("custom_claim_id")
         if custom_claim_id:
@@ -187,14 +310,16 @@ class ClaimValidator:
         # Check for duplicate claim submissions on the same product
         if product and fault_date and fault_description:
             dup_check = DuplicateDetector.check_claim_duplicates({
+                "claim_id": custom_claim_id,
                 "product_serial": product.serial_number,
                 "invoice_number": product.invoice_number,
                 "fault_description": fault_description,
-                "fault_occurrence_date": fault_date.strftime("%Y-%m-%d")
+                "fault_occurrence_date": fault_date.strftime("%Y-%m-%d"),
+                "claimant_id": form_data.get("user_id") or form_data.get("claimant_id")
             })
             if dup_check.get("is_duplicate"):
                 warnings.append(
-                    f"Duplicate Advisory: A claim with identical attributes has been detected "
+                    f"Duplicate Advisory: A claim with matching attributes has been detected "
                     f"(Matched: {', '.join(dup_check.get('conflicting_claim_ids', []))})."
                 )
 

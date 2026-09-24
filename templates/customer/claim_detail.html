@@ -21,6 +21,57 @@
     </div>
 </div>
 
+<!-- Missing Mandatory Documents Alert Banner (Req 1.6.xxix) -->
+{% if claim.missing_document_flag or (missing_docs_info and missing_docs_info.has_missing) %}
+<div class="alert alert-warning border-0 shadow-sm rounded-4 mb-4 p-3 d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
+    <div class="d-flex align-items-start gap-3">
+        <div class="fs-3 text-warning"><i class="bi bi-exclamation-triangle-fill"></i></div>
+        <div>
+            <div class="fw-bold text-slate-900 mb-1">Missing Mandatory Documents Detected (Req 1.6.xxix)</div>
+            <p class="mb-1 small text-slate-700">
+                Evaluation requires complete supporting documentation. The following mandatory document(s) are currently missing:
+            </p>
+            <div class="d-flex flex-wrap gap-1 mt-2">
+                {% if missing_docs_info and missing_docs_info.missing_documents %}
+                    {% for m_doc in missing_docs_info.missing_documents %}
+                        <span class="badge bg-warning-subtle text-dark border border-warning font-mono">
+                            <i class="bi bi-file-earmark-x me-1"></i>{{ m_doc.name }}
+                        </span>
+                    {% endfor %}
+                {% else %}
+                    <span class="badge bg-warning-subtle text-dark border border-warning font-mono">Supporting Proof Documents Pending</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% if claim.status not in ['Approved', 'Rejected', 'Closed'] %}
+    <div>
+        <button type="button" class="btn btn-warning btn-sm text-dark fw-semibold text-nowrap shadow-sm" data-bs-toggle="modal" data-bs-target="#uploadDocModal">
+            <i class="bi bi-cloud-arrow-up-fill me-1"></i> Upload Missing Document
+        </button>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Duplicate Claim Indicator Banner (Req 1.6.xxx) -->
+{% if dup_report and dup_report.is_duplicate %}
+<div class="alert alert-danger border-0 shadow-sm rounded-4 mb-4 p-3">
+    <div class="d-flex align-items-start gap-3">
+        <div class="fs-3 text-danger"><i class="bi bi-shield-exclamation"></i></div>
+        <div class="w-100">
+            <div class="fw-bold text-slate-900 mb-1">Duplicate Claim Indicator Detected (Req 1.6.xxx)</div>
+            <p class="mb-2 small text-slate-700">Cross-checking of Claim IDs, invoice numbers, hardware serials, fault descriptions, claimant history, and cryptographic document hashes flagged potential duplication:</p>
+            <ul class="mb-0 small ps-3">
+                {% for flag in dup_report.duplicate_flags %}
+                    <li class="text-danger-emphasis">{{ flag }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <!-- Primary Metadata Cards -->
 <div class="row g-4 mb-4">
     <div class="col-lg-6">
@@ -229,7 +280,14 @@
 <div class="card border-0 shadow-sm rounded-4 bg-white">
     <div class="card-header-styled d-flex justify-content-between align-items-center">
         <span><i class="bi bi-paperclip text-primary me-2"></i>Attached Evidence Documents &amp; Multi-Media Proof (Req 1.6.xii)</span>
-        <span class="badge bg-light text-secondary border">{{ claim.documents|length }} Files Attached</span>
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-light text-secondary border">{{ claim.documents|length }} Files Attached</span>
+            {% if claim.status not in ['Approved', 'Rejected', 'Closed'] %}
+                <button type="button" class="btn btn-primary btn-sm py-1 px-3 shadow-sm" data-bs-toggle="modal" data-bs-target="#uploadDocModal">
+                    <i class="bi bi-cloud-arrow-up-fill me-1"></i> Upload Evidence
+                </button>
+            {% endif %}
+        </div>
     </div>
     <div class="table-responsive">
         <table class="table table-custom align-middle mb-0">
@@ -354,6 +412,44 @@
                 {% endif %}
             </tbody>
         </table>
+    </div>
+</div>
+
+<!-- Modal: Upload Missing / Supplementary Document (Req 1.6.xxix & Req 1.6.xiv) -->
+<div class="modal fade text-start" id="uploadDocModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <form action="{{ url_for('claims.upload_claim_document', claim_id=claim.claim_id) }}" method="POST" enctype="multipart/form-data">
+                <div class="modal-header border-0 pb-0">
+                    <h6 class="modal-title fw-bold text-slate-800"><i class="bi bi-cloud-arrow-up-fill text-primary me-2"></i>Upload Supporting Document</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold text-slate-700">Document Type / Evidence Category</label>
+                        <select name="document_type" class="form-select form-select-sm" required>
+                            <option value="receipt">Purchase Receipt / Invoice</option>
+                            <option value="warranty_card">Warranty Card</option>
+                            <option value="product_photo">Product Photograph</option>
+                            <option value="serial_photo">Serial-Number Evidence</option>
+                            <option value="damage_photo">Fault / Damage Photo</option>
+                            <option value="fault_video">Defect / Malfunction Video</option>
+                            <option value="diagnostic_report">Service / Repair Report</option>
+                            <option value="other_evidence">Other Supplementary Evidence</option>
+                        </select>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small fw-semibold text-slate-700">Select File</label>
+                        <input type="file" name="evidence_file" class="form-control form-control-sm" required accept=".pdf,.png,.jpg,.jpeg,.mp4,.mov,.webm">
+                        <small class="text-muted extra-small mt-1 d-block">Allowed formats: PDF, JPG, PNG, MP4, MOV (Max: 16 MB). SHA-256 cryptographic hash and duplicate checks will be performed automatically.</small>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-sm btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-upload me-1"></i>Upload Document</button>
+                </div>
+            </form>
+        </div>
     </div>
 </div>
 {% endblock %}

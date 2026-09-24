@@ -1160,9 +1160,197 @@ class TestPhase6Frontend(unittest.TestCase):
         self.assertTrue(res_5["has_contradiction"])
         self.assertTrue(any("future relative to submission" in c.lower() for c in res_5["contradictions"]))
 
+    def test_req_xxix_missing_document_detection(self):
+        """
+        Req 1.6.xxix: Missing Document Detection.
+        Identifies missing mandatory documents such as purchase receipt, warranty card,
+        product image, serial-number evidence, fault evidence, and repair report.
+        Informs the user which documents are required.
+        """
+        from src.rules.validator import ClaimValidator
+
+        # 1. Test missing document detection with empty file dictionary
+        empty_check = ClaimValidator.identify_missing_documents({}, has_previous_repairs=True)
+        self.assertTrue(empty_check["has_missing"])
+        missing_keys = [d["key"] for d in empty_check["missing_documents"]]
+        self.assertIn("receipt", missing_keys)
+        self.assertIn("warranty_card", missing_keys)
+        self.assertIn("product_photo", missing_keys)
+        self.assertIn("serial_photo", missing_keys)
+        self.assertIn("fault_evidence", missing_keys)
+        self.assertIn("repair_report", missing_keys)
+        self.assertIn("Missing mandatory document(s)", empty_check["user_message"])
+
+        # 2. Test when all mandatory files are supplied
+        complete_files = {
+            "receipt": ("receipt.pdf", "receipt.pdf"),
+            "warranty_card": ("card.png", "card.png"),
+            "product_photo": ("product.jpg", "product.jpg"),
+            "serial_photo": ("serial.jpg", "serial.jpg"),
+            "damage_photo": ("damage.jpg", "damage.jpg"),
+            "diagnostic_report": ("report.pdf", "report.pdf")
+        }
+        complete_check = ClaimValidator.identify_missing_documents(complete_files, has_previous_repairs=True)
+        self.assertFalse(complete_check["has_missing"])
+        self.assertEqual(complete_check["missing_count"], 0)
+        self.assertIn("All mandatory claim documents are present", complete_check["user_message"])
+
+        # 3. Test UI view rendering missing document alert on claim detail
+        with self.app.app_context():
+            claim = Claim.query.filter_by(missing_document_flag=True).first()
+            if not claim:
+                claim = Claim.query.first()
+                claim.missing_document_flag = True
+                db.session.commit()
+            claim_code = claim.claim_id
+
+        with self.client.session_transaction() as sess:
+            with self.app.app_context():
+                user = User.query.filter_by(role=Config.ROLE_ADMIN).first()
+                sess["user_id"] = user.id
+                sess["role"] = user.role
+                sess["user_code"] = user.user_id
+
+        res = self.client.get(f"/claims/{claim_code}")
+        self.assertEqual(res.status_code, 200)
+        self.assertIn(b"Missing Mandatory Documents Detected", res.data)
+        self.assertIn(b"Upload Missing Document", res.data)
+
+    def test_req_xxx_duplicate_claim_seven_factors(self):
+        """
+        Req 1.6.xxx: Duplicate Claim Detection.
+        Detects duplicate claims by comparing:
+        1. Claim IDs
+        2. Invoice numbers
+        3. Product serial numbers
+        4. Fault descriptions
+        5. Claimant details
+        6. Document hashes
+        7. Previous claim records
+        """
+        from src.rules.duplicate_detector import get_duplicate_detector
+        detector = get_duplicate_detector()
+
+        with self.app.app_context():
+            existing_claim = Claim.query.first()
+            prod = existing_claim.product
+            user = User.query.filter_by(role=Config.ROLE_CUSTOMER).first()
+
+            # Factor 1: Claim ID Collision
+            res_id = detector.check_claim_duplicates({"claim_id": existing_claim.claim_id})
+            self.assertTrue(res_id["is_duplicate"])
+            self.assertIn("claim_id", res_id["factors_triggered"])
+
+            # Factor 2: Invoice Number Collision
+            res_inv = detector.check_claim_duplicates({"invoice_number": prod.invoice_number})
+            self.assertTrue(res_inv["is_duplicate"])
+            self.assertIn("invoice_number", res_inv["factors_triggered"])
+
+            # Factor 3: Product Serial Collision with active claim
+            res_serial = detector.check_claim_duplicates({"product_serial": prod.serial_number})
+            self.assertTrue(res_serial["is_duplicate"])
+            self.assertIn("product_serial", res_serial["factors_triggered"])
+
+            # Factor 4: Fault Description Match
+            res_desc = detector.check_claim_duplicates({
+                "product_serial": prod.serial_number,
+                "fault_description": existing_claim.fault_description
+            })
+            self.assertTrue(res_desc["is_duplicate"])
+            self.assertIn("fault_description", res_desc["factors_triggered"])
+
+            # Factor 5: Claimant Details Match
+            res_claimant = detector.check_claim_duplicates({
+                "product_serial": prod.serial_number,
+                "claimant_id": existing_claim.user_id
+            })
+            self.assertTrue(res_claimant["is_duplicate"])
+            self.assertIn("claimant_details", res_claimant["factors_triggered"])
+
+            # Factor 6: Cryptographic Document Hash Match
+            test_doc = ClaimDocument.query.filter(ClaimDocument.file_hash_sha256 != None).first()
+            if test_doc:
+                res_hash = detector.check_claim_duplicates(
+                    {"product_serial": prod.serial_number},
+                    uploaded_file_hashes=[test_doc.file_hash_sha256]
+                )
+                self.assertTrue(res_hash["is_duplicate"])
+                self.assertIn("document_hashes", res_hash["factors_triggered"])
+
+            # Factor 7: Previous Claim Records History
+            res_prev = detector.check_claim_duplicates({"product_serial": prod.serial_number})
+            self.assertIn("previous_claim_records", res_prev["factors_triggered"])
+
+    def test_req_xxxi_document_duplicate_detection_sha256(self):
+        """
+        Req 1.6.xxxi: Document Duplicate Detection.
+        Creates secure SHA-256 hash for uploaded documents and detects whether
+        the same receipt, invoice, warranty card, or evidence file was used in another claim.
+        """
+        from src.rules.duplicate_detector import get_duplicate_detector
+        detector = get_duplicate_detector()
+
+        with self.app.app_context():
+            # Create a test document with a known SHA-256 hash
+            test_claim = Claim.query.first()
+            sha256_sample = "a1b2c3d4e5f678901234567890abcdef1234567890abcdef1234567890abcdef"
+            
+            # Clean any old test doc
+            old_doc = ClaimDocument.query.filter_by(file_hash_sha256=sha256_sample).first()
+            if old_doc:
+                db.session.delete(old_doc)
+                db.session.commit()
+
+            doc1 = ClaimDocument(
+                claim_id=test_claim.id,
+                product_id=test_claim.product_id,
+                document_type="receipt",
+                file_path="data/uploads/test_receipt_hash.pdf",
+                original_filename="tax_invoice_original.pdf",
+                file_size_bytes=4096,
+                file_hash_sha256=sha256_sample,
+                verified_by_user=True
+            )
+            db.session.add(doc1)
+            db.session.commit()
+
+            # Check duplicate detection for the same hash in another claim
+            check_dup = detector.check_document_duplicates(sha256_sample, exclude_claim_id=999999)
+            self.assertTrue(check_dup["is_duplicate"])
+            self.assertIn(test_claim.claim_id, check_dup["matched_claims"])
+            self.assertIn("tax_invoice_original.pdf", str(check_dup["matched_documents"]))
+
+            # Check duplicate detection excluding the owner claim
+            check_own = detector.check_document_duplicates(sha256_sample, exclude_claim_id=test_claim.id)
+            self.assertFalse(check_own["is_duplicate"])
+
+            # Test document upload route for supplementary/missing document
+            with self.client.session_transaction() as sess:
+                user = User.query.filter_by(role=Config.ROLE_ADMIN).first()
+                sess["user_id"] = user.id
+                sess["role"] = user.role
+                sess["user_code"] = user.user_id
+
+            fake_pdf = (io.BytesIO(b"%PDF-1.4 simulated upload content"), "supplementary_evidence.pdf")
+            res_upload = self.client.post(
+                f"/claims/{test_claim.claim_id}/documents/upload",
+                data={
+                    "document_type": "warranty_card",
+                    "evidence_file": fake_pdf
+                },
+                follow_redirects=True
+            )
+            self.assertEqual(res_upload.status_code, 200)
+            self.assertIn(b"uploaded successfully", res_upload.data)
+
+            # Cleanup test doc
+            db.session.delete(doc1)
+            db.session.commit()
+
 
 if __name__ == "__main__":
     unittest.main()
+
 
 
 

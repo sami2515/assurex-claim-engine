@@ -16,6 +16,7 @@ from src.core.decision_engine import get_decision_engine
 from src.core.card_generator import render_claim_summary_card
 from src.services.alert_service import scan_and_generate_warranty_alerts
 from src.rules.validator import ClaimValidator
+from src.rules.duplicate_detector import DuplicateDetector, get_duplicate_detector
 from src.core.preprocessor import ClaimDataPreprocessor
 
 claim_bp = Blueprint("claims", __name__, url_prefix="/claims")
@@ -188,9 +189,10 @@ def create_claim_wizard():
                 elif doc_key == "diagnostic_report":
                     has_diagnostic_report = True
 
-        # Calculate document counts
-        missing_count = sum([not has_receipt, not has_warranty_card, not has_damage_photo, not has_serial_photo])
-        claim.missing_document_flag = bool(missing_count > 0)
+        # Calculate document counts & detect missing mandatory documents (Req 1.6.xxix)
+        has_prior_repairs = bool(product and ((hasattr(product, "repair_records") and len(product.repair_records) > 0) or getattr(product, "has_prior_repairs", False)))
+        missing_docs_check = ClaimValidator.identify_missing_documents(claim.documents, has_previous_repairs=has_prior_repairs)
+        claim.missing_document_flag = missing_docs_check["has_missing"]
 
         # 3. Transition to 'Under Evaluation'
         claim.status = Config.STATUS_UNDER_EVALUATION
@@ -313,6 +315,22 @@ def create_claim_wizard():
         )
         db.session.add(notif)
 
+        # Notify user regarding missing mandatory documents (Req 1.6.xxix)
+        if claim.missing_document_flag and missing_docs_check["has_missing"]:
+            missing_names = missing_docs_check["missing_labels"]
+            missing_notif = Notification(
+                user_id=claim.user_id,
+                notification_type=Config.NOTIF_TYPE_MISSING_DOCUMENTS,
+                title=f"Missing Documents: Claim {claim.claim_id}",
+                message=(
+                    f"Your claim for '{product.product_name}' requires the following documents: "
+                    f"{', '.join(missing_names)}. Please upload them to avoid delays in adjudication."
+                ),
+                related_claim_id=claim.claim_id,
+                related_product_id=product.product_id
+            )
+            db.session.add(missing_notif)
+
         if session.get("role") == Config.ROLE_STAFF:
             staff_notif = Notification(
                 user_id=claim.user_id,
@@ -394,9 +412,138 @@ def track_claim_status(claim_id):
 @claim_bp.route("/<string:claim_id>", methods=["GET"])
 @login_required
 def view_claim(claim_id):
-    """Full claim dossier inspection view with dual-model charts and documents."""
+    """Full claim dossier inspection view with dual-model charts, missing documents alert, and verification."""
     claim = Claim.query.filter_by(claim_id=claim_id).first_or_404()
-    return render_template("customer/claim_detail.html", claim=claim)
+    has_repairs = bool(claim.product and ((hasattr(claim.product, "repair_records") and len(claim.product.repair_records) > 0) or getattr(claim.product, "has_prior_repairs", False)))
+    missing_docs_info = ClaimValidator.identify_missing_documents(claim.documents, has_previous_repairs=has_repairs)
+    
+    # Check duplicate flags for dossier inspection (Req 1.6.xxx & xxxi)
+    dup_detector = get_duplicate_detector()
+    dup_report = dup_detector.check_claim_duplicates(
+        {
+            "claim_id": claim.claim_id,
+            "product_serial": claim.product.serial_number if claim.product else None,
+            "invoice_number": claim.product.invoice_number if claim.product else None,
+            "fault_description": claim.fault_description,
+            "claimant_id": claim.user_id
+        },
+        current_claim_internal_id=claim.id
+    )
+
+    return render_template(
+        "customer/claim_detail.html",
+        claim=claim,
+        missing_docs_info=missing_docs_info,
+        dup_report=dup_report
+    )
+
+
+@claim_bp.route("/<string:claim_id>/documents/upload", methods=["POST"])
+@login_required
+def upload_claim_document(claim_id):
+    """
+    Req 1.6.xxix & Req 1.6.xiv: Allows claimant or authorized staff to upload missing
+    or supplementary mandatory evidence files (receipts, warranty cards, photos, diagnostic reports)
+    to an existing claim dossier. Automatically computes SHA-256 hash, runs OCR if applicable,
+    checks for cross-claim duplicate documents (Req xxxi), and updates missing document status.
+    """
+    claim = Claim.query.filter_by(claim_id=claim_id).first_or_404()
+    user = get_current_user()
+    role = session.get("role")
+
+    # Permission check: claimant owner, staff, or admin
+    if role not in [Config.ROLE_ADMIN, Config.ROLE_STAFF] and claim.user_id != user.id:
+        flash("Access denied: You do not have permission to attach documents to this claim.", "danger")
+        return redirect(url_for("claims.view_claim", claim_id=claim.claim_id))
+
+    if claim.status in [Config.STATUS_APPROVED, Config.STATUS_REJECTED, Config.STATUS_CLOSED]:
+        flash("Documents cannot be added to closed or finalized claims.", "warning")
+        return redirect(url_for("claims.view_claim", claim_id=claim.claim_id))
+
+    doc_type = request.form.get("document_type", "other_evidence").strip()
+    uploaded_file = request.files.get("evidence_file")
+
+    if not uploaded_file or not uploaded_file.filename:
+        flash("Please select a valid document or media file to upload.", "warning")
+        return redirect(url_for("claims.view_claim", claim_id=claim.claim_id))
+
+    # Validate file extension and size
+    is_valid_file, file_err = ClaimValidator.validate_file(uploaded_file)
+    if not is_valid_file:
+        flash(file_err, "danger")
+        return redirect(url_for("claims.view_claim", claim_id=claim.claim_id))
+
+    upload_folder = Path(Config.UPLOAD_DIR)
+    upload_folder.mkdir(parents=True, exist_ok=True)
+    sec_filename = f"{claim.claim_id}_{doc_type}_{secure_filename(uploaded_file.filename)}"
+    save_dest = upload_folder / sec_filename
+    uploaded_file.save(save_dest)
+
+    # Process document via OCR & SHA-256 Hashing engine
+    doc_processor = get_document_processor()
+    doc_info = doc_processor.process_document(save_dest, document_type=doc_type)
+
+    # Check duplicate document hash (Req 1.6.xxxi)
+    dup_check = DuplicateDetector.check_document_duplicates(
+        file_hash=doc_info["sha256_hash"],
+        exclude_claim_id=claim.id
+    )
+    if dup_check["is_duplicate"]:
+        flash(
+            f"Duplicate Document Warning: Identical file has already been used in claim(s): "
+            f"{', '.join(dup_check['matched_claims'])}.",
+            "warning"
+        )
+
+    # Persist ClaimDocument
+    claim_doc = ClaimDocument(
+        claim_id=claim.id,
+        product_id=claim.product_id,
+        document_type=doc_type,
+        file_path=str(save_dest),
+        original_filename=uploaded_file.filename,
+        file_size_bytes=doc_info["file_size_bytes"],
+        file_hash_sha256=doc_info["sha256_hash"],
+        ocr_extracted_text=doc_info.get("raw_text"),
+        ocr_data_json=json.dumps(doc_info.get("entities", {})),
+        verified_by_user=True
+    )
+    db.session.add(claim_doc)
+    db.session.flush()
+
+    # Re-evaluate missing documents status (Req 1.6.xxix)
+    has_repairs = bool(claim.product and ((hasattr(claim.product, "repair_records") and len(claim.product.repair_records) > 0) or getattr(claim.product, "has_prior_repairs", False)))
+    missing_check = ClaimValidator.identify_missing_documents(claim.documents, has_previous_repairs=has_repairs)
+    claim.missing_document_flag = missing_check["has_missing"]
+
+    # Log audit event
+    audit = AuditLog(
+        user_id=user.id,
+        user_role=role,
+        action="DOCUMENT_ATTACHED",
+        entity_type="CLAIM_DOCUMENT",
+        entity_id=claim_doc.document_id,
+        ip_address=request.remote_addr,
+        details_json=json.dumps({
+            "claim_id": claim.claim_id,
+            "document_type": doc_type,
+            "sha256": doc_info["sha256_hash"],
+            "missing_documents_remaining": missing_check["missing_labels"]
+        })
+    )
+    db.session.add(audit)
+    db.session.commit()
+
+    if not missing_check["has_missing"]:
+        flash(f"Document '{uploaded_file.filename}' uploaded successfully. All mandatory documents are now verified!", "success")
+    else:
+        flash(
+            f"Document '{uploaded_file.filename}' uploaded successfully. Remaining required document(s): "
+            f"{', '.join(missing_check['missing_labels'])}.",
+            "info"
+        )
+
+    return redirect(url_for("claims.view_claim", claim_id=claim.claim_id))
 
 
 @claim_bp.route("/<string:claim_id>/summary-card", methods=["GET"])
