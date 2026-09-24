@@ -8,20 +8,26 @@
         <h2 class="fw-bold text-slate-900 mb-1">Executive Analytics & System Intelligence</h2>
         <p class="text-muted mb-0">High-level operational metrics, dual-model consensus benchmarks, and fraud rate monitoring (Req xli)</p>
     </div>
-    <div class="d-flex gap-2">
-        <a href="{{ url_for('admin.export_data', export_type='claims') }}" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1 shadow-sm">
-            <i class="bi bi-file-earmark-spreadsheet"></i> Export Claims CSV
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="{{ url_for('claims.search_records') }}" class="btn btn-primary btn-sm d-inline-flex align-items-center gap-1 shadow-sm">
+            <i class="bi bi-search"></i> Search Records (Req xlii)
         </a>
-        <a href="{{ url_for('admin.export_data', export_type='products') }}" class="btn btn-outline-dark btn-sm d-inline-flex align-items-center gap-1 shadow-sm">
-            <i class="bi bi-box-seam"></i> Export Products CSV
+        <a href="{{ url_for('admin.analytics_dashboard') }}" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1 shadow-sm">
+            <i class="bi bi-bar-chart-line-fill"></i> Analytics &amp; Reports (Req xliii)
+        </a>
+        <a href="{{ url_for('admin.export_data', export_type='claims') }}" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1 shadow-sm">
+            <i class="bi bi-file-earmark-spreadsheet"></i> Claims CSV
+        </a>
+        <a href="{{ url_for('admin.export_data', export_type='products') }}" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1 shadow-sm">
+            <i class="bi bi-box-seam"></i> Products CSV
         </a>
         <a href="{{ url_for('admin.export_data', export_type='audit') }}" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1 shadow-sm">
-            <i class="bi bi-shield-lock"></i> Export Audit Logs
+            <i class="bi bi-shield-lock"></i> Audit Logs
         </a>
     </div>
 </div>
 
-<!-- Executive Metric Cards -->
+<!-- Executive Metric Cards (Row 1: Claims Lifecycle - Req xli) -->
 <div class="row g-3 mb-4">
     <div class="col-sm-6 col-lg-3">
         <div class="stat-widget">
@@ -69,49 +75,51 @@
     </div>
 </div>
 
-<!-- Secondary AI Consensus Benchmarks -->
+<!-- Executive Metric Cards (Row 2: Dual Consensus, Duplicates & Confidence - Req xli) -->
 <div class="row g-3 mb-4">
+    <div class="col-sm-6 col-lg-3">
+        <div class="stat-widget">
+            <div class="stat-icon-wrapper bg-danger-subtle text-danger">
+                <i class="bi bi-shield-exclamation"></i>
+            </div>
+            <div>
+                <div class="text-muted extra-small fw-semibold">Duplicate Alerts</div>
+                <div class="fs-5 fw-bold text-slate-900">{{ duplicate_alerts }} Flags</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="stat-widget">
+            <div class="stat-icon-wrapper bg-warning-subtle text-warning">
+                <i class="bi bi-diagram-3"></i>
+            </div>
+            <div>
+                <div class="text-muted extra-small fw-semibold">Model Disagreements</div>
+                <div class="fs-5 fw-bold text-slate-900">{{ disagreements }} <small class="text-muted extra-small fw-normal">({{ disagreement_rate }}%)</small></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+        <div class="stat-widget">
+            <div class="stat-icon-wrapper bg-info-subtle text-info">
+                <i class="bi bi-bullseye"></i>
+            </div>
+            <div>
+                <div class="text-muted extra-small fw-semibold">Average Confidence Score</div>
+                <div class="fs-5 fw-bold text-slate-900 font-mono">{{ avg_confidence_score }}%</div>
+                <div class="text-muted extra-small">Py: {{ avg_python_conf }}% &bull; GTM: {{ avg_gtm_conf }}%</div>
+            </div>
+        </div>
+    </div>
     <div class="col-sm-6 col-lg-3">
         <div class="stat-widget">
             <div class="stat-icon-wrapper bg-light text-dark">
                 <i class="bi bi-hdd-network"></i>
             </div>
             <div>
-                <div class="text-muted extra-small fw-semibold">Hardware Fleet Size</div>
+                <div class="text-muted extra-small fw-semibold">Hardware Fleet &amp; Users</div>
                 <div class="fs-5 fw-bold text-slate-900">{{ total_products }} Units</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-sm-6 col-lg-3">
-        <div class="stat-widget">
-            <div class="stat-icon-wrapper bg-light text-dark">
-                <i class="bi bi-people"></i>
-            </div>
-            <div>
-                <div class="text-muted extra-small fw-semibold">Registered Users</div>
-                <div class="fs-5 fw-bold text-slate-900">{{ total_users }} Accounts</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-sm-6 col-lg-3">
-        <div class="stat-widget">
-            <div class="stat-icon-wrapper bg-light text-primary">
-                <i class="bi bi-diagram-3"></i>
-            </div>
-            <div>
-                <div class="text-muted extra-small fw-semibold">Model Disagreement Rate</div>
-                <div class="fs-5 fw-bold text-slate-900">{{ disagreement_rate }}%</div>
-            </div>
-        </div>
-    </div>
-    <div class="col-sm-6 col-lg-3">
-        <div class="stat-widget">
-            <div class="stat-icon-wrapper bg-light text-info">
-                <i class="bi bi-sliders"></i>
-            </div>
-            <div>
-                <div class="text-muted extra-small fw-semibold">Mean Conf Delta |Δconf|</div>
-                <div class="fs-5 fw-bold text-slate-900 font-mono">{{ avg_conf_diff }}</div>
+                <div class="text-muted extra-small">{{ total_users }} User Accounts</div>
             </div>
         </div>
     </div>
@@ -230,6 +238,19 @@
                     {% endif %}
                 </tbody>
             </table>
+        </div>
+    </div>
+</div>
+
+<!-- Claim Intake Trends Velocity (Req xli) -->
+<div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
+    <div class="card-header-styled d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-graph-up text-primary me-2"></i>Claim Intake Trends &amp; Monthly Lifecycle Volume (Req xli)</span>
+        <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-mono small">Intake Velocity</span>
+    </div>
+    <div class="card-body p-4">
+        <div style="height: 280px; width: 100%;">
+            <canvas id="claimTrendsChart"></canvas>
         </div>
     </div>
 </div>
@@ -358,6 +379,66 @@ document.addEventListener("DOMContentLoaded", function () {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, ticks: { precision: 0 } }
+                }
+            }
+        });
+    }
+
+    // 3. Claim Trends Velocity Chart (Req xli)
+    const trendsCtx = document.getElementById('claimTrendsChart');
+    if (trendsCtx) {
+        new Chart(trendsCtx, {
+            type: 'line',
+            data: {
+                labels: {{ trend_labels|tojson }},
+                datasets: [
+                    {
+                        label: 'Total Intake',
+                        data: {{ trend_totals|tojson }},
+                        borderColor: '#2563eb',
+                        backgroundColor: 'rgba(37, 99, 235, 0.08)',
+                        fill: true,
+                        tension: 0.35,
+                        borderWidth: 2.5
+                    },
+                    {
+                        label: 'Approved',
+                        data: {{ trend_approved|tojson }},
+                        borderColor: '#16a34a',
+                        backgroundColor: 'transparent',
+                        borderDash: [5, 5],
+                        tension: 0.35,
+                        borderWidth: 2
+                    },
+                    {
+                        label: 'Rejected',
+                        data: {{ trend_rejected|tojson }},
+                        borderColor: '#dc2626',
+                        backgroundColor: 'transparent',
+                        borderDash: [5, 5],
+                        tension: 0.35,
+                        borderWidth: 2
+                    },
+                    {
+                        label: 'Manual Review',
+                        data: {{ trend_manual|tojson }},
+                        borderColor: '#d97706',
+                        backgroundColor: 'transparent',
+                        borderDash: [3, 3],
+                        tension: 0.35,
+                        borderWidth: 2
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: { mode: 'index', intersect: false }
+                },
                 scales: {
                     y: { beginAtZero: true, ticks: { precision: 0 } }
                 }

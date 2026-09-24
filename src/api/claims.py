@@ -1,15 +1,17 @@
 import os
 import json
 from pathlib import Path
-from datetime import datetime, date
+from datetime import datetime, date, timedelta
 from werkzeug.utils import secure_filename
-from flask import Blueprint, request, session, redirect, url_for, flash, jsonify, render_template, current_app, send_file
+from flask import Blueprint, request, session, redirect, url_for, flash, jsonify, render_template, current_app, send_file, Response
+from sqlalchemy import func
 from config.config import Config
 from database.db import db
 from src.models.entities import (
     Claim, Product, ProductWarranty, ClaimDocument, ClaimStatusHistory,
-    ModelEvaluation, RuleValidationLog, Notification, AuditLog
+    ModelEvaluation, RuleValidationLog, Notification, AuditLog, User
 )
+from src.services.export_service import DataExportService
 from src.api.auth import login_required, get_current_user
 from src.ocr.document_processor import get_document_processor
 from src.core.decision_engine import get_decision_engine
@@ -101,6 +103,174 @@ def mark_all_notifications_read():
 def list_my_claims():
     """Alias for customer claims view."""
     return customer_dashboard()
+
+
+@claim_bp.route("/search", methods=["GET"])
+@login_required
+def search_records():
+    """
+    Req xlii: Search and filter warranty and claim records across 10 dimensions:
+    1. Claim ID
+    2. Product ID
+    3. Product Category
+    4. Serial Number
+    5. Warranty Status (Active, Approaching Expiry, Expired)
+    6. Claim Status (8 SRS lifecycle stages)
+    7. Risk Level (Low, Medium, High)
+    8. Confidence Range (min_conf, max_conf)
+    9. Reviewer (reviewer user ID or unassigned)
+    10. Date Range (start_date, end_date)
+    """
+    user = get_current_user()
+    role = session.get("role")
+
+    # Extract 10 Filter Parameters
+    claim_id_param = request.args.get("claim_id", "").strip()
+    product_id_param = request.args.get("product_id", "").strip()
+    category_param = request.args.get("category", "ALL").strip()
+    serial_number_param = request.args.get("serial_number", "").strip()
+    warranty_status_param = request.args.get("warranty_status", "ALL").strip()
+    claim_status_param = request.args.get("claim_status", "ALL").strip()
+    risk_level_param = request.args.get("risk_level", "ALL").strip()
+    min_conf_param = request.args.get("min_conf", "").strip()
+    max_conf_param = request.args.get("max_conf", "").strip()
+    reviewer_param = request.args.get("reviewer_id", "ALL").strip()
+    start_date_param = request.args.get("start_date", "").strip()
+    end_date_param = request.args.get("end_date", "").strip()
+    export_csv = request.args.get("export", "").strip().lower() == "csv"
+
+    # Base joined query
+    query = Claim.query.join(Product, Claim.product_id == Product.id)\
+        .join(ProductWarranty, Claim.warranty_id == ProductWarranty.id)\
+        .outerjoin(ModelEvaluation, Claim.id == ModelEvaluation.claim_id)
+
+    # Permission Scoping: Regular customers only search their own claims
+    if role == Config.ROLE_CUSTOMER:
+        query = query.filter(Claim.user_id == user.id)
+
+    # 1. Claim ID Filter (partial/exact)
+    if claim_id_param:
+        query = query.filter(Claim.claim_id.ilike(f"%{claim_id_param}%"))
+
+    # 2. Product ID Filter (partial/exact)
+    if product_id_param:
+        query = query.filter(Product.product_id.ilike(f"%{product_id_param}%"))
+
+    # 3. Product Category Filter
+    if category_param and category_param != "ALL":
+        query = query.filter(Product.category == category_param)
+
+    # 4. Serial Number Filter
+    if serial_number_param:
+        query = query.filter(Product.serial_number.ilike(f"%{serial_number_param}%"))
+
+    # 5. Warranty Status Filter
+    today = date.today()
+    if warranty_status_param == "Active":
+        query = query.filter(ProductWarranty.start_date <= today, ProductWarranty.expiry_date >= today)
+    elif warranty_status_param == "Expired":
+        query = query.filter(ProductWarranty.expiry_date < today)
+    elif warranty_status_param in ["Approaching Expiry", "Expiring Soon"]:
+        query = query.filter(ProductWarranty.expiry_date >= today, ProductWarranty.expiry_date <= today + timedelta(days=30))
+
+    # 6. Claim Status Filter
+    if claim_status_param and claim_status_param != "ALL":
+        query = query.filter(Claim.status == claim_status_param)
+
+    # 7. Risk Level Filter
+    if risk_level_param and risk_level_param != "ALL":
+        query = query.filter(Claim.risk_level == risk_level_param)
+
+    # 8. Confidence Range Filter (min_conf, max_conf)
+    if min_conf_param:
+        try:
+            min_val = float(min_conf_param)
+            if min_val > 1.0:
+                min_val /= 100.0
+            query = query.filter(
+                func.max(ModelEvaluation.python_conf_valid, ModelEvaluation.python_conf_invalid, ModelEvaluation.python_conf_manual) >= min_val
+            )
+        except ValueError:
+            pass
+
+    if max_conf_param:
+        try:
+            max_val = float(max_conf_param)
+            if max_val > 1.0:
+                max_val /= 100.0
+            query = query.filter(
+                func.max(ModelEvaluation.python_conf_valid, ModelEvaluation.python_conf_invalid, ModelEvaluation.python_conf_manual) <= max_val
+            )
+        except ValueError:
+            pass
+
+    # 9. Reviewer Filter
+    if reviewer_param and reviewer_param != "ALL":
+        if reviewer_param == "unassigned":
+            query = query.filter(Claim.assigned_reviewer_id.is_(None))
+        else:
+            try:
+                query = query.filter(Claim.assigned_reviewer_id == int(reviewer_param))
+            except ValueError:
+                pass
+
+    # 10. Date Range Filter
+    if start_date_param:
+        try:
+            s_date = datetime.strptime(start_date_param, "%Y-%m-%d").date()
+            query = query.filter(Claim.claim_submission_date >= s_date)
+        except ValueError:
+            pass
+
+    if end_date_param:
+        try:
+            e_date = datetime.strptime(end_date_param, "%Y-%m-%d").date()
+            query = query.filter(Claim.claim_submission_date <= e_date)
+        except ValueError:
+            pass
+
+    claims = query.order_by(Claim.created_at.desc()).all()
+
+    # CSV Export support
+    if export_csv:
+        export_service = DataExportService()
+        csv_data = export_service.export_claims_csv(claims)
+        ts_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+        return Response(
+            csv_data,
+            mimetype="text/csv",
+            headers={"Content-Disposition": f"attachment; filename=assurex_search_results_{ts_str}.csv"}
+        )
+
+    # Options for dropdown selections
+    categories = sorted(list({p.category for p in Product.query.all()} | {"Consumer Electronics", "Home Appliances", "Industrial Tools"}))
+    reviewers = User.query.filter_by(role=Config.ROLE_REVIEWER).all()
+    statuses = Config.ALL_CLAIM_STATUSES
+    risk_levels = ["Low", "Medium", "High"]
+    warranty_statuses = ["Active", "Approaching Expiry", "Expired"]
+
+    return render_template(
+        "claims/search.html",
+        claims=claims,
+        all_categories=categories,
+        all_reviewers=reviewers,
+        all_statuses=statuses,
+        all_risk_levels=risk_levels,
+        all_warranty_statuses=warranty_statuses,
+        claim_id_param=claim_id_param,
+        product_id_param=product_id_param,
+        category_param=category_param,
+        serial_number_param=serial_number_param,
+        warranty_status_param=warranty_status_param,
+        claim_status_param=claim_status_param,
+        risk_level_param=risk_level_param,
+        min_conf_param=min_conf_param,
+        max_conf_param=max_conf_param,
+        reviewer_param=reviewer_param,
+        start_date_param=start_date_param,
+        end_date_param=end_date_param,
+        results_count=len(claims)
+    )
 
 
 @claim_bp.route("/new", methods=["GET", "POST"])

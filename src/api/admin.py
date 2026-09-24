@@ -14,6 +14,8 @@ from src.services.alert_service import (
     get_approaching_warranties
 )
 
+from src.services.analytics_service import AnalyticsService
+
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
 
@@ -21,7 +23,7 @@ admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 @login_required
 @role_required(Config.ROLE_ADMIN)
 def dashboard():
-    """Req xli: Administrator dashboard with high-level analytics, disagreement metrics, and trends."""
+    """Req xli: Administrator dashboard with high-level analytics, disagreement metrics, duplicate alerts, and trends."""
     total_claims = Claim.query.count()
     valid_claims = Claim.query.filter(Claim.status == Config.STATUS_APPROVED).count()
     invalid_claims = Claim.query.filter(Claim.status == Config.STATUS_REJECTED).count()
@@ -31,7 +33,10 @@ def dashboard():
     total_products = Product.query.count()
     total_users = User.query.count()
 
-    # Model evaluation metrics
+    # Duplicate alerts count (Req xli)
+    duplicate_alerts = Claim.query.filter(Claim.is_duplicate_flag == True).count()
+
+    # Model evaluation metrics & average confidence scores (Req xli)
     evaluations = ModelEvaluation.query.all()
     disagreements = sum(1 for e in evaluations if not e.is_class_match)
     disagreement_rate = (disagreements / len(evaluations) * 100) if evaluations else 0.0
@@ -39,6 +44,44 @@ def dashboard():
     avg_conf_diff = (
         sum(e.top_confidence_difference for e in evaluations) / len(evaluations)
     ) if evaluations else 0.0
+
+    if evaluations:
+        python_confs = [max(e.python_conf_valid, e.python_conf_invalid, e.python_conf_manual) for e in evaluations]
+        gtm_confs = [max(e.gtm_conf_valid, e.gtm_conf_invalid, e.gtm_conf_manual) for e in evaluations]
+        avg_python_conf = sum(python_confs) / len(python_confs)
+        avg_gtm_conf = sum(gtm_confs) / len(gtm_confs)
+        avg_confidence_score = (avg_python_conf + avg_gtm_conf) / 2.0
+    else:
+        avg_python_conf = 0.0
+        avg_gtm_conf = 0.0
+        avg_confidence_score = 0.0
+
+    # Claim trends over time (Req xli)
+    trends_map = {}
+    claims_chronological = Claim.query.order_by(Claim.claim_submission_date.asc(), Claim.created_at.asc()).all()
+    for c in claims_chronological:
+        month_key = c.claim_submission_date.strftime("%b %Y") if c.claim_submission_date else (
+            c.created_at.strftime("%b %Y") if c.created_at else "Unknown"
+        )
+        if month_key not in trends_map:
+            trends_map[month_key] = {"total": 0, "approved": 0, "rejected": 0, "manual": 0}
+        trends_map[month_key]["total"] += 1
+        if c.status == Config.STATUS_APPROVED:
+            trends_map[month_key]["approved"] += 1
+        elif c.status == Config.STATUS_REJECTED:
+            trends_map[month_key]["rejected"] += 1
+        elif c.status == Config.STATUS_MANUAL_REVIEW:
+            trends_map[month_key]["manual"] += 1
+
+    if not trends_map:
+        current_m = datetime.now().strftime("%b %Y")
+        trends_map = {current_m: {"total": total_claims, "approved": valid_claims, "rejected": invalid_claims, "manual": manual_review_claims}}
+
+    trend_labels = list(trends_map.keys())
+    trend_totals = [trends_map[k]["total"] for k in trend_labels]
+    trend_approved = [trends_map[k]["approved"] for k in trend_labels]
+    trend_rejected = [trends_map[k]["rejected"] for k in trend_labels]
+    trend_manual = [trends_map[k]["manual"] for k in trend_labels]
 
     # Recent Audit Events
     recent_audits = AuditLog.query.order_by(AuditLog.timestamp.desc()).limit(10).all()
@@ -78,9 +121,18 @@ def dashboard():
         pending_claims=pending_claims,
         total_products=total_products,
         total_users=total_users,
+        duplicate_alerts=duplicate_alerts,
         disagreements=disagreements,
         disagreement_rate=round(disagreement_rate, 2),
         avg_conf_diff=round(avg_conf_diff, 4),
+        avg_confidence_score=round(avg_confidence_score * 100, 2),
+        avg_python_conf=round(avg_python_conf * 100, 2),
+        avg_gtm_conf=round(avg_gtm_conf * 100, 2),
+        trend_labels=trend_labels,
+        trend_totals=trend_totals,
+        trend_approved=trend_approved,
+        trend_rejected=trend_rejected,
+        trend_manual=trend_manual,
         recent_audits=recent_audits,
         category_breakdown=cat_counts,
         alert_threshold_days=alert_threshold_days,
@@ -88,6 +140,36 @@ def dashboard():
         benchmark_data=benchmark_data,
         dataset_stats=dataset_stats
     )
+
+
+@admin_bp.route("/analytics", methods=["GET"])
+@login_required
+@role_required(Config.ROLE_ADMIN)
+def analytics_dashboard():
+    """Req xliii: Comprehensive Data Analysis & Reporting on 8 core warranty dimensions."""
+    analytics = AnalyticsService.get_comprehensive_analytics()
+    return render_template("admin/analytics.html", analytics=analytics)
+
+
+@admin_bp.route("/analytics/export-json", methods=["GET"])
+@login_required
+@role_required(Config.ROLE_ADMIN)
+def export_analytics_json():
+    """Req xliii: Download JSON summary report of analytics."""
+    analytics = AnalyticsService.get_comprehensive_analytics()
+    return Response(
+        json.dumps(analytics, indent=2),
+        mimetype="application/json",
+        headers={"Content-Disposition": "attachment; filename=assurex_analytics_report.json"}
+    )
+
+
+@admin_bp.route("/claims-search", methods=["GET"])
+@login_required
+@role_required(Config.ROLE_ADMIN)
+def claims_search():
+    """Alias redirect for claims & warranty search and filtering (Req xlii)."""
+    return redirect(url_for("claims.search_records", **request.args))
 
 
 @admin_bp.route("/policies", methods=["GET", "POST"])

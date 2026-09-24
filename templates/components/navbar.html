@@ -165,6 +165,9 @@
                     <a class="subnav-link px-2 py-1 rounded small fw-medium text-decoration-none" href="{{ url_for('claims.list_my_claims') }}">
                         <i class="bi bi-journal-text text-primary-subtle me-1"></i>My Claims
                     </a>
+                    <a class="subnav-link px-2 py-1 rounded small fw-medium text-decoration-none" href="{{ url_for('claims.search_records') }}">
+                        <i class="bi bi-search text-primary-subtle me-1"></i>Search Records
+                    </a>
                     <a class="btn btn-sm btn-primary d-inline-flex align-items-center gap-1 shadow-sm px-3 py-1 ms-1 text-white fw-bold rounded-pill" href="{{ url_for('claims.intake_wizard') }}">
                         <i class="bi bi-lightning-charge-fill"></i> File Claim
                     </a>
@@ -178,9 +181,18 @@
                     <a class="subnav-link px-2 py-1 rounded small fw-medium text-decoration-none" href="{{ url_for('reviewer.queue', status='Manual Review') }}">
                         <i class="bi bi-hourglass-split text-info me-1"></i>Pending Triage
                     </a>
+                    <a class="subnav-link px-2 py-1 rounded small fw-medium text-decoration-none" href="{{ url_for('claims.search_records') }}">
+                        <i class="bi bi-search text-warning me-1"></i>Search Records
+                    </a>
                 {% elif current_user.role == app_config.ROLE_ADMIN %}
                     <a class="subnav-link px-2 py-1 rounded small fw-medium text-decoration-none" href="{{ url_for('admin.dashboard') }}">
                         <i class="bi bi-graph-up-arrow text-primary-subtle me-1"></i>Executive Analytics
+                    </a>
+                    <a class="subnav-link px-2 py-1 rounded small fw-medium text-decoration-none" href="{{ url_for('admin.analytics_dashboard') }}">
+                        <i class="bi bi-bar-chart-fill text-info me-1"></i>Data Analytics
+                    </a>
+                    <a class="subnav-link px-2 py-1 rounded small fw-medium text-decoration-none" href="{{ url_for('claims.search_records') }}">
+                        <i class="bi bi-search text-primary-subtle me-1"></i>Search &amp; Filter
                     </a>
                     <a class="subnav-link px-2 py-1 rounded small fw-medium text-decoration-none" href="{{ url_for('reviewer.queue') }}">
                         <i class="bi bi-shield-exclamation text-warning me-1"></i>Reviewer Queue
@@ -197,6 +209,9 @@
                     </a>
                     <a class="subnav-link px-2 py-1 rounded small fw-medium text-decoration-none" href="{{ url_for('products.register_product') }}">
                         <i class="bi bi-plus-circle text-primary-subtle me-1"></i>Register Equipment
+                    </a>
+                    <a class="subnav-link px-2 py-1 rounded small fw-medium text-decoration-none" href="{{ url_for('claims.search_records') }}">
+                        <i class="bi bi-search text-success me-1"></i>Search Records
                     </a>
                     <a class="btn btn-sm btn-success d-inline-flex align-items-center gap-1 shadow-sm px-3 py-1 ms-1 text-white fw-bold rounded-pill" href="{{ url_for('claims.intake_wizard') }}">
                         <i class="bi bi-lightning-charge-fill"></i> New Warranty Claim

@@ -2035,6 +2035,198 @@ class TestPhase6Frontend(unittest.TestCase):
         # 7. Recent claim decisions
         self.assertIn(b"Final Decision", res.data)
 
+    def test_req_xli_administrator_dashboard_metrics_and_trends(self):
+        """Req xli: Administrator Dashboard metrics, duplicate alerts, average confidence, and claim trends."""
+        with self.app.app_context():
+            admin = User.query.filter_by(role=Config.ROLE_ADMIN).first()
+            admin_id = admin.id
+            admin_role = admin.role
+            admin_code = admin.user_id
+
+        with self.client.session_transaction() as sess:
+            sess["user_id"] = admin_id
+            sess["role"] = admin_role
+            sess["user_code"] = admin_code
+
+        res = self.client.get("/admin/dashboard")
+        self.assertEqual(res.status_code, 200)
+
+        # 1. Total claims intake
+        self.assertIn(b"Total Claims Intake", res.data)
+
+        # 2. Valid / Approved claims
+        self.assertIn(b"Valid / Approved", res.data)
+
+        # 3. Invalid / Rejected claims
+        self.assertIn(b"Rejected (Invalid)", res.data)
+
+        # 4. Manual-review queue
+        self.assertIn(b"Manual Triage Queue", res.data)
+
+        # 5. Duplicate alerts
+        self.assertIn(b"Duplicate Alerts", res.data)
+
+        # 6. Model disagreements
+        self.assertIn(b"Model Disagreements", res.data)
+
+        # 7. Average confidence scores
+        self.assertIn(b"Average Confidence Score", res.data)
+        self.assertIn(b"Py:", res.data)
+        self.assertIn(b"GTM:", res.data)
+
+        # 8. Claim trends chart
+        self.assertIn(b"claimTrendsChart", res.data)
+        self.assertIn(b"Claim Intake Trends &amp; Monthly Lifecycle Volume", res.data)
+
+    def test_req_xlii_search_and_filtering_across_all_ten_dimensions(self):
+        """Req xlii: Search and filter warranty and claim records across 10 distinct dimensions."""
+        with self.app.app_context():
+            admin = User.query.filter_by(role=Config.ROLE_ADMIN).first()
+            customer = User.query.filter_by(role=Config.ROLE_CUSTOMER).first()
+            sample_claim = Claim.query.first()
+            self.assertIsNotNone(sample_claim)
+            c_id = sample_claim.claim_id
+            p_id = sample_claim.product.product_id
+            cat = sample_claim.product.category
+            sn = sample_claim.product.serial_number
+            st = sample_claim.status
+            rk = sample_claim.risk_level
+
+        with self.client.session_transaction() as sess:
+            sess["user_id"] = admin.id
+            sess["role"] = admin.role
+            sess["user_code"] = admin.user_id
+
+        # 1. Base search page renders all 10 filter inputs
+        res = self.client.get("/claims/search")
+        self.assertEqual(res.status_code, 200)
+        self.assertIn(b"1. Claim ID", res.data)
+        self.assertIn(b"2. Product ID", res.data)
+        self.assertIn(b"3. Product Category", res.data)
+        self.assertIn(b"4. Serial Number", res.data)
+        self.assertIn(b"5. Warranty Status", res.data)
+        self.assertIn(b"6. Claim Status", res.data)
+        self.assertIn(b"7. Risk Level", res.data)
+        self.assertIn(b"8. Confidence Range", res.data)
+        self.assertIn(b"9. Assigned Reviewer", res.data)
+        self.assertIn(b"10. Submission Date From", res.data)
+
+        # 2. Filter by Claim ID
+        res_cid = self.client.get(f"/claims/search?claim_id={c_id[:6]}")
+        self.assertEqual(res_cid.status_code, 200)
+        self.assertIn(c_id.encode(), res_cid.data)
+
+        # 3. Filter by Product ID
+        res_pid = self.client.get(f"/claims/search?product_id={p_id[:6]}")
+        self.assertEqual(res_pid.status_code, 200)
+        self.assertIn(c_id.encode(), res_pid.data)
+
+        # 4. Filter by Category
+        res_cat = self.client.get(f"/claims/search?category={cat}")
+        self.assertEqual(res_cat.status_code, 200)
+
+        # 5. Filter by Serial Number
+        res_sn = self.client.get(f"/claims/search?serial_number={sn[:4]}")
+        self.assertEqual(res_sn.status_code, 200)
+
+        # 6. Filter by Warranty Status
+        res_wstat = self.client.get("/claims/search?warranty_status=Active")
+        self.assertEqual(res_wstat.status_code, 200)
+
+        # 7. Filter by Claim Status
+        res_cstat = self.client.get(f"/claims/search?claim_status={st}")
+        self.assertEqual(res_cstat.status_code, 200)
+
+        # 8. Filter by Risk Level
+        res_risk = self.client.get(f"/claims/search?risk_level={rk}")
+        self.assertEqual(res_risk.status_code, 200)
+
+        # 9. Filter by Confidence Range
+        res_conf = self.client.get("/claims/search?min_conf=0.1&max_conf=1.0")
+        self.assertEqual(res_conf.status_code, 200)
+
+        # 10. Filter by Reviewer & Date Range
+        res_date = self.client.get("/claims/search?reviewer_id=ALL&start_date=2020-01-01&end_date=2030-12-31")
+        self.assertEqual(res_date.status_code, 200)
+
+        # 11. CSV Export of filtered results
+        res_csv = self.client.get("/claims/search?export=csv")
+        self.assertEqual(res_csv.status_code, 200)
+        self.assertEqual(res_csv.mimetype, "text/csv")
+        self.assertIn(b"Claim ID,Claimant Name", res_csv.data)
+
+        # 12. Customer Role Scoping
+        with self.client.session_transaction() as sess:
+            sess["user_id"] = customer.id
+            sess["role"] = customer.role
+            sess["user_code"] = customer.user_id
+
+        res_cust = self.client.get("/claims/search")
+        self.assertEqual(res_cust.status_code, 200)
+
+    def test_req_xliii_data_analysis_and_reporting_dimensions(self):
+        """Req xliii: Data Analysis and Reporting on all 8 analytical dimensions."""
+        with self.app.app_context():
+            admin = User.query.filter_by(role=Config.ROLE_ADMIN).first()
+            admin_id = admin.id
+            admin_role = admin.role
+            admin_code = admin.user_id
+
+        with self.client.session_transaction() as sess:
+            sess["user_id"] = admin_id
+            sess["role"] = admin_role
+            sess["user_code"] = admin_code
+
+        # 1. Web Analytics Dashboard
+        res = self.client.get("/admin/analytics")
+        self.assertEqual(res.status_code, 200)
+
+        # Dimension 1: Claim outcomes
+        self.assertIn(b"1. Claim Outcomes Analysis", res.data)
+        self.assertIn(b"outcomesChart", res.data)
+
+        # Dimension 2: Frequently reported faults
+        self.assertIn(b"2. Frequently Reported Faults", res.data)
+        self.assertIn(b"faultsChart", res.data)
+
+        # Dimension 3: Rejected claim reasons
+        self.assertIn(b"3. Rejected Claim Reasons", res.data)
+        self.assertIn(b"rejectionsChart", res.data)
+
+        # Dimension 4: Product categories
+        self.assertIn(b"4. Product Categories Analytics", res.data)
+        self.assertIn(b"categoryAnalyticsChart", res.data)
+
+        # Dimension 5: Warranty expirations
+        self.assertIn(b"5. Warranty Expirations Timeline", res.data)
+        self.assertIn(b"expirationsChart", res.data)
+
+        # Dimension 6: Repair patterns
+        self.assertIn(b"6. Repair Patterns &amp; Authorized Centers", res.data)
+        self.assertIn(b"repairsChart", res.data)
+
+        # Dimension 7: Model performance
+        self.assertIn(b"7. Model Performance &amp; Dual Consistency", res.data)
+        self.assertIn(b"modelConsistencyChart", res.data)
+
+        # Dimension 8: Manual-review frequency & triggers
+        self.assertIn(b"8. Manual-Review Frequency &amp; Triggers", res.data)
+        self.assertIn(b"manualTriggersChart", res.data)
+
+        # 2. JSON Analytics Export
+        res_json = self.client.get("/admin/analytics/export-json")
+        self.assertEqual(res_json.status_code, 200)
+        self.assertEqual(res_json.mimetype, "application/json")
+        payload = json.loads(res_json.data)
+        self.assertIn("outcomes", payload)
+        self.assertIn("faults", payload)
+        self.assertIn("rejections", payload)
+        self.assertIn("categories", payload)
+        self.assertIn("expirations", payload)
+        self.assertIn("repairs", payload)
+        self.assertIn("models", payload)
+        self.assertIn("manual_review", payload)
+
 
 if __name__ == "__main__":
     unittest.main()

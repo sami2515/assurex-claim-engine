@@ -1,0 +1,308 @@
+{% extends "components/base.html" %}
+
+{% block title %}Search & Filter Warranty Records{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+    <div>
+        <div class="d-flex align-items-center gap-2 mb-1">
+            <span class="badge bg-primary text-white font-mono small">SRS Section 1.6.xlii</span>
+            <span class="text-muted small">&bull; Multi-Dimensional Query Engine</span>
+        </div>
+        <h2 class="fw-bold text-slate-900 mb-0">Warranty &amp; Claim Records Explorer</h2>
+        <p class="text-muted small mb-0">Search and filter across Claim ID, Product ID, category, serial number, warranty status, claim status, risk level, confidence range, reviewer, and date range.</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        <a href="{{ url_for('claims.search_records') }}" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1 shadow-sm">
+            <i class="bi bi-arrow-counterclockwise"></i> Reset Filters
+        </a>
+        <a href="{{ request.full_path ~ ('&' if '?' in request.full_path else '?') ~ 'export=csv' }}" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1 shadow-sm">
+            <i class="bi bi-file-earmark-spreadsheet"></i> Export Filtered CSV
+        </a>
+        {% if current_user and current_user.role == app_config.ROLE_ADMIN %}
+        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-dark btn-sm d-inline-flex align-items-center gap-1 shadow-sm">
+            <i class="bi bi-speedometer2"></i> Admin Dashboard
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 10-Dimensional Filter Console (Req xlii) -->
+<div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
+    <div class="card-header-styled d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-funnel-fill text-primary me-2"></i>Multi-Criteria Filtering &amp; Search Console</span>
+        <span class="badge bg-light text-muted border font-mono small">{{ results_count }} Match{{ 'es' if results_count != 1 else '' }} Found</span>
+    </div>
+    <div class="card-body p-4">
+        <form method="GET" action="{{ url_for('claims.search_records') }}" id="searchFilterForm">
+            <!-- Row 1: Identifier Dimensions -->
+            <div class="row g-3 mb-3">
+                <div class="col-md-3">
+                    <label class="form-label extra-small fw-bold text-muted text-uppercase">1. Claim ID</label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-light text-muted"><i class="bi bi-receipt"></i></span>
+                        <input type="text" name="claim_id" class="form-control" placeholder="e.g. CLM-8A39F0" value="{{ claim_id_param }}">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label extra-small fw-bold text-muted text-uppercase">2. Product ID</label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-light text-muted"><i class="bi bi-box-seam"></i></span>
+                        <input type="text" name="product_id" class="form-control" placeholder="e.g. PRD-F41C2B" value="{{ product_id_param }}">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label extra-small fw-bold text-muted text-uppercase">3. Product Category</label>
+                    <select name="category" class="form-select form-select-sm">
+                        <option value="ALL" {% if category_param == 'ALL' or not category_param %}selected{% endif %}>All Categories</option>
+                        {% for cat in all_categories %}
+                            <option value="{{ cat }}" {% if category_param == cat %}selected{% endif %}>{{ cat }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label extra-small fw-bold text-muted text-uppercase">4. Serial Number</label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text bg-light text-muted"><i class="bi bi-upc-scan"></i></span>
+                        <input type="text" name="serial_number" class="form-control font-mono" placeholder="e.g. SN-SAM-908" value="{{ serial_number_param }}">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Row 2: Status & Governance Dimensions -->
+            <div class="row g-3 mb-3">
+                <div class="col-md-3">
+                    <label class="form-label extra-small fw-bold text-muted text-uppercase">5. Warranty Status</label>
+                    <select name="warranty_status" class="form-select form-select-sm">
+                        <option value="ALL" {% if warranty_status_param == 'ALL' or not warranty_status_param %}selected{% endif %}>All Warranty Statuses</option>
+                        {% for ws in all_warranty_statuses %}
+                            <option value="{{ ws }}" {% if warranty_status_param == ws %}selected{% endif %}>{{ ws }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label extra-small fw-bold text-muted text-uppercase">6. Claim Status</label>
+                    <select name="claim_status" class="form-select form-select-sm">
+                        <option value="ALL" {% if claim_status_param == 'ALL' or not claim_status_param %}selected{% endif %}>All Claim Statuses (8 Stages)</option>
+                        {% for cs in all_statuses %}
+                            <option value="{{ cs }}" {% if claim_status_param == cs %}selected{% endif %}>{{ cs }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label extra-small fw-bold text-muted text-uppercase">7. Risk Level</label>
+                    <select name="risk_level" class="form-select form-select-sm">
+                        <option value="ALL" {% if risk_level_param == 'ALL' or not risk_level_param %}selected{% endif %}>All Risk Levels</option>
+                        {% for rk in all_risk_levels %}
+                            <option value="{{ rk }}" {% if risk_level_param == rk %}selected{% endif %}>{{ rk }} Risk</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label extra-small fw-bold text-muted text-uppercase">9. Assigned Reviewer</label>
+                    <select name="reviewer_id" class="form-select form-select-sm">
+                        <option value="ALL" {% if reviewer_param == 'ALL' or not reviewer_param %}selected{% endif %}>All Claims (Any Reviewer)</option>
+                        <option value="unassigned" {% if reviewer_param == 'unassigned' %}selected{% endif %}>Unassigned (Pending Queue)</option>
+                        {% for rev in all_reviewers %}
+                            <option value="{{ rev.id }}" {% if reviewer_param == rev.id|string %}selected{% endif %}>{{ rev.full_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <!-- Row 3: Confidence & Date Range Dimensions -->
+            <div class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label extra-small fw-bold text-muted text-uppercase">8. Confidence Range (Min - Max %)</label>
+                    <div class="input-group input-group-sm">
+                        <input type="number" step="any" min="0" max="100" name="min_conf" class="form-control" placeholder="Min %" value="{{ min_conf_param }}">
+                        <span class="input-group-text bg-light text-muted">to</span>
+                        <input type="number" step="any" min="0" max="100" name="max_conf" class="form-control" placeholder="Max %" value="{{ max_conf_param }}">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label extra-small fw-bold text-muted text-uppercase">10. Submission Date From</label>
+                    <input type="date" name="start_date" class="form-control form-control-sm" value="{{ start_date_param }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label extra-small fw-bold text-muted text-uppercase">10. Submission Date To</label>
+                    <input type="date" name="end_date" class="form-control form-control-sm" value="{{ end_date_param }}">
+                </div>
+                <div class="col-md-3 d-flex gap-2">
+                    <button type="submit" class="btn btn-sm btn-primary w-100 fw-semibold d-inline-flex align-items-center justify-content-center gap-1 shadow-xs">
+                        <i class="bi bi-search"></i> Apply Filters
+                    </button>
+                    <a href="{{ url_for('claims.search_records') }}" class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center justify-content-center" title="Clear Filters">
+                        <i class="bi bi-x-lg"></i>
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Active Filter Badges -->
+{% set has_filters = claim_id_param or product_id_param or (category_param and category_param != 'ALL') or serial_number_param or (warranty_status_param and warranty_status_param != 'ALL') or (claim_status_param and claim_status_param != 'ALL') or (risk_level_param and risk_level_param != 'ALL') or min_conf_param or max_conf_param or (reviewer_param and reviewer_param != 'ALL') or start_date_param or end_date_param %}
+{% if has_filters %}
+<div class="d-flex align-items-center gap-2 flex-wrap mb-3">
+    <span class="text-muted extra-small fw-bold text-uppercase">Active Criteria:</span>
+    {% if claim_id_param %}<span class="badge bg-light text-dark border">Claim ID: {{ claim_id_param }}</span>{% endif %}
+    {% if product_id_param %}<span class="badge bg-light text-dark border">Product ID: {{ product_id_param }}</span>{% endif %}
+    {% if category_param and category_param != 'ALL' %}<span class="badge bg-light text-dark border">Category: {{ category_param }}</span>{% endif %}
+    {% if serial_number_param %}<span class="badge bg-light text-dark border">SN: {{ serial_number_param }}</span>{% endif %}
+    {% if warranty_status_param and warranty_status_param != 'ALL' %}<span class="badge bg-light text-dark border">Warranty: {{ warranty_status_param }}</span>{% endif %}
+    {% if claim_status_param and claim_status_param != 'ALL' %}<span class="badge bg-light text-dark border">Status: {{ claim_status_param }}</span>{% endif %}
+    {% if risk_level_param and risk_level_param != 'ALL' %}<span class="badge bg-light text-dark border">Risk: {{ risk_level_param }}</span>{% endif %}
+    {% if min_conf_param or max_conf_param %}<span class="badge bg-light text-dark border">Confidence: {{ min_conf_param or '0' }}% - {{ max_conf_param or '100' }}%</span>{% endif %}
+    {% if reviewer_param and reviewer_param != 'ALL' %}<span class="badge bg-light text-dark border">Reviewer: {{ reviewer_param }}</span>{% endif %}
+    {% if start_date_param or end_date_param %}<span class="badge bg-light text-dark border">Date: {{ start_date_param or 'Start' }} &rarr; {{ end_date_param or 'Now' }}</span>{% endif %}
+    <a href="{{ url_for('claims.search_records') }}" class="text-danger extra-small fw-bold text-decoration-none ms-1">Clear all</a>
+</div>
+{% endif %}
+
+<!-- Search Results Table -->
+<div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
+    <div class="table-responsive">
+        <table class="table table-custom align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Claim ID &amp; Submission</th>
+                    <th>Product &amp; Category</th>
+                    <th>Serial Number</th>
+                    <th>Warranty Status</th>
+                    <th>Claim Status</th>
+                    <th>Risk</th>
+                    <th>Confidence &amp; Match</th>
+                    <th>Assigned Reviewer</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if claims %}
+                    {% for c in claims %}
+                        {% set w = c.warranty %}
+                        {% set eval = c.model_evaluation %}
+                        <tr>
+                            <!-- 1. Claim ID & Date -->
+                            <td>
+                                <div class="fw-bold font-mono text-primary">{{ c.claim_id }}</div>
+                                <div class="text-muted extra-small">{{ c.claim_submission_date.strftime('%Y-%m-%d') if c.claim_submission_date else 'N/A' }}</div>
+                            </td>
+
+                            <!-- 2. Product Name & Category -->
+                            <td>
+                                <div class="fw-semibold text-slate-800 small">{{ c.product.product_name if c.product else 'Unknown Product' }}</div>
+                                <span class="badge bg-light text-secondary border extra-small">{{ c.product.category if c.product else 'N/A' }}</span>
+                            </td>
+
+                            <!-- 3. Serial Number -->
+                            <td>
+                                <span class="font-mono text-muted small">{{ c.product.serial_number if c.product else 'N/A' }}</span>
+                            </td>
+
+                            <!-- 4. Warranty Status -->
+                            <td>
+                                {% if w %}
+                                    {% if w.is_active() %}
+                                        {% if w.is_approaching_expiry(30) %}
+                                            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">Expiring Soon ({{ w.remaining_days() }}d)</span>
+                                        {% else %}
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle">Active ({{ w.remaining_days() }}d)</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">Expired</span>
+                                    {% endif %}
+                                    <div class="extra-small text-muted font-mono mt-1">Exp: {{ w.expiry_date.strftime('%Y-%m-%d') }}</div>
+                                {% else %}
+                                    <span class="badge bg-light text-muted border">No Warranty</span>
+                                {% endif %}
+                            </td>
+
+                            <!-- 5. Claim Status (Req xxxviii 8 stages) -->
+                            <td>
+                                <span class="badge 
+                                    {% if c.status == 'Approved' %}bg-success-subtle text-success border border-success-subtle
+                                    {% elif c.status == 'Rejected' %}bg-danger-subtle text-danger border border-danger-subtle
+                                    {% elif c.status == 'Manual Review' %}bg-warning-subtle text-warning-emphasis border border-warning-subtle
+                                    {% elif c.status == 'Additional Information Required' %}bg-info-subtle text-info-emphasis border border-info-subtle
+                                    {% elif c.status == 'Under Evaluation' %}bg-primary-subtle text-primary border border-primary-subtle
+                                    {% elif c.status == 'Submitted' %}bg-primary text-white
+                                    {% elif c.status == 'Draft' %}bg-light text-muted border
+                                    {% else %}bg-secondary-subtle text-secondary{% endif %}">
+                                    {{ c.status }}
+                                </span>
+                            </td>
+
+                            <!-- 6. Risk Level -->
+                            <td>
+                                <span class="badge 
+                                    {% if c.risk_level == 'High' %}bg-danger text-white
+                                    {% elif c.risk_level == 'Medium' %}bg-warning text-dark
+                                    {% else %}bg-success text-white{% endif %}">
+                                    {{ c.risk_level or 'Medium' }}
+                                </span>
+                            </td>
+
+                            <!-- 7. Confidence & Consistency -->
+                            <td>
+                                {% if eval %}
+                                    {% set top_conf = [eval.python_conf_valid, eval.python_conf_invalid, eval.python_conf_manual]|max %}
+                                    <div class="font-mono small fw-bold text-slate-800">{{ "%.1f"|format(top_conf * 100) }}%</div>
+                                    <span class="badge extra-small
+                                        {% if eval.model_consistency_status == 'Strong Match' %}bg-success-subtle text-success
+                                        {% elif eval.model_consistency_status == 'Acceptable Match' %}bg-primary-subtle text-primary
+                                        {% elif eval.model_consistency_status == 'Model Disagreement' %}bg-danger-subtle text-danger
+                                        {% else %}bg-warning-subtle text-warning-emphasis{% endif %}">
+                                        {{ eval.model_consistency_status }}
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted extra-small">Pending Eval</span>
+                                {% endif %}
+                            </td>
+
+                            <!-- 8. Assigned Reviewer -->
+                            <td>
+                                {% if c.assigned_reviewer_id %}
+                                    {% set rev_user = c.reviewer_actions[-1].reviewer if c.reviewer_actions else None %}
+                                    <span class="small fw-semibold text-slate-800"><i class="bi bi-person-check text-success me-1"></i>Reviewer #{{ c.assigned_reviewer_id }}</span>
+                                {% else %}
+                                    <span class="text-muted extra-small italic">Unassigned</span>
+                                {% endif %}
+                            </td>
+
+                            <!-- 9. Actions -->
+                            <td class="text-end">
+                                <div class="btn-group btn-group-sm">
+                                    {% if current_user and current_user.role in [app_config.ROLE_ADMIN, app_config.ROLE_REVIEWER] %}
+                                        <a href="{{ url_for('reviewer.inspect_claim', claim_id=c.claim_id) }}" class="btn btn-outline-primary" title="Adjudicate / Inspect Claim">
+                                            <i class="bi bi-eye"></i> Inspect
+                                        </a>
+                                    {% else %}
+                                        <a href="{{ url_for('claims.view_claim', claim_id=c.claim_id) }}" class="btn btn-outline-primary" title="View Details">
+                                            <i class="bi bi-file-text"></i> View
+                                        </a>
+                                    {% endif %}
+                                    <a href="{{ url_for('claims.track_claim_status', claim_id=c.claim_id) }}" class="btn btn-outline-secondary" title="Track Lifecycle Progress">
+                                        <i class="bi bi-clock-history"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="9" class="text-center py-5">
+                            <div class="text-muted mb-2"><i class="bi bi-search fs-1"></i></div>
+                            <h5 class="fw-bold text-slate-800">No Matching Claims or Warranties Found</h5>
+                            <p class="text-muted small mb-3">Adjust your search parameters, widen the confidence range, or clear active filters.</p>
+                            <a href="{{ url_for('claims.search_records') }}" class="btn btn-sm btn-primary">
+                                <i class="bi bi-arrow-counterclockwise me-1"></i> Reset All Search Filters
+                            </a>
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
