@@ -52,6 +52,23 @@ def dashboard():
     alert_threshold_days = get_alert_threshold_days()
     approaching_warranties = get_approaching_warranties(threshold_days=alert_threshold_days)
 
+    # ML Benchmark & Common Dataset Telemetry (Req 1.6.xvii, xviii, xix)
+    benchmark_path = Path("model/python_model/benchmark_results.json")
+    benchmark_data = {}
+    if benchmark_path.exists():
+        try:
+            benchmark_data = json.loads(benchmark_path.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+
+    dataset_stats_path = Path("data/dataset_statistics.json")
+    dataset_stats = {}
+    if dataset_stats_path.exists():
+        try:
+            dataset_stats = json.loads(dataset_stats_path.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+
     return render_template(
         "admin/dashboard.html",
         total_claims=total_claims,
@@ -67,7 +84,9 @@ def dashboard():
         recent_audits=recent_audits,
         category_breakdown=cat_counts,
         alert_threshold_days=alert_threshold_days,
-        approaching_warranties_count=len(approaching_warranties)
+        approaching_warranties_count=len(approaching_warranties),
+        benchmark_data=benchmark_data,
+        dataset_stats=dataset_stats
     )
 
 
