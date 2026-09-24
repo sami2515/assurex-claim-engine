@@ -6,7 +6,7 @@
 <div class="wizard-container mx-auto" style="max-width: 900px;">
     <!-- Wizard Header -->
     <div class="text-center mb-4">
-        <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-mono mb-2">SRS Req 1.6.vii & 1.6.viii</span>
+        <span class="badge bg-primary-subtle text-primary border border-primary-subtle mb-2">Guided Claim Intake</span>
         <h2 class="fw-bold text-slate-900 mb-1">Warranty Claim Intake Wizard</h2>
         <p class="text-muted small">Submit hardware malfunction claims for real-time dual-model intelligence & policy adjudication</p>
     </div>
@@ -41,13 +41,13 @@
     <form id="claim-wizard-form" method="POST" action="{{ url_for('claims.create_claim_wizard') }}" enctype="multipart/form-data">
         
         <!-- ===================================================================
-             STEP 1: Asset & Warranty Selection (Req 1.6.viii Warranty Tracking)
+             STEP 1: Asset & Warranty Selection
              =================================================================== -->
         <div class="wizard-step-pane active" id="step-1">
             <div class="card border-0 shadow-sm rounded-4 bg-white p-4 p-md-5">
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <h4 class="fw-bold text-slate-900 mb-0">Step 1: Choose Registered Product & Warranty</h4>
-                    <span class="badge bg-light text-secondary border font-mono">Req 1.6.viii</span>
+                    <span class="badge bg-light text-secondary border">Step 1 of 4</span>
                 </div>
                 <p class="text-muted mb-4 small">Select the hardware unit experiencing malfunction from your active registered assets.</p>
 
@@ -55,7 +55,7 @@
                 <div class="alert alert-success d-flex align-items-center gap-3 py-2 mb-4 border border-success-subtle bg-success-subtle text-success-emphasis rounded-3 extra-small">
                     <i class="bi bi-tools fs-5"></i>
                     <div>
-                        <strong>Authorized Service Center Claim Registration Mode (Req 1.6.x):</strong>
+                        <strong>Authorized Service Center Claim Registration Mode:</strong>
                         You are initiating a warranty claim on behalf of a customer. The intake dossier will be assigned a unique Claim ID and permanently linked to the customer, product equipment, warranty, and supporting documents.
                     </div>
                 </div>
@@ -93,11 +93,11 @@
                     </select>
                 </div>
 
-                <!-- Warranty Tracking Panel (Req 1.6.viii) -->
+                <!-- Warranty Tracking Panel -->
                 <div id="warranty-tracking-panel" class="d-none bg-light p-4 rounded-4 border mb-4">
                     <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
                         <div class="d-flex align-items-center gap-2">
-                            <span class="badge bg-primary text-white"><i class="bi bi-shield-check me-1"></i>Warranty Tracking (Req 1.6.viii)</span>
+                            <span class="badge bg-primary text-white"><i class="bi bi-shield-check me-1"></i>Warranty Tracking</span>
                             <span class="badge font-mono bg-white text-primary border" id="wt-code">PRD-XXXX</span>
                         </div>
                         <div id="wt-status-badge">
@@ -214,7 +214,7 @@
                     </div>
 
                     <div class="col-12">
-                        <label for="previous_replacement_details" class="form-label fw-semibold small text-slate-700">Previous Replacement / Repair History (Req 1.6.xi)</label>
+                        <label for="previous_replacement_details" class="form-label fw-semibold small text-slate-700">Previous Replacement / Repair History</label>
                         <input type="text" class="form-control bg-light" id="previous_replacement_details" name="previous_replacement_details" placeholder="e.g. Battery and charging port replaced under warranty in June 2025 (or 'None / Original factory condition')">
                         <div class="form-text extra-small">Specify whether any parts, components, or entire units were previously replaced or repaired.</div>
                     </div>
@@ -250,15 +250,15 @@
         </div>
 
         <!-- ===================================================================
-             STEP 3: Document Intake & Evidence Upload (Req 1.6.vii & xii)
+             STEP 3: Document Intake & Evidence Upload
              =================================================================== -->
         <div class="wizard-step-pane" id="step-3">
             <div class="card border-0 shadow-sm rounded-4 bg-white p-4 p-md-5">
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <h4 class="fw-bold text-slate-900 mb-0">Step 3: Document Intake &amp; Evidence Upload</h4>
-                    <span class="badge bg-light text-secondary border font-mono">Req 1.6.v, vi, vii, xii</span>
+                    <span class="badge bg-light text-secondary border">Step 3 of 4</span>
                 </div>
-                <p class="text-muted mb-4 small">Upload proof of purchase, hardware photographs, damage footage, and diagnostic evidence (Req xii).</p>
+                <p class="text-muted mb-4 small">Upload proof of purchase, hardware photographs, damage footage, and diagnostic evidence.</p>
 
                 <!-- Drag & Drop Dropzone for Receipt/Invoice -->
                 <div class="upload-dropzone mb-3" id="receipt-dropzone">
@@ -270,18 +270,18 @@
 
                 <div id="file-preview-info"></div>
 
-                <!-- Live OCR Verification Preview Card & Review Form (Req 1.6.vii) -->
+                <!-- Live OCR Verification Preview Card & Review Form -->
                 <div class="card bg-light border-0 rounded-4 p-4 mt-3" id="ocr-results-panel">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <span class="fw-bold small text-slate-800"><i class="bi bi-cpu text-primary me-2"></i>Optical Character Recognition (OCR) Engine</span>
                         <span class="badge bg-secondary extra-small">Automated Verification Ready</span>
                     </div>
                     <p class="extra-small text-muted mb-0">
-                        Upon document upload, our intelligent OCR extractor parses invoice credentials, purchase dates, serial numbers, and totals. You will be able to review and verify the extracted values below before saving or submitting your claim (Req 1.6.vii).
+                        Upon document upload, our intelligent OCR extractor parses invoice credentials, purchase dates, serial numbers, and totals. You will be able to review and verify the extracted values below before saving or submitting your claim.
                     </p>
                 </div>
 
-                <!-- Fault and Damage Evidence Upload (Req 1.6.xii) -->
+                <!-- Fault and Damage Evidence Upload -->
                 <div class="card border-0 shadow-sm rounded-4 bg-light p-4 mt-4">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <div class="d-flex align-items-center gap-2">
@@ -289,7 +289,7 @@
                                 <i class="bi bi-camera-fill"></i>
                             </span>
                             <div>
-                                <h6 class="fw-bold text-slate-900 mb-0">Fault &amp; Damage Evidence Upload (Req 1.6.xii)</h6>
+                                <h6 class="fw-bold text-slate-900 mb-0">Fault &amp; Damage Evidence Upload</h6>
                                 <div class="extra-small text-muted">Upload damage images, product photos, fault video, diagnostic reports, and serial proofs</div>
                             </div>
                         </div>
@@ -372,7 +372,7 @@
                 <div class="d-flex justify-content-between align-items-start align-items-md-center flex-wrap gap-2 mb-3">
                     <div>
                         <h4 class="fw-bold text-slate-900 mb-1">Step 4: Claim Preparation Assistance &amp; Card Preview</h4>
-                        <p class="text-muted mb-0 small">Pre-submission readiness audit detecting missing information, missing documents, approaching deadlines, and contradictions (Req 1.6.xxxiii).</p>
+                        <p class="text-muted mb-0 small">Pre-submission readiness audit detecting missing information, missing documents, approaching deadlines, and contradictions.</p>
                     </div>
                     <div class="text-end">
                         <span class="small text-muted d-block extra-small">Dossier Readiness</span>

@@ -10,7 +10,7 @@
             <span class="badge bg-primary font-mono fs-6">{{ claim.claim_id }}</span>
             <span class="badge bg-light text-secondary border">Status: {{ claim.status }}</span>
         </div>
-        <p class="text-muted mb-0 small">Comprehensive triage inspection, dual-model consensus verification, and decision override controls (Req xxxvii)</p>
+        <p class="text-muted mb-0 small">Comprehensive triage inspection, dual-model consensus verification, and decision override controls</p>
     </div>
     <div class="d-flex gap-2">
         <a href="{{ url_for('reviewer.queue') }}" class="btn btn-outline-secondary btn-sm">
@@ -22,13 +22,13 @@
     </div>
 </div>
 
-<!-- AI-Generated Claim Summary (Req 1.6.xxxii) -->
+<!-- AI-Generated Claim Summary -->
 {% if ai_summary or claim.generate_ai_summary %}
 {% set summary = ai_summary or claim.generate_ai_summary() %}
 <div class="card border-0 shadow-sm rounded-4 bg-white mb-4 overflow-hidden">
     <div class="card-header-styled d-flex justify-content-between align-items-center flex-wrap gap-2">
         <span class="fw-bold text-slate-900">
-            <i class="bi bi-file-earmark-text text-primary me-2"></i>Executive Claim Intelligence Summary (Req 1.6.xxxii)
+            <i class="bi bi-file-earmark-text text-primary me-2"></i>Executive Claim Intelligence Summary
         </span>
         <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-mono">
             Automated Synthesis
@@ -134,7 +134,7 @@
 <div class="card border-0 shadow-sm rounded-4 bg-white mb-4 overflow-hidden">
     <div class="card-header-styled d-flex justify-content-between align-items-center flex-wrap gap-2">
         <span class="fw-bold text-slate-900">
-            <i class="bi bi-diagram-3 text-primary me-2"></i>Comprehensive Decision Explanation (Req 1.6.xxxv)
+            <i class="bi bi-diagram-3 text-primary me-2"></i>Comprehensive Decision Explanation
         </span>
         <span class="badge bg-light text-secondary border font-mono">
             Outcome: {{ decision_explanation.final_decision }}
@@ -256,7 +256,7 @@
      =================================================================== -->
 <div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
     <div class="card-header-styled d-flex justify-content-between align-items-center flex-wrap gap-2">
-        <span class="fw-bold text-slate-900"><i class="bi bi-cpu text-primary me-2"></i>Dual-Model Machine Learning Evidence Matrix (Req 1.6.xviii - xxii)</span>
+        <span class="fw-bold text-slate-900"><i class="bi bi-cpu text-primary me-2"></i>Dual-Model Machine Learning Evidence Matrix</span>
         {% if claim.model_evaluation %}
             {% set eval = claim.model_evaluation %}
             <div class="d-flex align-items-center gap-2">
@@ -380,7 +380,7 @@
                         </div>
 
                         <div class="mt-4 pt-3 border-top d-flex justify-content-between align-items-center">
-                            <span class="extra-small text-muted"><i class="bi bi-card-image me-1"></i>Visual Card (Req 1.6.xx)</span>
+                            <span class="extra-small text-muted"><i class="bi bi-card-image me-1"></i>Standardized Claim Card</span>
                             <a href="{{ url_for('claims.view_summary_card', claim_id=claim.claim_id) }}" target="_blank" class="btn btn-sm btn-outline-primary extra-small">
                                 <i class="bi bi-box-arrow-up-right me-1"></i>Inspect Summary Card Image
                             </a>
@@ -404,7 +404,7 @@
     <div class="col-lg-6">
         <div class="card border-0 shadow-sm rounded-4 bg-white h-100">
             <div class="card-header-styled d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-shield-check text-primary me-2"></i>Warranty Rule Validation (Req 1.6.xxv)</span>
+                <span><i class="bi bi-shield-check text-primary me-2"></i>Warranty Rule Validation</span>
                 <span class="badge bg-light text-secondary border font-mono">10 Business Rules</span>
             </div>
             <div class="card-body p-4">
@@ -577,7 +577,7 @@
 <div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
     <div class="card-header-styled bg-slate-800 text-white d-flex justify-content-between align-items-center">
         <span class="fw-bold"><i class="bi bi-pencil-square me-2 text-warning"></i>Human Reviewer Decision Override & Adjudication Controls</span>
-        <span class="badge bg-warning text-dark font-mono">Req xxxvii</span>
+        <span class="badge bg-warning text-dark font-mono">Manual Adjudication</span>
     </div>
     <div class="card-body p-4 p-md-5">
         <!-- Automated Recommendation Banner -->
@@ -638,7 +638,7 @@
 
                 <div class="col-12">
                     <label for="override_reason" class="form-label fw-semibold small text-slate-700">
-                        Specific Reason for Decision Override (Req xxxvii)
+                        Specific Reason for Decision Override
                     </label>
                     <input type="text" class="form-control bg-light" id="override_reason" name="override_reason" placeholder="e.g. Commercial exception authorized, Physical bench test verified, Goodwill replacement authorized...">
                     <div class="form-text extra-small">Provide specific policy justification if overriding the automated AI recommendation.</div>
@@ -668,7 +668,7 @@
      =================================================================== -->
 <div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
     <div class="card-header-styled d-flex justify-content-between align-items-center">
-        <span><i class="bi bi-clock-history text-primary me-2"></i>Reviewer Audit History & Decision Override Trail (Req 1.6.xxxvii)</span>
+        <span><i class="bi bi-clock-history text-primary me-2"></i>Reviewer Audit History & Decision Override Trail</span>
         <span class="badge bg-light text-secondary border font-mono">{{ claim.reviewer_actions|length }} Action(s) Recorded</span>
     </div>
     <div class="table-responsive">

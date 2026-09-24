@@ -6,8 +6,8 @@
 <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
     <div>
         <div class="d-flex align-items-center gap-2 mb-1">
-            <span class="badge bg-primary text-white font-mono small">SRS Section 1.6.xliii</span>
-            <span class="text-muted small">&bull; Executive Reporting Intelligence</span>
+            <span class="badge bg-primary text-white font-mono small">Executive Analytics</span>
+            <span class="text-muted small">&bull; Reporting Intelligence</span>
         </div>
         <h2 class="fw-bold text-slate-900 mb-0">Enterprise Data Analysis &amp; Warranty Reporting</h2>
         <p class="text-muted small mb-0">System-wide analytics across 8 core dimensions: outcomes, faults, rejections, categories, expirations, repairs, model benchmarks, and review frequency.</p>
@@ -20,7 +20,7 @@
             <i class="bi bi-search"></i> Search Records
         </a>
         <a href="{{ url_for('admin.export_data', export_type='analytics') }}" class="btn btn-outline-success btn-sm d-inline-flex align-items-center gap-1 shadow-sm">
-            <i class="bi bi-file-earmark-spreadsheet"></i> Export Analytics CSV (Req xlv)
+            <i class="bi bi-file-earmark-spreadsheet"></i> Export Analytics CSV
         </a>
         <a href="{{ url_for('admin.export_analytics_json') }}" class="btn btn-primary btn-sm d-inline-flex align-items-center gap-1 shadow-sm">
             <i class="bi bi-download"></i> Export Analytics JSON
@@ -88,7 +88,7 @@
     <div class="col-lg-5">
         <div class="card border-0 shadow-sm rounded-4 bg-white h-100">
             <div class="card-header-styled d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-pie-chart text-primary me-2"></i>1. Claim Outcomes Analysis (Req xliii)</span>
+                <span><i class="bi bi-pie-chart text-primary me-2"></i>Claim Outcomes Analysis</span>
                 <span class="badge bg-light text-dark border extra-small">Outcome Split</span>
             </div>
             <div class="card-body p-4 d-flex flex-column justify-content-between">
@@ -131,7 +131,7 @@
     <div class="col-lg-7">
         <div class="card border-0 shadow-sm rounded-4 bg-white h-100">
             <div class="card-header-styled d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-tools text-primary me-2"></i>2. Frequently Reported Faults (Req xliii)</span>
+                <span><i class="bi bi-tools text-primary me-2"></i>Frequently Reported Faults</span>
                 <span class="badge bg-light text-dark border extra-small">Top Symptoms</span>
             </div>
             <div class="card-body p-4">
@@ -175,7 +175,7 @@
     <div class="col-lg-6">
         <div class="card border-0 shadow-sm rounded-4 bg-white h-100">
             <div class="card-header-styled d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-x-octagon text-danger me-2"></i>3. Rejected Claim Reasons (Req xliii)</span>
+                <span><i class="bi bi-x-octagon text-danger me-2"></i>Rejected Claim Reasons</span>
                 <span class="badge bg-danger-subtle text-danger border border-danger-subtle extra-small">Failure Root Causes</span>
             </div>
             <div class="card-body p-4">
@@ -214,7 +214,7 @@
     <div class="col-lg-6">
         <div class="card border-0 shadow-sm rounded-4 bg-white h-100">
             <div class="card-header-styled d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-box-seam text-primary me-2"></i>4. Product Categories Analytics (Req xliii)</span>
+                <span><i class="bi bi-box-seam text-primary me-2"></i>Product Categories Analytics</span>
                 <span class="badge bg-light text-dark border extra-small">Claims by Portfolio</span>
             </div>
             <div class="card-body p-4">
@@ -261,7 +261,7 @@
     <div class="col-lg-6">
         <div class="card border-0 shadow-sm rounded-4 bg-white h-100">
             <div class="card-header-styled d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-calendar-check text-primary me-2"></i>5. Warranty Expirations Timeline (Req xliii)</span>
+                <span><i class="bi bi-calendar-check text-primary me-2"></i>Warranty Expirations Timeline</span>
                 <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle extra-small">Horizon Telemetry</span>
             </div>
             <div class="card-body p-4">
@@ -302,7 +302,7 @@
     <div class="col-lg-6">
         <div class="card border-0 shadow-sm rounded-4 bg-white h-100">
             <div class="card-header-styled d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-wrench-adjustable text-primary me-2"></i>6. Repair Patterns &amp; Authorized Centers (Req xliii)</span>
+                <span><i class="bi bi-wrench-adjustable text-primary me-2"></i>Repair Patterns &amp; Authorized Centers</span>
                 <span class="badge bg-light text-dark border extra-small">Workshop Compliance</span>
             </div>
             <div class="card-body p-4">
@@ -357,7 +357,7 @@
     <div class="col-lg-6">
         <div class="card border-0 shadow-sm rounded-4 bg-white h-100">
             <div class="card-header-styled d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-cpu text-primary me-2"></i>7. Model Performance &amp; Dual Consistency (Req xliii)</span>
+                <span><i class="bi bi-cpu text-primary me-2"></i>Model Performance &amp; Dual Consistency</span>
                 <span class="badge bg-success-subtle text-success border border-success-subtle extra-small">Dual Consensus</span>
             </div>
             <div class="card-body p-4">
@@ -406,7 +406,7 @@
     <div class="col-lg-6">
         <div class="card border-0 shadow-sm rounded-4 bg-white h-100">
             <div class="card-header-styled d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-hourglass-split text-warning me-2"></i>8. Manual-Review Frequency &amp; Triggers (Req xliii)</span>
+                <span><i class="bi bi-hourglass-split text-warning me-2"></i>Manual-Review Frequency &amp; Triggers</span>
                 <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle extra-small">Triage Root Causes</span>
             </div>
             <div class="card-body p-4">

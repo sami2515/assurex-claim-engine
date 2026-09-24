@@ -27,7 +27,7 @@
     <div class="d-flex align-items-start gap-3">
         <div class="fs-3 text-warning"><i class="bi bi-exclamation-triangle-fill"></i></div>
         <div>
-            <div class="fw-bold text-slate-900 mb-1">Missing Mandatory Documents Detected (Req 1.6.xxix)</div>
+            <div class="fw-bold text-slate-900 mb-1">Missing Mandatory Documents Detected</div>
             <p class="mb-1 small text-slate-700">
                 Evaluation requires complete supporting documentation. The following mandatory document(s) are currently missing:
             </p>
@@ -54,13 +54,13 @@
 </div>
 {% endif %}
 
-<!-- Duplicate Claim Indicator Banner (Req 1.6.xxx) -->
+<!-- Duplicate Claim Indicator Banner -->
 {% if dup_report and dup_report.is_duplicate %}
 <div class="alert alert-danger border-0 shadow-sm rounded-4 mb-4 p-3">
     <div class="d-flex align-items-start gap-3">
         <div class="fs-3 text-danger"><i class="bi bi-shield-exclamation"></i></div>
         <div class="w-100">
-            <div class="fw-bold text-slate-900 mb-1">Duplicate Claim Indicator Detected (Req 1.6.xxx)</div>
+            <div class="fw-bold text-slate-900 mb-1">Duplicate Claim Indicator Detected</div>
             <p class="mb-2 small text-slate-700">Cross-checking of Claim IDs, invoice numbers, hardware serials, fault descriptions, claimant history, and cryptographic document hashes flagged potential duplication:</p>
             <ul class="mb-0 small ps-3">
                 {% for flag in dup_report.duplicate_flags %}
@@ -72,13 +72,13 @@
 </div>
 {% endif %}
 
-<!-- AI-Generated Claim Summary (Req 1.6.xxxii) -->
+<!-- AI-Generated Claim Summary -->
 {% if ai_summary or claim.generate_ai_summary %}
 {% set summary = ai_summary or claim.generate_ai_summary() %}
 <div class="card border-0 shadow-sm rounded-4 bg-white mb-4 overflow-hidden">
     <div class="card-header-styled d-flex justify-content-between align-items-center flex-wrap gap-2">
         <span class="fw-bold text-slate-900">
-            <i class="bi bi-file-earmark-text text-primary me-2"></i>Executive Claim Intelligence Summary (Req 1.6.xxxii)
+            <i class="bi bi-file-earmark-text text-primary me-2"></i>Executive Claim Intelligence Summary
         </span>
         <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-mono">
             Automated Synthesis
@@ -207,39 +207,39 @@
                         <div class="fw-bold font-mono text-primary">{{ claim.product.serial_number }}</div>
                     </div>
                     <div class="col-6">
-                        <div class="text-muted extra-small">Product Age at Incident (Req 1.6.xi)</div>
+                        <div class="text-muted extra-small">Product Age at Incident</div>
                         <div class="fw-semibold text-slate-900">{{ (claim.fault_occurrence_date - claim.product.purchase_date).days }} Days</div>
                     </div>
                     <div class="col-6">
-                        <div class="text-muted extra-small">Purchase Details (Req 1.6.xi)</div>
+                        <div class="text-muted extra-small">Purchase Details</div>
                         <div class="fw-semibold small">{{ claim.product.purchase_date.strftime('%Y-%m-%d') }} &bull; ${{ "%.2f"|format(claim.product.purchase_price) }} ({{ claim.product.retailer }})</div>
                     </div>
                     <div class="col-6">
-                        <div class="text-muted extra-small">Fault Occurrence Date (Req 1.6.xi)</div>
+                        <div class="text-muted extra-small">Fault Occurrence Date</div>
                         <div class="fw-semibold text-danger">{{ claim.fault_occurrence_date.strftime('%Y-%m-%d') }}</div>
                     </div>
                     <div class="col-6">
-                        <div class="text-muted extra-small">Suspected Damage Nature (Req 1.6.xi)</div>
+                        <div class="text-muted extra-small">Suspected Damage Nature</div>
                         <div class="fw-semibold">{{ claim.damage_type or 'Normal Wear and Tear' }}</div>
                     </div>
                     <div class="col-6">
-                        <div class="text-muted extra-small">Claim Submission Date (Req 1.6.xi)</div>
+                        <div class="text-muted extra-small">Claim Submission Date</div>
                         <div class="fw-semibold">{{ claim.claim_submission_date.strftime('%Y-%m-%d') }}</div>
                     </div>
                     <div class="col-6">
-                        <div class="text-muted extra-small">Warranty Conditions (Req 1.6.xi)</div>
+                        <div class="text-muted extra-small">Warranty Conditions</div>
                         <div class="fw-semibold small">{{ claim.warranty.warranty_provider }} (Expires: {{ claim.warranty.expiry_date.strftime('%Y-%m-%d') }})</div>
                     </div>
                     <div class="col-6">
-                        <div class="text-muted extra-small">Service History (Req 1.6.xi)</div>
+                        <div class="text-muted extra-small">Service History</div>
                         <div class="fw-semibold small"><a href="{{ url_for('products.view_product', product_id=claim.product.product_id) }}" class="text-primary text-decoration-none"><i class="bi bi-tools"></i> {{ claim.product.repair_records|length }} Service Events</a></div>
                     </div>
                     <div class="col-12">
-                        <div class="text-muted extra-small">Previous Replacement Details (Req 1.6.xi)</div>
+                        <div class="text-muted extra-small">Previous Replacement Details</div>
                         <div class="fw-semibold small text-slate-800">{{ claim.previous_replacement_details or 'None / Original factory condition' }}</div>
                     </div>
                     <div class="col-12">
-                        <div class="text-muted extra-small">Detailed Defect Description (Req 1.6.xi)</div>
+                        <div class="text-muted extra-small">Detailed Defect Description</div>
                         <div class="bg-light p-3 rounded-3 border small mt-1">{{ claim.fault_description }}</div>
                     </div>
                 </div>
@@ -314,7 +314,7 @@
 <div class="card border-0 shadow-sm rounded-4 bg-white mb-4 overflow-hidden">
     <div class="card-header-styled d-flex justify-content-between align-items-center flex-wrap gap-2">
         <span class="fw-bold text-slate-900">
-            <i class="bi bi-diagram-3 text-primary me-2"></i>Decision Explanation &amp; Factor Analysis (Req 1.6.xxxv)
+            <i class="bi bi-diagram-3 text-primary me-2"></i>Decision Explanation &amp; Factor Analysis
         </span>
         <span class="badge bg-light text-secondary border font-mono">
             Adjudication: {{ decision_explanation.final_decision }}
@@ -435,7 +435,7 @@
 {% if claim.reviewer_notes or claim.reviewer_actions %}
 <div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
     <div class="card-header-styled d-flex justify-content-between align-items-center">
-        <span><i class="bi bi-chat-left-dots text-primary me-2"></i>Reviewer Adjudication Notes &amp; Audit Trail (Req 1.6.xxxvii)</span>
+        <span><i class="bi bi-chat-left-dots text-primary me-2"></i>Reviewer Adjudication Notes &amp; Audit Trail</span>
         {% if claim.assigned_reviewer %}
             <span class="badge bg-light text-secondary border font-mono">Reviewer: {{ claim.assigned_reviewer.full_name }}</span>
         {% endif %}
@@ -492,14 +492,14 @@
     {% set eval = claim.model_evaluation %}
     <div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
         <div class="card-header-styled d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <span><i class="bi bi-diagram-2 text-primary me-2"></i>Model Prediction &amp; Confidence Comparison (Req 1.6.xxii - xxiv)</span>
+            <span><i class="bi bi-diagram-2 text-primary me-2"></i>Model Prediction &amp; Confidence Comparison</span>
             <div class="d-flex align-items-center gap-2">
                 {% if eval.is_class_match %}
                     <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"><i class="bi bi-check-circle-fill me-1"></i>Class Match: Concordant</span>
                 {% else %}
                     <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1"><i class="bi bi-exclamation-triangle-fill me-1"></i>Class Match: Disagreement</span>
                 {% endif %}
-                <span class="badge bg-light text-secondary border font-mono" title="Absolute difference between top confidence scores (Req xxiii)">|Δconf| = {{ "%.4f"|format(eval.top_confidence_difference) }}</span>
+                <span class="badge bg-light text-secondary border font-mono" title="Absolute difference between top confidence scores">|Δconf| = {{ "%.4f"|format(eval.top_confidence_difference) }}</span>
             </div>
         </div>
         <div class="card-body p-4">
@@ -518,7 +518,7 @@
                 </div>
                 <div>
                     <a href="{{ url_for('claims.view_summary_card', claim_id=claim.claim_id) }}" target="_blank" class="btn btn-sm btn-outline-secondary text-nowrap">
-                        <i class="bi bi-card-image me-1"></i>View Summary Card (Req xx)
+                        <i class="bi bi-card-image me-1"></i>View Summary Card
                     </a>
                 </div>
             </div>
@@ -562,7 +562,7 @@
 <!-- Attached Evidence Documents & Multi-Media Proof (Req 1.6.v & xii) -->
 <div class="card border-0 shadow-sm rounded-4 bg-white">
     <div class="card-header-styled d-flex justify-content-between align-items-center">
-        <span><i class="bi bi-paperclip text-primary me-2"></i>Attached Evidence Documents &amp; Multi-Media Proof (Req 1.6.xii)</span>
+        <span><i class="bi bi-paperclip text-primary me-2"></i>Attached Evidence Documents &amp; Multi-Media Proof</span>
         <div class="d-flex align-items-center gap-2">
             <span class="badge bg-light text-secondary border">{{ claim.documents|length }} Files Attached</span>
             {% if claim.status not in ['Approved', 'Rejected', 'Closed'] %}

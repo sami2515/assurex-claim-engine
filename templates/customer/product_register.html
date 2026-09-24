@@ -14,17 +14,17 @@
                             <i class="bi bi-box-seam me-2"></i>Register Equipment & Activate Warranty
                         </h4>
                         <p class="mb-0 text-white-50 small">
-                            Fulfills SRS 1.6.iii, 1.6.iv, 1.6.v, & 1.6.vi: Hardware provenance, proof upload, and AI receipt scanning.
+                            Register new hardware provenance, proof of purchase, and automated receipt details.
                         </p>
                     </div>
                     <span class="badge bg-white text-primary fw-bold font-mono px-3 py-2 shadow-xs">
-                        Req iii, iv, v, vi, vii
+                        Asset Onboarding
                     </span>
                 </div>
             </div>
 
             <div class="card-body p-4 p-md-5">
-                <!-- Smart AI Receipt & Invoice Scanner Dropzone (Req 1.6.v & vi) -->
+                <!-- Smart AI Receipt & Invoice Scanner Dropzone -->
                 <div class="card border-primary border-dashed bg-primary-subtle bg-opacity-25 rounded-4 p-4 mb-4" id="scanner-box">
                     <div class="d-flex flex-column flex-md-row align-items-center gap-3">
                         <div class="text-primary fs-1">
@@ -32,7 +32,7 @@
                         </div>
                         <div class="flex-grow-1 text-center text-md-start">
                             <h5 class="fw-bold text-slate-900 mb-1">
-                                <i class="bi bi-lightning-charge-fill text-warning me-1"></i>AI Receipt & Invoice Scanner (Req 1.6.v & vi)
+                                <i class="bi bi-lightning-charge-fill text-warning me-1"></i>Smart Receipt &amp; Invoice Scanner
                             </h5>
                             <p class="text-muted extra-small mb-0">
                                 Upload purchase receipts or invoices in <strong>PDF, JPG, JPEG, PNG</strong>. AssureX scans the document via OCR to auto-extract date, invoice #, product, model, serial, retailer, price, and warranty duration.
@@ -54,7 +54,7 @@
                         </div>
                     </div>
 
-                    <!-- Extracted Data Verification Panel (Req 1.6.vii) -->
+                    <!-- Extracted Data Verification Panel -->
                     <div id="extracted-verification-panel" class="d-none mt-3 p-3 bg-white rounded-3 border">
                         <div class="d-flex justify-content-between align-items-center mb-2 pb-2 border-bottom">
                             <div class="d-flex align-items-center gap-2">
@@ -66,7 +66,7 @@
                             <span class="badge bg-light text-secondary border font-mono extra-small" id="extracted-sha256">SHA-256 Verified</span>
                         </div>
                         <p class="extra-small text-slate-700 mb-2">
-                            <strong>Extracted Data Verification (Req 1.6.vii):</strong> The values below were parsed from your uploaded invoice and automatically populated into the form. Please review and modify any field if needed before submitting.
+                            <strong>Extracted Data Verification:</strong> The values below were parsed from your uploaded invoice and automatically populated into the form. Please review and modify any field if needed before submitting.
                         </p>
                         <div class="row g-2 extra-small" id="extracted-summary-grid">
                             <!-- Populated dynamically via JS -->
@@ -92,10 +92,10 @@
                         </div>
                     </div>
 
-                    <!-- Section 1: Hardware Asset Provenance (Req 1.6.iii) -->
+                    <!-- Section 1: Hardware Asset Provenance -->
                     <div class="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom">
                         <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Step 1</span>
-                        <h6 class="fw-bold text-slate-800 mb-0">Hardware Asset & Identification Details (Req 1.6.iii)</h6>
+                        <h6 class="fw-bold text-slate-800 mb-0">Hardware Asset &amp; Identification Details</h6>
                     </div>
 
                     <div class="row g-3 mb-4">
@@ -154,10 +154,10 @@
                         </div>
                     </div>
 
-                    <!-- Section 2: Warranty Record & Terms (Req 1.6.iv) -->
+                    <!-- Section 2: Warranty Record & Terms -->
                     <div class="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom">
                         <span class="badge bg-success-subtle text-success border border-success-subtle">Step 2</span>
-                        <h6 class="fw-bold text-slate-800 mb-0">Warranty Coverage Terms & Policy Binding (Req 1.6.iv)</h6>
+                        <h6 class="fw-bold text-slate-800 mb-0">Warranty Coverage Terms &amp; Policy Binding</h6>
                     </div>
 
                     <div class="row g-3 mb-4">
@@ -209,7 +209,7 @@
                         <i class="bi bi-shield-check fs-3 text-primary mt-1"></i>
                         <div class="small">
                             <div class="fw-bold text-slate-900 mb-1">Automated System Unique Product ID & Secure Document Archiving</div>
-                            Upon submission, AssureX assigns a permanent <b>Unique Product ID (PRD-XXXXXXXX)</b>, stores your uploaded receipt with its <b>cryptographic SHA-256 hash</b>, and binds an active warranty contract (SRS Section 1.6.iii, 1.6.iv, & 1.6.v).
+                            Upon submission, AssureX assigns a permanent <b>Unique Product ID (PRD-XXXXXXXX)</b>, stores your uploaded receipt with its <b>cryptographic SHA-256 hash</b>, and binds an active warranty contract.
                         </div>
                     </div>
 

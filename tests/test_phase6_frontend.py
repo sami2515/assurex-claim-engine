@@ -1707,7 +1707,7 @@ class TestPhase6Frontend(unittest.TestCase):
 
         res_cust = self.client.get(f"/claims/{claim_id_val}")
         self.assertEqual(res_cust.status_code, 200)
-        self.assertIn(b"Decision Explanation &amp; Factor Analysis (Req 1.6.xxxv)", res_cust.data)
+        self.assertIn(b"Decision Explanation &amp; Factor Analysis", res_cust.data)
         self.assertIn(b"Factors Supporting Decision", res_cust.data)
         self.assertIn(b"Factors Opposing Decision", res_cust.data)
 
@@ -1721,7 +1721,7 @@ class TestPhase6Frontend(unittest.TestCase):
 
         res_rev = self.client.get(f"/reviewer/claim/{claim_id_val}")
         self.assertEqual(res_rev.status_code, 200)
-        self.assertIn(b"Comprehensive Decision Explanation (Req 1.6.xxxv)", res_rev.data)
+        self.assertIn(b"Comprehensive Decision Explanation", res_rev.data)
         self.assertIn(b"Additional Evidence Required", res_rev.data)
 
     def test_req_xxxvi_manual_review_workflow_triage_and_actions(self):
@@ -2182,35 +2182,35 @@ class TestPhase6Frontend(unittest.TestCase):
         self.assertEqual(res.status_code, 200)
 
         # Dimension 1: Claim outcomes
-        self.assertIn(b"1. Claim Outcomes Analysis", res.data)
+        self.assertIn(b"Claim Outcomes Analysis", res.data)
         self.assertIn(b"outcomesChart", res.data)
 
         # Dimension 2: Frequently reported faults
-        self.assertIn(b"2. Frequently Reported Faults", res.data)
+        self.assertIn(b"Frequently Reported Faults", res.data)
         self.assertIn(b"faultsChart", res.data)
 
         # Dimension 3: Rejected claim reasons
-        self.assertIn(b"3. Rejected Claim Reasons", res.data)
+        self.assertIn(b"Rejected Claim Reasons", res.data)
         self.assertIn(b"rejectionsChart", res.data)
 
         # Dimension 4: Product categories
-        self.assertIn(b"4. Product Categories Analytics", res.data)
+        self.assertIn(b"Product Categories Analytics", res.data)
         self.assertIn(b"categoryAnalyticsChart", res.data)
 
         # Dimension 5: Warranty expirations
-        self.assertIn(b"5. Warranty Expirations Timeline", res.data)
+        self.assertIn(b"Warranty Expirations Timeline", res.data)
         self.assertIn(b"expirationsChart", res.data)
 
         # Dimension 6: Repair patterns
-        self.assertIn(b"6. Repair Patterns &amp; Authorized Centers", res.data)
+        self.assertIn(b"Repair Patterns &amp; Authorized Centers", res.data)
         self.assertIn(b"repairsChart", res.data)
 
         # Dimension 7: Model performance
-        self.assertIn(b"7. Model Performance &amp; Dual Consistency", res.data)
+        self.assertIn(b"Model Performance &amp; Dual Consistency", res.data)
         self.assertIn(b"modelConsistencyChart", res.data)
 
         # Dimension 8: Manual-review frequency & triggers
-        self.assertIn(b"8. Manual-Review Frequency &amp; Triggers", res.data)
+        self.assertIn(b"Manual-Review Frequency &amp; Triggers", res.data)
         self.assertIn(b"manualTriggersChart", res.data)
 
         # 2. JSON Analytics Export
@@ -2560,7 +2560,7 @@ class TestPhase6Frontend(unittest.TestCase):
 
         res_dash = self.client.get("/admin/dashboard")
         self.assertEqual(res_dash.status_code, 200)
-        self.assertIn(b"System Monitoring &amp; Anomaly Alerts Telemetry (Req 1.6.l)", res_dash.data)
+        self.assertIn(b"System Monitoring &amp; Anomaly Alerts", res_dash.data)
         self.assertIn(b"Dispatch Admin Alerts", res_dash.data)
 
         # 5. POST /admin/anomalies/dispatch dispatches alerts
