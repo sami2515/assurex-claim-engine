@@ -10,6 +10,8 @@ from reportlab.platypus import (
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 
+from config.config import Config
+
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 REPORTS_DIR = BASE_DIR / "reports"
 REPORTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -195,11 +197,14 @@ class ClaimReportPDFGenerator:
             diff_str = "0.0100"
             consistency_status = "Strong Match"
 
+        py_ver = eval_record.python_model_version if eval_record and eval_record.python_model_version else Config.PYTHON_MODEL_VERSION
+        gtm_ver = eval_record.gtm_model_version if eval_record and eval_record.gtm_model_version else Config.GTM_MODEL_VERSION
+
         model_data = [
             [
                 Paragraph("<b>Evaluation Metric</b>", self.bold_body),
-                Paragraph("<b>Branch A: Python Classification Model</b>", self.bold_body),
-                Paragraph("<b>Branch B: Google Teachable Machine</b>", self.bold_body)
+                Paragraph(f"<b>Branch A: Python Model ({py_ver})</b>", self.bold_body),
+                Paragraph(f"<b>Branch B: Teachable Machine ({gtm_ver})</b>", self.bold_body)
             ],
             [
                 Paragraph("Predicted Class", self.body_style),
@@ -358,3 +363,7 @@ def get_pdf_generator() -> ClaimReportPDFGenerator:
     if _pdf_generator_instance is None:
         _pdf_generator_instance = ClaimReportPDFGenerator()
     return _pdf_generator_instance
+
+# Alias for backwards compatibility
+ClaimReportGenerator = ClaimReportPDFGenerator
+

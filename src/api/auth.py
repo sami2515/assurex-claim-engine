@@ -78,6 +78,20 @@ def login():
             flash(f"Welcome back, {user.full_name}!", "success")
             return redirect(url_for("auth.portal_redirect"))
         else:
+            fail_reason = "User not found" if not user else ("Invalid password" if not user.check_password(password) else "Account disabled")
+            # Req l: Monitor repeated login attempts via AuditLog
+            audit_fail = AuditLog(
+                user_id=user.id if user else None,
+                user_role=user.role if user else None,
+                action="LOGIN_FAILED",
+                entity_type="USER",
+                entity_id=user.user_id if user else email,
+                ip_address=request.remote_addr,
+                details_json=json.dumps({"attempted_email": email, "reason": fail_reason})
+            )
+            db.session.add(audit_fail)
+            db.session.commit()
+
             if not user:
                 flash(f"Account with email '{email}' does not exist. Please register first or use a demo account.", "danger")
             elif not user.check_password(password):

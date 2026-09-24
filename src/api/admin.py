@@ -11,7 +11,9 @@ from src.services.alert_service import (
     get_alert_threshold_days,
     set_alert_threshold_days,
     scan_and_generate_warranty_alerts,
-    get_approaching_warranties
+    get_approaching_warranties,
+    get_system_anomalies,
+    scan_and_generate_anomaly_alerts
 )
 
 from src.services.analytics_service import AnalyticsService
@@ -112,6 +114,9 @@ def dashboard():
         except Exception:
             pass
 
+    # Anomaly Monitoring & Alerts Telemetry (Req 1.6.l)
+    anomalies = get_system_anomalies()
+
     return render_template(
         "admin/dashboard.html",
         total_claims=total_claims,
@@ -138,8 +143,23 @@ def dashboard():
         alert_threshold_days=alert_threshold_days,
         approaching_warranties_count=len(approaching_warranties),
         benchmark_data=benchmark_data,
-        dataset_stats=dataset_stats
+        dataset_stats=dataset_stats,
+        anomalies=anomalies,
+        anomalies_count=len(anomalies)
     )
+
+
+@admin_bp.route("/anomalies/dispatch", methods=["POST"])
+@login_required
+@role_required(Config.ROLE_ADMIN)
+def dispatch_anomaly_alerts():
+    """Req 1.6.l: Dispatches real-time anomaly alerts to administrators."""
+    created = scan_and_generate_anomaly_alerts()
+    if created:
+        flash(f"Successfully dispatched {len(created)} anomaly notification(s) to system administrators.", "success")
+    else:
+        flash("Anomaly scan complete: All current anomalies have already been notified.", "info")
+    return redirect(url_for("admin.dashboard"))
 
 
 @admin_bp.route("/analytics", methods=["GET"])

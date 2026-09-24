@@ -808,6 +808,18 @@ def upload_claim_document(claim_id):
     # Validate file extension and size
     is_valid_file, file_err = ClaimValidator.validate_file(uploaded_file)
     if not is_valid_file:
+        # Req l: Monitor failed uploads for anomaly detection
+        audit_fail = AuditLog(
+            user_id=user.id,
+            user_role=role,
+            action="UPLOAD_FAILED",
+            entity_type="ClaimDocument",
+            entity_id=claim.claim_id,
+            ip_address=request.remote_addr,
+            details_json=json.dumps({"filename": uploaded_file.filename, "reason": file_err})
+        )
+        db.session.add(audit_fail)
+        db.session.commit()
         flash(file_err, "danger")
         return redirect(url_for("claims.view_claim", claim_id=claim.claim_id))
 

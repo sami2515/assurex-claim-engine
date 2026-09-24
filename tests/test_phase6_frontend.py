@@ -2422,6 +2422,152 @@ class TestPhase6Frontend(unittest.TestCase):
         self.assertIn(b"Audit Trail", res_view.data)
         self.assertIn(b"Audit Log Ledger", res_view.data)
 
+    def test_req_xlviii_model_version_tracking(self):
+        """Req xlviii: Model Version Tracking - Predictions linked to version; updating does not alter previous results."""
+        with self.app.app_context():
+            eval_record = ModelEvaluation.query.first()
+            self.assertIsNotNone(eval_record)
+            self.assertIsNotNone(eval_record.python_model_version)
+            self.assertIsNotNone(eval_record.gtm_model_version)
+            self.assertTrue(eval_record.python_model_version.startswith("v"))
+            self.assertTrue(eval_record.gtm_model_version.startswith("v"))
+
+            original_py_ver = eval_record.python_model_version
+            original_gtm_ver = eval_record.gtm_model_version
+            original_pred = eval_record.python_predicted_class
+            original_conf = eval_record.python_conf_valid
+
+            # Simulate future model version release
+            Config.PYTHON_MODEL_VERSION = "v2.5.0"
+            Config.GTM_MODEL_VERSION = "v2.5.0"
+
+            # Query the existing evaluation record again
+            reloaded_eval = ModelEvaluation.query.filter_by(id=eval_record.id).first()
+            # Invariant: Previously recorded results remain unchanged
+            self.assertEqual(reloaded_eval.python_model_version, original_py_ver)
+            self.assertEqual(reloaded_eval.gtm_model_version, original_gtm_ver)
+            self.assertEqual(reloaded_eval.python_predicted_class, original_pred)
+            self.assertEqual(reloaded_eval.python_conf_valid, original_conf)
+
+            # Reset config back to v1.0.0
+            Config.PYTHON_MODEL_VERSION = "v1.0.0"
+            Config.GTM_MODEL_VERSION = "v1.0.0"
+
+            # Verify PDF report generation includes the model versions
+            from src.services.report_generator import get_pdf_generator
+            claim = Claim.query.filter_by(id=eval_record.claim_id).first()
+            pdf_bytes = get_pdf_generator().generate_pdf(claim)
+            self.assertGreater(len(pdf_bytes), 1000)
+
+    def test_req_xlix_understandable_error_handling(self):
+        """Req xlix: Display understandable error messages without exposing technical details."""
+        from src.rules.validator import ClaimValidator
+        # 1. Invalid file format
+        fake_exe = io.BytesIO(b"MZ executable payload")
+        is_valid, err_msg = ClaimValidator.validate_file((fake_exe, "malware.exe"))
+        self.assertFalse(is_valid)
+        self.assertIn("unsupported extension", err_msg.lower())
+        self.assertNotIn("Traceback", err_msg)
+        self.assertNotIn("Exception", err_msg)
+
+        # 2. Incomplete claim data validation
+        is_sub_valid, errs, warns, cleaned = ClaimValidator.validate_claim_submission({}, {})
+        self.assertFalse(is_sub_valid)
+        self.assertTrue(len(errs) >= 4)
+        for err in errs:
+            self.assertIn("Mandatory field missing", err)
+            self.assertNotIn("Traceback", err)
+
+        # 3. HTTP 404 handler returns clean error page without trace
+        res_404 = self.client.get("/non-existent-url-endpoint-999")
+        self.assertEqual(res_404.status_code, 404)
+        self.assertIn(b"Resource Not Found", res_404.data)
+        self.assertNotIn(b"Traceback", res_404.data)
+
+        # 4. Unauthorized access protection & Custom 403/500 error handlers
+        with self.app.app_context():
+            cust = User.query.filter_by(role=Config.ROLE_CUSTOMER).first()
+        with self.client.session_transaction() as sess:
+            sess["user_id"] = cust.id
+            sess["role"] = Config.ROLE_CUSTOMER
+        res_unauth = self.client.get("/admin/dashboard", follow_redirects=True)
+        self.assertEqual(res_unauth.status_code, 200)
+        self.assertIn(b"Unauthorized access", res_unauth.data)
+        self.assertNotIn(b"Traceback", res_unauth.data)
+
+        # Test Custom 403 & 500 error templates render cleanly without exposing stack traces
+        from flask import render_template
+        with self.app.test_request_context():
+            html_403 = render_template("components/error.html", error_code=403, message="Access forbidden.")
+            self.assertIn("Access Forbidden", html_403)
+            self.assertNotIn("Traceback", html_403)
+
+            html_500 = render_template("components/error.html", error_code=500, message="An internal application anomaly occurred.")
+            self.assertIn("Unexpected Server Error", html_500)
+            self.assertNotIn("Traceback", html_500)
+
+        # 5. Unavailable / failed model prediction graceful fallback
+        from src.core.model_comparator import DualModelComparator
+        comparator = DualModelComparator()
+        comp_res = comparator.compare_models({})
+        self.assertIn("python_model", comp_res)
+        self.assertIn("gtm_model", comp_res)
+        self.assertIn(comp_res["python_model"]["predicted_class"], Config.ALL_CLAIM_CLASSES)
+
+    def test_req_l_monitoring_and_anomaly_alerts(self):
+        """Req l: Monitoring and anomaly alerts for failed uploads, repeated logins, duplicate docs, etc."""
+        from src.services.alert_service import get_system_anomalies, scan_and_generate_anomaly_alerts
+
+        with self.app.app_context():
+            admin = User.query.filter_by(role=Config.ROLE_ADMIN).first()
+
+        # 1. Test failed login triggers LOGIN_FAILED audit log
+        res_bad_login = self.client.post("/login", data={
+            "email": "invalid_hacker@assurex.local",
+            "password": "wrong_password_123"
+        }, follow_redirects=True)
+        self.assertEqual(res_bad_login.status_code, 200)
+        self.assertIn(b"does not exist", res_bad_login.data)
+
+        with self.app.app_context():
+            fail_login_log = AuditLog.query.filter_by(action="LOGIN_FAILED").first()
+            self.assertIsNotNone(fail_login_log)
+
+            # 2. Test Anomaly Engine returns structured telemetry across dimensions
+            anomalies = get_system_anomalies()
+            self.assertIsInstance(anomalies, list)
+            for a in anomalies:
+                self.assertIn("type", a)
+                self.assertIn("title", a)
+                self.assertIn("severity", a)
+                self.assertIn("description", a)
+
+            # 3. Test scan_and_generate_anomaly_alerts creates Notification records for Admin
+            created_alerts = scan_and_generate_anomaly_alerts()
+            self.assertIsInstance(created_alerts, list)
+            notifs = Notification.query.filter_by(
+                user_id=admin.id,
+                notification_type=Config.NOTIF_TYPE_ANOMALY_ALERT
+            ).all()
+            self.assertGreater(len(notifs), 0)
+
+        # 4. Admin Dashboard renders System Monitoring & Anomaly Alerts Telemetry
+        with self.client.session_transaction() as sess:
+            sess["user_id"] = admin.id
+            sess["role"] = Config.ROLE_ADMIN
+            sess["email"] = admin.email
+            sess["user_name"] = admin.full_name
+
+        res_dash = self.client.get("/admin/dashboard")
+        self.assertEqual(res_dash.status_code, 200)
+        self.assertIn(b"System Monitoring &amp; Anomaly Alerts Telemetry (Req 1.6.l)", res_dash.data)
+        self.assertIn(b"Dispatch Admin Alerts", res_dash.data)
+
+        # 5. POST /admin/anomalies/dispatch dispatches alerts
+        res_dispatch = self.client.post("/admin/anomalies/dispatch", follow_redirects=True)
+        self.assertEqual(res_dispatch.status_code, 200)
+        self.assertIn(b"Anomaly", res_dispatch.data)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -31,8 +31,29 @@ class DualModelComparator:
             dict containing python_result, gtm_result, match_status, confidence_diff,
             model_consistency_status, and explanation.
         """
-        # 1. Run Python Tabular Classifier
-        py_result = self.python_classifier.predict_single(claim_data)
+        # 1. Run Python Tabular Classifier (with fallback & anomaly logging)
+        try:
+            py_result = self.python_classifier.predict_single(claim_data)
+        except Exception as e:
+            try:
+                from src.models.entities import AuditLog
+                from database.db import db
+                AuditLog.log_event(
+                    action="MODEL_FAILURE",
+                    entity_type="PythonClassifier",
+                    details={"error": str(e), "message": "Python ML prediction exception; fallback engaged"}
+                )
+                db.session.commit()
+            except Exception:
+                pass
+            py_result = {
+                "model_type": "Python_ML_Tabular",
+                "model_version": getattr(self.python_classifier, "model_version", Config.PYTHON_MODEL_VERSION),
+                "predicted_class": Config.CLAIM_CLASS_MANUAL_REVIEW,
+                "top_confidence": 0.50,
+                "confidence_scores": {c: 0.33 for c in Config.ALL_CLAIM_CLASSES}
+            }
+
         py_pred_class = py_result["predicted_class"]
         py_top_conf = py_result["top_confidence"]
 
@@ -40,7 +61,28 @@ class DualModelComparator:
         if summary_card_image is None:
             summary_card_image = render_claim_summary_card(claim_data, variation=1)
 
-        gtm_result = self.gtm_classifier.predict_card(summary_card_image)
+        try:
+            gtm_result = self.gtm_classifier.predict_card(summary_card_image)
+        except Exception as e:
+            try:
+                from src.models.entities import AuditLog
+                from database.db import db
+                AuditLog.log_event(
+                    action="MODEL_FAILURE",
+                    entity_type="GTMClassifier",
+                    details={"error": str(e), "message": "Teachable Machine prediction exception; fallback engaged"}
+                )
+                db.session.commit()
+            except Exception:
+                pass
+            gtm_result = {
+                "model_type": "Teachable_Machine_Vision",
+                "model_version": getattr(self.gtm_classifier, "model_version", Config.GTM_MODEL_VERSION),
+                "predicted_class": Config.CLAIM_CLASS_MANUAL_REVIEW,
+                "top_confidence": 0.50,
+                "confidence_scores": {c: 0.33 for c in Config.ALL_CLAIM_CLASSES}
+            }
+
         gtm_pred_class = gtm_result["predicted_class"]
         gtm_top_conf = gtm_result["top_confidence"]
 
