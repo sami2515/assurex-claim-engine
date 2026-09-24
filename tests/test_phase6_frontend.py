@@ -65,11 +65,18 @@ class TestPhase6Frontend(unittest.TestCase):
                 sess["role"] = rev.role
                 sess["user_name"] = rev.full_name
                 sess["email"] = rev.email
+                claim = Claim.query.first()
+                claim_id = claim.claim_id if claim else None
 
         res_queue = self.client.get("/reviewer/queue")
         self.assertEqual(res_queue.status_code, 200)
         self.assertIn(b"Claim Adjudication", res_queue.data)
         self.assertIn(b"Triage Queue", res_queue.data)
+
+        if claim_id:
+            res_inspect = self.client.get(f"/reviewer/claim/{claim_id}")
+            self.assertEqual(res_inspect.status_code, 200)
+            self.assertIn(b"Adjudication Workbench", res_inspect.data)
 
     def test_admin_portal_authenticated(self):
         """Verify admin dashboard, policy editor, and audit logs render for admins."""

@@ -98,6 +98,10 @@ class Product(db.Model):
     def product_category(self, val):
         self.category = val
 
+    @property
+    def has_unauthorized_repairs(self) -> bool:
+        return any(not r.is_authorized_center for r in self.repair_records)
+
     def to_dict(self):
         return {
             "product_id": self.product_id,

@@ -197,7 +197,7 @@
 
                     <div class="list-group-item d-flex justify-content-between align-items-center px-0 py-2">
                         <span class="small"><i class="bi bi-wrench-adjustable text-success me-2"></i>Authorized Facility Maintenance</span>
-                        {% if any(not r.is_authorized_center for r in claim.product.repair_records) %}
+                        {% if claim.product and claim.product.has_unauthorized_repairs %}
                             <span class="badge bg-danger-subtle text-danger">Unauthorized Facility</span>
                         {% else %}
                             <span class="badge bg-success-subtle text-success">Authorized Only</span>
