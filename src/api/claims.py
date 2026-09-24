@@ -364,6 +364,32 @@ def create_claim_wizard():
     return render_template("customer/claim_wizard.html", products=products)
 
 
+@claim_bp.route("/preparation-check", methods=["POST"])
+@login_required
+def claim_preparation_check():
+    """
+    Req 1.6.xxxiii: Claim Preparation Assistance.
+    Pre-submission API that analyzes intake form parameters and uploaded files,
+    returning guidance on missing information, missing documents, approaching deadlines,
+    possible contradictions, and recommended corrective actions.
+    """
+    user = get_current_user()
+    product_id_str = request.form.get("product_id")
+    product = None
+    if product_id_str:
+        if str(product_id_str).isdigit():
+            product = db.session.get(Product, int(product_id_str))
+        if not product:
+            product = Product.query.filter_by(product_id=str(product_id_str)).first()
+
+    readiness = ClaimValidator.check_claim_preparation_readiness(
+        form_data=request.form.to_dict(),
+        files_dict=request.files.to_dict(),
+        product=product
+    )
+    return jsonify({"success": True, "readiness": readiness})
+
+
 @claim_bp.route("/ocr-extract", methods=["POST"])
 @login_required
 def ocr_extract_preview():
@@ -430,11 +456,16 @@ def view_claim(claim_id):
         current_claim_internal_id=claim.id
     )
 
+    # Generate AI-Generated Claim Summary (Req 1.6.xxxii)
+    engine = get_decision_engine()
+    ai_summary = engine.generate_claim_summary(claim)
+
     return render_template(
         "customer/claim_detail.html",
         claim=claim,
         missing_docs_info=missing_docs_info,
-        dup_report=dup_report
+        dup_report=dup_report,
+        ai_summary=ai_summary
     )
 
 

@@ -331,3 +331,120 @@ class ClaimValidator:
 
         is_valid = len(errors) == 0
         return is_valid, errors, warnings, cleaned
+
+    @classmethod
+    def check_claim_preparation_readiness(cls, form_data: Dict[str, Any], files_dict: Dict[str, Any], product=None) -> Dict[str, Any]:
+        """
+        Req 1.6.xxxiii: Claim Preparation Assistance.
+        Guides the user before final submission by analyzing:
+        1. Missing information
+        2. Missing documents
+        3. Approaching deadlines
+        4. Possible contradictions
+        5. Recommended corrective actions
+        Computes overall claim dossier readiness percentage score.
+        """
+        missing_information = []
+        possible_contradictions = []
+        recommended_actions = []
+
+        # 1. Missing Information
+        fault_cat = (form_data.get("fault_category") or "").strip()
+        damage_type = (form_data.get("damage_type") or "").strip()
+        fault_desc = (form_data.get("fault_description") or "").strip()
+        fault_date_str = (form_data.get("fault_occurrence_date") or "").strip()
+
+        if not product and not form_data.get("product_id"):
+            missing_information.append("Product: No registered equipment selected.")
+            recommended_actions.append("Select a registered product from your equipment catalog.")
+
+        if not fault_cat:
+            missing_information.append("Defect Category: Failure category must be specified.")
+            recommended_actions.append("Select the primary defect category (e.g. Screen Flickering, Battery Degradation).")
+
+        if not damage_type:
+            missing_information.append("Damage Nature: Suspected damage nature must be selected.")
+            recommended_actions.append("Choose suspected damage nature (e.g. Manufacturing Defect, Normal Wear).")
+
+        if not fault_desc:
+            missing_information.append("Defect Description: Detailed fault description is required.")
+            recommended_actions.append("Provide a clear description explaining how the hardware defect occurred.")
+        elif len(fault_desc) < 10:
+            missing_information.append("Defect Description: Description is too brief (minimum 10 characters required).")
+            recommended_actions.append("Expand on the defect description with specific details of the hardware malfunction.")
+
+        if not fault_date_str:
+            missing_information.append("Fault Date: Date of defect occurrence must be provided.")
+            recommended_actions.append("Specify the exact calendar date when the failure occurred.")
+
+        # 2. Missing Documents
+        has_repairs = bool(product and (
+            (hasattr(product, "repair_records") and len(product.repair_records) > 0) or
+            getattr(product, "has_prior_repairs", False)
+        ))
+        missing_docs_result = cls.identify_missing_documents(files_dict, has_previous_repairs=has_repairs)
+
+        for m_doc in missing_docs_result["missing_documents"]:
+            recommended_actions.append(f"Upload '{m_doc['name']}' to fulfill mandatory evidence requirements.")
+
+        # 3. Approaching Deadlines
+        deadlines_info = {
+            "has_deadline_warning": False,
+            "expiry_date": None,
+            "days_remaining": None,
+            "status": "Unknown",
+            "message": "No active warranty record found."
+        }
+        if product and product.warranty:
+            w = product.warranty
+            remaining_days = w.remaining_days()
+            deadlines_info["expiry_date"] = w.expiry_date.strftime("%Y-%m-%d")
+            deadlines_info["days_remaining"] = remaining_days
+            deadlines_info["status"] = w.status
+
+            if not w.is_active():
+                deadlines_info["has_deadline_warning"] = True
+                deadlines_info["message"] = f"Warranty coverage expired on {w.expiry_date.strftime('%Y-%m-%d')} ({abs(remaining_days)} days ago)."
+                recommended_actions.append("Check if your equipment qualifies for extended warranty grace periods or paid repair coverage.")
+            elif remaining_days <= 30:
+                deadlines_info["has_deadline_warning"] = True
+                deadlines_info["message"] = f"Urgent: Warranty will expire in {remaining_days} days on {w.expiry_date.strftime('%Y-%m-%d')}."
+                recommended_actions.append("Submit your claim promptly before warranty expiration to ensure standard coverage.")
+            else:
+                deadlines_info["message"] = f"Warranty coverage is active with {remaining_days} days remaining (expires {w.expiry_date.strftime('%Y-%m-%d')})."
+
+        # 4. Possible Contradictions
+        fault_date = None
+        if fault_date_str:
+            try:
+                fault_date = datetime.strptime(fault_date_str, "%Y-%m-%d").date()
+                if fault_date > date.today():
+                    possible_contradictions.append(f"Future Date: Fault occurrence date ({fault_date}) is in the future.")
+                    recommended_actions.append("Correct the fault occurrence date to a valid past or present calendar date.")
+
+                if product and product.purchase_date and fault_date < product.purchase_date:
+                    possible_contradictions.append(
+                        f"Chronological Conflict: Fault occurrence date ({fault_date}) predates product purchase date ({product.purchase_date})."
+                    )
+                    recommended_actions.append("Verify the fault date against your store purchase invoice to resolve the chronological conflict.")
+            except ValueError:
+                pass
+
+        # 5. Readiness Score
+        penalties = (len(missing_information) * 2) + (len(missing_docs_result["missing_documents"]) * 1.5) + (len(possible_contradictions) * 2)
+        score = max(10, int(100 - min(90, penalties * 7)))
+
+        if not recommended_actions:
+            recommended_actions.append("All intake criteria satisfied. Proceed to final review and submit for evaluation.")
+
+        return {
+            "is_ready_for_submission": len(missing_information) == 0 and len(possible_contradictions) == 0,
+            "readiness_score": score,
+            "missing_information": missing_information,
+            "missing_documents": missing_docs_result["missing_documents"],
+            "missing_document_labels": missing_docs_result["missing_labels"],
+            "approaching_deadlines": deadlines_info,
+            "possible_contradictions": possible_contradictions,
+            "recommended_corrective_actions": recommended_actions
+        }
+

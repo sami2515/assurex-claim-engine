@@ -22,6 +22,111 @@
     </div>
 </div>
 
+<!-- AI-Generated Claim Summary (Req 1.6.xxxii) -->
+{% if ai_summary or claim.generate_ai_summary %}
+{% set summary = ai_summary or claim.generate_ai_summary() %}
+<div class="card border-0 shadow-sm rounded-4 bg-white mb-4 overflow-hidden">
+    <div class="card-header-styled d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <span class="fw-bold text-slate-900">
+            <i class="bi bi-file-earmark-text text-primary me-2"></i>Executive Claim Intelligence Summary (Req 1.6.xxxii)
+        </span>
+        <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-mono">
+            Automated Synthesis
+        </span>
+    </div>
+    <div class="card-body p-4">
+        <!-- Executive Narrative Paragraph -->
+        <div class="p-3 bg-light rounded-3 border-start border-primary border-4 mb-4">
+            <div class="d-flex align-items-center gap-2 mb-1">
+                <i class="bi bi-chat-left-quote-fill text-primary"></i>
+                <span class="fw-bold text-slate-800 small text-uppercase letter-spacing-1">Executive Brief</span>
+            </div>
+            <p class="mb-0 text-slate-800 small lh-base">
+                {{ summary.executive_narrative }}
+            </p>
+        </div>
+
+        <!-- 6 Structured Summary Facets Grid -->
+        <div class="row g-3">
+            <!-- 1. Product Summary -->
+            <div class="col-md-4">
+                <div class="border rounded-3 p-3 h-100 bg-white shadow-xs">
+                    <div class="d-flex align-items-center gap-2 mb-2 text-primary fw-semibold small">
+                        <i class="bi bi-laptop"></i> Hardware Asset
+                    </div>
+                    <div class="fw-bold text-slate-900 small">{{ summary.product_summary.name }}</div>
+                    <div class="text-muted extra-small">Category: {{ summary.product_summary.category }}</div>
+                    <div class="text-muted extra-small">Serial: <span class="font-mono">{{ summary.product_summary.serial_number }}</span></div>
+                    <div class="text-muted extra-small">Age: {{ summary.product_summary.age_days }} Days</div>
+                </div>
+            </div>
+
+            <!-- 2. Warranty Coverage -->
+            <div class="col-md-4">
+                <div class="border rounded-3 p-3 h-100 bg-white shadow-xs">
+                    <div class="d-flex align-items-center gap-2 mb-2 text-success fw-semibold small">
+                        <i class="bi bi-shield-check"></i> Warranty Coverage
+                    </div>
+                    <div class="fw-bold text-slate-900 small">{{ summary.warranty_summary.provider }}</div>
+                    <div class="text-muted extra-small">Policy: <span class="font-mono">{{ summary.warranty_summary.policy_id }}</span></div>
+                    <div class="text-muted extra-small">Status: <span class="badge bg-success-subtle text-success extra-small">{{ summary.warranty_summary.status }}</span></div>
+                    <div class="text-muted extra-small">Remaining: {{ summary.warranty_summary.remaining_days }} Days</div>
+                </div>
+            </div>
+
+            <!-- 3. Reported Fault -->
+            <div class="col-md-4">
+                <div class="border rounded-3 p-3 h-100 bg-white shadow-xs">
+                    <div class="d-flex align-items-center gap-2 mb-2 text-danger fw-semibold small">
+                        <i class="bi bi-exclamation-octagon"></i> Reported Defect
+                    </div>
+                    <div class="fw-bold text-slate-900 small">{{ summary.fault_summary.category }}</div>
+                    <div class="text-muted extra-small">Nature: {{ summary.fault_summary.damage_type }}</div>
+                    <div class="text-muted extra-small">Occurred: {{ summary.fault_summary.occurrence_date }}</div>
+                    <div class="text-muted extra-small">Delay: {{ summary.fault_summary.reporting_delay_days }} Days</div>
+                </div>
+            </div>
+
+            <!-- 4. Repair History -->
+            <div class="col-md-4">
+                <div class="border rounded-3 p-3 h-100 bg-white shadow-xs">
+                    <div class="d-flex align-items-center gap-2 mb-2 text-warning-emphasis fw-semibold small">
+                        <i class="bi bi-tools"></i> Service History
+                    </div>
+                    <div class="fw-bold text-slate-900 small">{{ summary.repair_history_summary.total_repairs }} Total Service Events</div>
+                    <div class="text-muted extra-small">Authorized: {{ summary.repair_history_summary.authorized_count }} | Unauthorized: {{ summary.repair_history_summary.unauthorized_count }}</div>
+                    <div class="text-muted extra-small">Prior Parts: {{ summary.repair_history_summary.previous_replacement }}</div>
+                </div>
+            </div>
+
+            <!-- 5. Evidence & Documents -->
+            <div class="col-md-4">
+                <div class="border rounded-3 p-3 h-100 bg-white shadow-xs">
+                    <div class="d-flex align-items-center gap-2 mb-2 text-info-emphasis fw-semibold small">
+                        <i class="bi bi-paperclip"></i> Evidence Verification
+                    </div>
+                    <div class="fw-bold text-slate-900 small">{{ summary.evidence_summary.total_documents }} Evidence File(s) Attached</div>
+                    <div class="text-muted extra-small">Receipt: {% if summary.evidence_summary.has_receipt %}<span class="text-success fw-bold">&check; Verified</span>{% else %}<span class="text-danger">&times; Missing</span>{% endif %}</div>
+                    <div class="text-muted extra-small">OCR Processed: {{ summary.evidence_summary.ocr_verified_count }} Document(s)</div>
+                </div>
+            </div>
+
+            <!-- 6. Detected Issues & Decision -->
+            <div class="col-md-4">
+                <div class="border rounded-3 p-3 h-100 bg-white shadow-xs">
+                    <div class="d-flex align-items-center gap-2 mb-2 text-secondary fw-semibold small">
+                        <i class="bi bi-cpu"></i> Adjudication & Issues
+                    </div>
+                    <div class="fw-bold text-slate-900 small">Decision: <span class="badge {% if 'Valid' in summary.claim_status_summary.final_decision %}bg-success{% elif 'Invalid' in summary.claim_status_summary.final_decision %}bg-danger{% else %}bg-warning text-dark{% endif %}">{{ summary.claim_status_summary.final_decision }}</span></div>
+                    <div class="text-muted extra-small">Risk Rating: <span class="fw-semibold">{{ summary.claim_status_summary.risk_level }}</span></div>
+                    <div class="text-muted extra-small">Issues: {% if summary.detected_issues_summary.has_issues %}<span class="text-warning fw-bold"><i class="bi bi-exclamation-triangle"></i> Flags Detected</span>{% else %}<span class="text-success">&check; Clean Dossier</span>{% endif %}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <!-- ===================================================================
      DUAL-MODEL CONSENSUS EVIDENCE MATRIX (Req xviii - Req xxii)
      =================================================================== -->

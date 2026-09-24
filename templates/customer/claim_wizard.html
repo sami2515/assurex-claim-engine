@@ -28,7 +28,7 @@
             </div>
             <div class="col wizard-step-tab" data-step="4">
                 <div class="step-num">4</div>
-                <div class="step-label">Card Preview</div>
+                <div class="step-label">Preparation &amp; Card</div>
             </div>
             <div class="col wizard-step-tab" data-step="5">
                 <div class="step-num">5</div>
@@ -365,17 +365,96 @@
         </div>
 
         <!-- ===================================================================
-             STEP 4: Claim Summary Card Preview (Req xxxiii)
+             STEP 4: Claim Preparation Assistance & Summary Preview (Req 1.6.xxxiii & xx)
              =================================================================== -->
         <div class="wizard-step-pane" id="step-4">
             <div class="card border-0 shadow-sm rounded-4 bg-white p-4 p-md-5">
-                <h4 class="fw-bold text-slate-900 mb-2">Step 4: Standardized Claim Summary Card Preview</h4>
-                <p class="text-muted mb-4 small">Preview the standardized 640x420 Claim Summary Card generated for Teachable Machine vision consensus (strictly neutral; no AI scores).</p>
+                <div class="d-flex justify-content-between align-items-start align-items-md-center flex-wrap gap-2 mb-3">
+                    <div>
+                        <h4 class="fw-bold text-slate-900 mb-1">Step 4: Claim Preparation Assistance &amp; Card Preview</h4>
+                        <p class="text-muted mb-0 small">Pre-submission readiness audit detecting missing information, missing documents, approaching deadlines, and contradictions (Req 1.6.xxxiii).</p>
+                    </div>
+                    <div class="text-end">
+                        <span class="small text-muted d-block extra-small">Dossier Readiness</span>
+                        <span class="badge bg-success-subtle text-success border border-success-subtle fs-6 font-mono" id="prep-readiness-badge">100% Ready</span>
+                    </div>
+                </div>
 
+                <!-- Readiness Meter Bar -->
+                <div class="progress mb-4" style="height: 8px;">
+                    <div id="prep-readiness-bar" class="progress-bar bg-success" role="progressbar" style="width: 100%;"></div>
+                </div>
+
+                <!-- 4 Guidance Quadrants (Req 1.6.xxxiii) -->
+                <div class="row g-3 mb-4">
+                    <!-- Quadrant 1: Missing Information -->
+                    <div class="col-md-6">
+                        <div class="border rounded-4 p-3 bg-light h-100">
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <i class="bi bi-info-circle-fill text-primary"></i>
+                                <span class="fw-bold text-slate-800 small">Missing Information Check</span>
+                            </div>
+                            <ul id="prep-missing-info-list" class="small mb-0 ps-3 text-muted">
+                                <li class="text-success"><i class="bi bi-check2"></i> All mandatory form fields completed</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Quadrant 2: Missing Documents -->
+                    <div class="col-md-6">
+                        <div class="border rounded-4 p-3 bg-light h-100">
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <i class="bi bi-file-earmark-check-fill text-info"></i>
+                                <span class="fw-bold text-slate-800 small">Missing Mandatory Documents</span>
+                            </div>
+                            <ul id="prep-missing-docs-list" class="small mb-0 ps-3 text-muted">
+                                <li class="text-success"><i class="bi bi-check2"></i> Purchase invoice attached for OCR parsing</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Quadrant 3: Approaching Deadlines -->
+                    <div class="col-md-6">
+                        <div class="border rounded-4 p-3 bg-light h-100">
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <i class="bi bi-calendar-event-fill text-warning"></i>
+                                <span class="fw-bold text-slate-800 small">Approaching Deadlines</span>
+                            </div>
+                            <div id="prep-deadlines-box" class="small text-muted">
+                                <span class="text-slate-800" id="prep-deadlines-text">Active warranty coverage</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quadrant 4: Possible Contradictions -->
+                    <div class="col-md-6">
+                        <div class="border rounded-4 p-3 bg-light h-100">
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <i class="bi bi-shield-check-fill text-secondary"></i>
+                                <span class="fw-bold text-slate-800 small">Contradiction Safeguards</span>
+                            </div>
+                            <ul id="prep-contradictions-list" class="small mb-0 ps-3 text-muted">
+                                <li class="text-success"><i class="bi bi-check2"></i> Chronological sequence verified (purchase &rarr; incident &rarr; submission)</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recommended Corrective Actions -->
+                <div class="alert alert-light border shadow-xs rounded-4 p-3 mb-4" id="prep-corrective-box">
+                    <div class="d-flex align-items-center gap-2 mb-2 text-primary fw-semibold small">
+                        <i class="bi bi-lightbulb-fill text-warning"></i> Recommended Corrective Actions
+                    </div>
+                    <ul id="prep-actions-list" class="small mb-0 ps-3 text-slate-700">
+                        <li>Dossier is complete and ready. Proceed to final confirmation and automated dual-model evaluation.</li>
+                    </ul>
+                </div>
+
+                <!-- Standardized Summary Metadata & 640x420 Card Preview (Req 1.6.xx) -->
                 <div class="row g-4 align-items-center">
                     <div class="col-lg-7">
                         <div class="bg-light p-4 rounded-4 border">
-                            <h6 class="fw-bold text-slate-800 border-bottom pb-2 mb-3">Structured Claim Metadata</h6>
+                            <h6 class="fw-bold text-slate-800 border-bottom pb-2 mb-3"><i class="bi bi-card-heading text-primary me-2"></i>Standardized Claim Metadata Grid</h6>
                             <dl class="row mb-0 small">
                                 <dt class="col-sm-4 text-muted">Claimant:</dt>
                                 <dd class="col-sm-8 fw-semibold">{{ current_user.full_name }}</dd>
@@ -402,7 +481,7 @@
                             <i class="bi bi-file-earmark-richtext text-primary display-4 mb-2 d-block"></i>
                             <div class="fw-bold text-slate-900">Standardized 640x420 Visual Card</div>
                             <p class="text-muted extra-small mt-2 mb-0">
-                                This card will be rendered programmatically with exact contrast, layout headers, and metadata grid before entering the Google Teachable Machine vision classifier.
+                                Rendered programmatically with exact contrast and metadata grid before entering the Google Teachable Machine vision classifier (strictly neutral; no AI scores).
                             </p>
                         </div>
                     </div>
@@ -413,7 +492,7 @@
                         <i class="bi bi-arrow-left"></i> Back
                     </button>
                     <button type="button" class="btn btn-primary px-4 py-2 fw-semibold shadow-sm d-inline-flex align-items-center gap-2" onclick="goToWizardStep(5)">
-                        Next: Final Review & Evaluation <i class="bi bi-arrow-right"></i>
+                        Next: Final Review &amp; Evaluation <i class="bi bi-arrow-right"></i>
                     </button>
                 </div>
             </div>

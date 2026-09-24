@@ -1,3 +1,5 @@
+import json
+from datetime import date
 from config.config import Config
 from src.core.model_comparator import get_model_comparator
 from src.rules.policy_engine import get_policy_engine
@@ -7,9 +9,14 @@ from src.rules.duplicate_detector import get_duplicate_detector
 
 class MasterDecisionEngine:
     """
-    Master Claim Adjudication Engine (SRS Step 12, Req xxxiv & Req xxxv).
-    Synthesizes Dual-Model Consensus, Warranty Policies, Contradiction Checks,
-    and Duplicate Indicators into a finalized 3-class decision with full explanation.
+    Master Claim Adjudication & Executive Intelligence Engine.
+    Fulfills:
+    - Req 1.6.xxxii: AI-Generated Claim Summary (structured synthesis of product, warranty,
+      reported fault, repair history, uploaded evidence, detected issues, and claim status).
+    - Req 1.6.xxxiv: Final Claim Decision (synthesizing Python model, Teachable Machine model,
+      confidence difference, warranty rules, missing documents, duplicate indicators, and contradictions
+      into 'Likely Valid', 'Likely Invalid', or 'Manual Review Required').
+    - Req 1.6.xxxv: Explanation Factor Generation.
     """
 
     def __init__(self):
@@ -18,83 +25,105 @@ class MasterDecisionEngine:
         self.contradiction_detector = get_contradiction_detector()
         self.duplicate_detector = get_duplicate_detector()
 
-    def adjudicate_claim(self, claim_data: dict, summary_card_image=None, ocr_data: dict = None, current_claim_internal_id: int = None) -> dict:
+    @classmethod
+    def synthesize_final_decision(
+        cls,
+        model_results: dict,
+        rule_results: dict,
+        contradiction_list: list = None,
+        duplicate_flags: list = None,
+        missing_documents: Any = False
+    ) -> dict:
         """
-        Executes end-to-end multi-layer claim evaluation.
-        
-        Outputs one of three SRS Final Decisions:
-        - 'Likely Valid'
-        - 'Likely Invalid'
-        - 'Manual Review Required'
+        Req 1.6.xxxiv: Synthesizes final decision considering all 7 factors:
+        1. Python model prediction
+        2. Google Teachable Machine prediction
+        3. Confidence-score difference
+        4. Warranty rules
+        5. Missing documents
+        6. Duplicate indicators
+        7. Contradictions
+
+        Outputs strictly one of: 'Likely Valid', 'Likely Invalid', 'Manual Review Required'.
         """
-        # Layer 1: Dual-Model Consensus
-        model_results = self.comparator.compare_models(claim_data, summary_card_image=summary_card_image)
-        py_pred = model_results["python_model"]["predicted_class"]
-        py_conf = model_results["python_model"]["top_confidence"]
-        gtm_pred = model_results["gtm_model"]["predicted_class"]
-        gtm_conf = model_results["gtm_model"]["top_confidence"]
-        consistency_status = model_results["model_consistency_status"]
-        is_class_match = model_results["is_class_match"]
+        contradiction_list = contradiction_list or []
+        duplicate_flags = duplicate_flags or []
+        if isinstance(missing_documents, (list, tuple, set)):
+            has_missing_documents = len(missing_documents) > 0
+        else:
+            has_missing_documents = bool(missing_documents)
 
-        # Layer 2: Warranty Policy Rules
-        rule_results = self.policy_engine.evaluate_claim_rules(claim_data)
-        rule_status = rule_results["overall_status"]  # PASS, FAIL, REVIEW
-        failed_rules = rule_results["failed_rules"]
-        passed_rules = rule_results["passed_rules"]
-        warnings = rule_results["warnings"]
-        manual_triggers = rule_results["manual_review_triggers"]
+        # Factor 1, 2, 3
+        py_model = model_results.get("python_model", {})
+        gtm_model = model_results.get("gtm_model", {})
+        consensus = model_results.get("consensus", {})
 
-        # Layer 3: Contradiction Detection
-        contradiction_results = self.contradiction_detector.detect_contradictions(claim_data, ocr_data=ocr_data)
-        has_contradictions = contradiction_results["has_contradiction"]
-        contradiction_list = contradiction_results["contradictions"]
+        py_pred = py_model.get("predicted_class", Config.CLAIM_CLASS_MANUAL_REVIEW)
+        py_conf = py_model.get("top_confidence", 0.0)
+        gtm_pred = gtm_model.get("predicted_class", Config.CLAIM_CLASS_MANUAL_REVIEW)
+        gtm_conf = gtm_model.get("top_confidence", 0.0)
+        conf_difference = consensus.get("top_confidence_difference", abs(py_conf - gtm_conf))
+        consistency_status = consensus.get("model_consistency_status", "Model Disagreement" if py_pred != gtm_pred else "Strong Match")
+        is_class_match = consensus.get("is_class_match", py_pred == gtm_pred)
 
-        # Layer 4: Duplicate Claim & Document Detection
-        duplicate_results = self.duplicate_detector.check_claim_duplicates(
-            claim_data, current_claim_internal_id=current_claim_internal_id
-        )
-        is_duplicate = duplicate_results["is_duplicate"]
-        duplicate_flags = duplicate_results["duplicate_flags"]
+        # Factor 4
+        rule_status = rule_results.get("overall_status", "PASS")
+        failed_rules = rule_results.get("failed_rules", [])
+        passed_rules = rule_results.get("passed_rules", [])
+        warnings = rule_results.get("warnings", [])
+        manual_triggers = rule_results.get("manual_review_triggers", [])
 
         # -------------------------------------------------------------
-        # Layer 5: Master Decision Synthesis Matrix
+        # Decision Synthesis Matrix (Req xxxiv)
         # -------------------------------------------------------------
         supporting_factors = []
         opposing_factors = []
         corrective_actions = []
 
-        # Decision Branching
         if len(failed_rules) > 0:
             final_decision = "Likely Invalid"
             decision_summary = f"Claim rejected due to policy violations: {failed_rules[0]}"
             opposing_factors.extend(failed_rules)
             risk_level = "High"
 
-        elif has_contradictions:
+        elif len(contradiction_list) > 0:
             final_decision = "Manual Review Required"
             decision_summary = f"Chronological or serial contradiction detected: {contradiction_list[0]}"
             opposing_factors.extend(contradiction_list)
             corrective_actions.append("Reviewer must verify customer receipt dates and hardware serial stamp.")
             risk_level = "High"
 
-        elif is_duplicate:
+        elif len(duplicate_flags) > 0:
             final_decision = "Manual Review Required"
             decision_summary = f"Potential duplicate claim detected: {duplicate_flags[0]}"
             opposing_factors.extend(duplicate_flags)
             corrective_actions.append("Investigate potential duplicate submission across claimant accounts.")
             risk_level = "High"
 
-        elif consistency_status == Config.CONSISTENCY_DISAGREEMENT:
+        elif has_missing_documents and (is_class_match and py_pred == Config.CLAIM_CLASS_INVALID):
+            final_decision = "Likely Invalid"
+            decision_summary = "AI models and evidence inspection conclude claim is invalid with missing mandatory proof."
+            opposing_factors.append("Supporting documentation incomplete and AI models indicate invalidity.")
+            risk_level = "High"
+
+        elif has_missing_documents:
             final_decision = "Manual Review Required"
-            decision_summary = f"Dual-model divergence: Python model predicted '{py_pred}' while Teachable Machine predicted '{gtm_pred}'."
-            opposing_factors.append(model_results["explanation"])
+            decision_summary = "Mandatory documentation missing: Claim routed for customer evidence upload and human verification."
+            opposing_factors.append("Required proof of purchase or failure evidence missing.")
+            corrective_actions.append("Request claimant to upload missing mandatory documents.")
+            risk_level = "Medium"
+
+        elif consistency_status == Config.CONSISTENCY_DISAGREEMENT or (not is_class_match):
+            final_decision = "Manual Review Required"
+            decision_summary = f"Dual-model divergence: Python model predicted '{py_pred}' while Teachable Machine predicted '{gtm_pred}' (Diff: {conf_difference:.4f})."
+            opposing_factors.append(model_results.get("explanation", "Disagreement between Python and Teachable Machine classifiers."))
             corrective_actions.append("Senior claim reviewer inspection required to reconcile conflicting AI model predictions.")
             risk_level = "Medium"
 
         elif consistency_status == Config.CONSISTENCY_UNCERTAIN:
             final_decision = "Manual Review Required"
             decision_summary = f"Model confidence is below minimum operating threshold ({Config.MIN_CONFIDENCE_THRESHOLD:.2f})."
-            opposing_factors.append(model_results["explanation"])
+            opposing_factors.append(model_results.get("explanation", "Model confidence score below configured threshold."))
             corrective_actions.append("Manual evidence verification required due to low model confidence.")
             risk_level = "Medium"
 
@@ -118,7 +147,7 @@ class MasterDecisionEngine:
             corrective_actions.append("Reviewer adjudication required.")
             risk_level = "Medium"
 
-        elif is_class_match and py_pred == Config.CLAIM_CLASS_VALID and rule_status == "PASS":
+        elif is_class_match and py_pred == Config.CLAIM_CLASS_VALID and rule_status == "PASS" and not has_missing_documents:
             final_decision = "Likely Valid"
             decision_summary = "All warranty conditions satisfied, serial verified, and both AI models unanimously approve claim."
             supporting_factors.append(f"Dual AI models unanimously predicted Valid Claim (Python: {py_conf:.2f}, GTM: {gtm_conf:.2f}).")
@@ -133,7 +162,7 @@ class MasterDecisionEngine:
             risk_level = "Medium"
 
         # Construct comprehensive explanation factor report (Req xxxv)
-        explanation_report = {
+        return {
             "final_decision": final_decision,
             "decision_summary": decision_summary,
             "risk_level": risk_level,
@@ -144,12 +173,259 @@ class MasterDecisionEngine:
             "warnings": warnings,
             "contradictions": contradiction_list,
             "duplicate_flags": duplicate_flags,
+            "has_missing_documents": has_missing_documents,
             "corrective_actions": corrective_actions,
             "dual_model_evaluation": model_results,
             "rule_evaluation": rule_results
         }
 
-        return explanation_report
+    @classmethod
+    def adjudicate_claim(
+        cls,
+        claim_data: dict = None,
+        summary_card_image=None,
+        ocr_data: dict = None,
+        current_claim_internal_id: int = None,
+        **kwargs
+    ) -> dict:
+        """
+        Req 1.6.xxxiv: Executes multi-layer claim evaluation considering all 7 parameters:
+        1. Python model prediction
+        2. Google Teachable Machine prediction
+        3. Confidence-score difference
+        4. Warranty rules
+        5. Missing documents
+        6. Duplicate indicators
+        7. Contradictions
+
+        Outputs strictly one of the 3 SRS Final Decisions:
+        - 'Likely Valid'
+        - 'Likely Invalid'
+        - 'Manual Review Required'
+        """
+        # If called with pre-evaluated models (e.g. for testing synthesis)
+        if isinstance(claim_data, dict) and "python_model" in claim_data:
+            model_results = claim_data
+            rule_results = summary_card_image or kwargs.get("rule_results") or {}
+            contradiction_list = kwargs.get("contradiction_list", [])
+            duplicate_flags = kwargs.get("duplicate_flags", [])
+            missing_documents = kwargs.get("missing_documents", [])
+            return cls.synthesize_final_decision(
+                model_results=model_results,
+                rule_results=rule_results,
+                contradiction_list=contradiction_list,
+                duplicate_flags=duplicate_flags,
+                missing_documents=missing_documents
+            )
+
+        engine = get_decision_engine()
+        # Factor 1 & 2 & 3: Dual-Model Consensus & Confidence Difference
+        model_results = engine.comparator.compare_models(claim_data, summary_card_image=summary_card_image)
+
+        # Factor 4: Warranty Policy Rules
+        rule_results = engine.policy_engine.evaluate_claim_rules(claim_data)
+
+        # Factor 7: Contradiction Detection
+        contradiction_results = engine.contradiction_detector.detect_contradictions(claim_data, ocr_data=ocr_data)
+        contradiction_list = contradiction_results.get("contradictions", [])
+
+        # Factor 6: Duplicate Claim & Document Detection
+        duplicate_results = engine.duplicate_detector.check_claim_duplicates(
+            claim_data, current_claim_internal_id=current_claim_internal_id
+        )
+        duplicate_flags = duplicate_results.get("duplicate_flags", [])
+
+        # Factor 5: Missing Mandatory Documents Check (Req xxxiv)
+        has_missing_documents = bool(
+            claim_data.get("missing_document_flag", False) or
+            claim_data.get("missing_documents_count", 0) > 0 or
+            (claim_data.get("has_receipt") == 0 and claim_data.get("has_invoice") == 0 and claim_data.get("documents_attached", 1) == 0)
+        )
+
+        return cls.synthesize_final_decision(
+            model_results=model_results,
+            rule_results=rule_results,
+            contradiction_list=contradiction_list,
+            duplicate_flags=duplicate_flags,
+            missing_documents=has_missing_documents
+        )
+
+    @staticmethod
+    def generate_claim_summary(claim, adjudication_res: dict = None) -> dict:
+        """
+        Req 1.6.xxxii: AI-Generated Claim Summary.
+        Generates a clear, comprehensive summary of:
+        - Product details
+        - Warranty coverage
+        - Reported fault
+        - Repair history
+        - Uploaded evidence
+        - Detected issues
+        - Claim status and decision recommendation
+        Provides a synthesized executive narrative for quick comprehension.
+        """
+        product = claim.product
+        warranty = claim.warranty if claim.warranty else (product.warranty if product else None)
+        claimant = getattr(claim, "claimant", None)
+
+        # 1. Product Summary
+        age_days = 0
+        if product and product.purchase_date and claim.fault_occurrence_date:
+            age_days = (claim.fault_occurrence_date - product.purchase_date).days
+
+        product_summary = {
+            "name": product.product_name if product else "Hardware Asset",
+            "category": product.category if product else "General Hardware",
+            "model_number": product.model_number if product else "N/A",
+            "serial_number": product.serial_number if product else "N/A",
+            "purchase_date": product.purchase_date.strftime("%Y-%m-%d") if product and product.purchase_date else "N/A",
+            "purchase_price": f"${product.purchase_price:.2f}" if product and product.purchase_price else "$0.00",
+            "retailer": product.retailer if product else "Authorized Retailer",
+            "age_days": max(0, age_days)
+        }
+
+        # 2. Warranty Coverage Summary
+        warranty_summary = {
+            "policy_id": warranty.policy.policy_id if warranty and warranty.policy else "POL-STANDARD",
+            "provider": warranty.warranty_provider if warranty else "Manufacturer",
+            "status": warranty.status if warranty else "Active",
+            "expiry_date": warranty.expiry_date.strftime("%Y-%m-%d") if warranty and warranty.expiry_date else "N/A",
+            "remaining_days": warranty.remaining_days() if warranty else 0,
+            "is_extended": bool(warranty.is_extended) if warranty else False
+        }
+
+        # 3. Reported Fault Summary
+        delay_days = 0
+        if claim.claim_submission_date and claim.fault_occurrence_date:
+            delay_days = (claim.claim_submission_date - claim.fault_occurrence_date).days
+
+        fault_summary = {
+            "category": claim.fault_category,
+            "damage_type": claim.damage_type or "Hardware Malfunction",
+            "occurrence_date": claim.fault_occurrence_date.strftime("%Y-%m-%d") if claim.fault_occurrence_date else "N/A",
+            "description": claim.fault_description,
+            "reporting_delay_days": max(0, delay_days)
+        }
+
+        # 4. Repair History Summary
+        repairs = product.repair_records if product and product.repair_records else []
+        unauthorized_count = sum(1 for r in repairs if not r.is_authorized_center)
+        authorized_count = len(repairs) - unauthorized_count
+        repair_summary = {
+            "total_repairs": len(repairs),
+            "authorized_count": authorized_count,
+            "unauthorized_count": unauthorized_count,
+            "has_unauthorized_repairs": unauthorized_count > 0,
+            "previous_replacement": claim.previous_replacement_details or "Original factory condition"
+        }
+
+        # 5. Uploaded Evidence Summary
+        docs = claim.documents if claim.documents else []
+        doc_types = [d.document_type for d in docs]
+        has_receipt = any(t in ["receipt", "invoice_document", "invoice"] for t in doc_types)
+        has_warranty_card = any(t in ["warranty_card"] for t in doc_types)
+        has_photos = any("photo" in t or "image" in t for t in doc_types)
+        ocr_count = sum(1 for d in docs if d.ocr_extracted_text)
+        evidence_summary = {
+            "total_documents": len(docs),
+            "document_types": list(set(doc_types)),
+            "has_receipt": has_receipt,
+            "has_warranty_card": has_warranty_card,
+            "has_photos": has_photos,
+            "ocr_verified_count": ocr_count
+        }
+
+        # 6. Detected Issues Summary
+        contradictions = []
+        duplicate_flags = []
+        failed_rules = []
+        if claim.rule_validation:
+            try:
+                if claim.rule_validation.contradictions_json:
+                    contradictions = json.loads(claim.rule_validation.contradictions_json)
+                if claim.rule_validation.duplicate_flags_json:
+                    duplicate_flags = json.loads(claim.rule_validation.duplicate_flags_json)
+                if claim.rule_validation.rules_failed_json:
+                    failed_rules = json.loads(claim.rule_validation.rules_failed_json)
+            except Exception:
+                pass
+
+        has_issues = bool(
+            claim.missing_document_flag or
+            claim.contradiction_flag or
+            claim.is_duplicate_flag or
+            len(contradictions) > 0 or
+            len(duplicate_flags) > 0 or
+            len(failed_rules) > 0
+        )
+
+        detected_issues_summary = {
+            "has_issues": has_issues,
+            "missing_document_flag": bool(claim.missing_document_flag),
+            "contradiction_flag": bool(claim.contradiction_flag),
+            "is_duplicate_flag": bool(claim.is_duplicate_flag),
+            "contradictions": contradictions,
+            "duplicate_flags": duplicate_flags,
+            "failed_rules": failed_rules
+        }
+
+        # 7. Claim Status & Recommendation Summary
+        eval_obj = claim.model_evaluation
+        claim_status_summary = {
+            "status": claim.status,
+            "final_decision": claim.final_decision or "Pending Evaluation",
+            "risk_level": claim.risk_level or "Medium",
+            "decision_reason": claim.decision_reason or "",
+            "python_predicted_class": eval_obj.python_predicted_class if eval_obj else "Pending",
+            "gtm_predicted_class": eval_obj.gtm_predicted_class if eval_obj else "Pending",
+            "model_consistency": eval_obj.model_consistency_status if eval_obj else "Pending",
+            "top_confidence_difference": eval_obj.top_confidence_difference if eval_obj else 0.0
+        }
+
+        # 8. Synthesized Executive Narrative
+        claimant_name = claimant.full_name if claimant else "Claimant"
+        narrative_parts = [
+            f"Warranty claim {claim.claim_id} submitted by {claimant_name} for '{product_summary['name']}' (Serial: {product_summary['serial_number']}).",
+            f"Warranty coverage under {warranty_summary['provider']} is {warranty_summary['status'].lower()} with {warranty_summary['remaining_days']} days remaining.",
+            f"Reported issue is classified as '{fault_summary['category']}' ({fault_summary['damage_type']}) on {fault_summary['occurrence_date']}.",
+            f"Claim dossier contains {evidence_summary['total_documents']} supporting document(s), of which {evidence_summary['ocr_verified_count']} are verified through OCR.",
+        ]
+        if detected_issues_summary["has_issues"]:
+            issues_found = []
+            if claim.missing_document_flag:
+                issues_found.append("mandatory evidence documents pending")
+            if claim.contradiction_flag or len(contradictions) > 0:
+                issues_found.append("chronological or hardware contradictions")
+            if claim.is_duplicate_flag or len(duplicate_flags) > 0:
+                issues_found.append("duplicate indicators")
+            if len(failed_rules) > 0:
+                issues_found.append("policy rule violations")
+            narrative_parts.append(f"Attention items flagged: {', '.join(issues_found)}.")
+        else:
+            narrative_parts.append("Policy rule compliance and chronological checks verified without discrepancies.")
+
+        narrative_parts.append(
+            f"The automated adjudication recommendation is '{claim_status_summary['final_decision']}' with {claim_status_summary['risk_level']} risk assessment."
+        )
+
+        executive_narrative = " ".join(narrative_parts)
+
+        return {
+            "claim_id": claim.claim_id,
+            "product_summary": product_summary,
+            "warranty_summary": warranty_summary,
+            "warranty_coverage_summary": warranty_summary,
+            "fault_summary": fault_summary,
+            "reported_fault_summary": fault_summary,
+            "repair_history_summary": repair_summary,
+            "evidence_summary": evidence_summary,
+            "uploaded_evidence_summary": evidence_summary,
+            "detected_issues_summary": detected_issues_summary,
+            "claim_status_summary": claim_status_summary,
+            "claim_status_and_recommendations": claim_status_summary,
+            "executive_narrative": executive_narrative,
+            "executive_brief": executive_narrative
+        }
 
 
 # Singleton master decision engine instance
@@ -160,3 +436,7 @@ def get_decision_engine() -> MasterDecisionEngine:
     if _decision_engine_instance is None:
         _decision_engine_instance = MasterDecisionEngine()
     return _decision_engine_instance
+
+def generate_claim_summary(claim, adjudication_res: dict = None) -> dict:
+    """Convenience helper to generate structured claim summary (Req xxxii)."""
+    return get_decision_engine().generate_claim_summary(claim, adjudication_res=adjudication_res)

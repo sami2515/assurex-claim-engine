@@ -45,9 +45,12 @@ def queue():
 @login_required
 @role_required(Config.ROLE_REVIEWER, Config.ROLE_ADMIN)
 def inspect_claim(claim_id):
-    """Detailed inspection workspace with side-by-side evidence, AI comparison, and override controls."""
+    """Detailed inspection workspace with side-by-side evidence, AI summary, comparison, and override controls."""
     claim = Claim.query.filter_by(claim_id=claim_id).first_or_404()
-    return render_template("reviewer/claim_inspect.html", claim=claim)
+    from src.core.decision_engine import get_decision_engine
+    engine = get_decision_engine()
+    ai_summary = engine.generate_claim_summary(claim)
+    return render_template("reviewer/claim_inspect.html", claim=claim, ai_summary=ai_summary)
 
 
 @reviewer_bp.route("/claim/<string:claim_id>/adjudicate", methods=["POST"])

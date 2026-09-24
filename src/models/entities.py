@@ -274,6 +274,11 @@ class Claim(db.Model):
             return round(self.product.purchase_price * 0.22, 2)
         return 125.00
 
+    def generate_ai_summary(self) -> dict:
+        """Req 1.6.xxxii: Generates structured AI-Generated Claim Summary."""
+        from src.core.decision_engine import get_decision_engine
+        return get_decision_engine().generate_claim_summary(self)
+
     def to_dict(self):
         return {
             "claim_id": self.claim_id,

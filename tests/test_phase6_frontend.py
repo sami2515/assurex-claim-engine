@@ -1347,6 +1347,312 @@ class TestPhase6Frontend(unittest.TestCase):
             db.session.delete(doc1)
             db.session.commit()
 
+    def test_req_xxxii_ai_generated_claim_summary(self):
+        """
+        Req 1.6.xxxii: AI-Generated Claim Summary.
+        Generates a clear summary of product, warranty coverage, reported fault,
+        repair history, uploaded evidence, detected issues, and claim status/recommendations.
+        Verifies rendering in both customer and reviewer portals.
+        """
+        from src.core.decision_engine import MasterDecisionEngine, generate_claim_summary
+
+        with self.app.app_context():
+            claim = Claim.query.first()
+            self.assertIsNotNone(claim)
+
+            # 1. Test programmatic generation via MasterDecisionEngine & helper
+            engine = MasterDecisionEngine()
+            summary = engine.generate_claim_summary(claim)
+            self.assertIsInstance(summary, dict)
+
+            # Verify all required sections exist
+            required_sections = [
+                "product_summary",
+                "warranty_coverage_summary",
+                "reported_fault_summary",
+                "repair_history_summary",
+                "uploaded_evidence_summary",
+                "detected_issues_summary",
+                "claim_status_and_recommendations",
+                "executive_brief"
+            ]
+            for sec in required_sections:
+                self.assertIn(sec, summary)
+
+            # Check individual section fields
+            self.assertIn("name", summary["product_summary"])
+            self.assertIn("category", summary["product_summary"])
+            self.assertIn("serial_number", summary["product_summary"])
+            self.assertIn("status", summary["warranty_coverage_summary"])
+            self.assertIn("remaining_days", summary["warranty_coverage_summary"])
+            self.assertIn("category", summary["reported_fault_summary"])
+            self.assertIn("description", summary["reported_fault_summary"])
+            self.assertIn("total_repairs", summary["repair_history_summary"])
+            self.assertIn("total_documents", summary["uploaded_evidence_summary"])
+            self.assertIn("has_issues", summary["detected_issues_summary"])
+            self.assertIn("final_decision", summary["claim_status_and_recommendations"])
+            self.assertTrue(len(summary["executive_brief"]) > 20)
+
+            # Test model entity helper method
+            entity_summary = claim.generate_ai_summary()
+            self.assertEqual(entity_summary["product_summary"]["name"], summary["product_summary"]["name"])
+            claim_id_val = claim.claim_id
+
+        # 2. Test Customer Claim Detail view renders AI-Generated Claim Summary
+        with self.client.session_transaction() as sess:
+            with self.app.app_context():
+                user = User.query.filter_by(role=Config.ROLE_CUSTOMER).first()
+                sess["user_id"] = user.id
+                sess["role"] = user.role
+                sess["user_code"] = user.user_id
+
+        res_cust = self.client.get(f"/claims/{claim_id_val}")
+        self.assertEqual(res_cust.status_code, 200)
+        self.assertIn(b"Executive Claim Intelligence Summary", res_cust.data)
+        self.assertIn(b"Hardware Asset", res_cust.data)
+        self.assertIn(b"Warranty Coverage", res_cust.data)
+        self.assertIn(b"Reported Defect", res_cust.data)
+
+        # 3. Test Reviewer Inspection view renders AI-Generated Claim Summary
+        with self.client.session_transaction() as sess:
+            with self.app.app_context():
+                rev = User.query.filter_by(role=Config.ROLE_REVIEWER).first()
+                sess["user_id"] = rev.id
+                sess["role"] = rev.role
+                sess["user_code"] = rev.user_id
+
+        res_rev = self.client.get(f"/reviewer/claim/{claim_id_val}")
+        self.assertEqual(res_rev.status_code, 200)
+        self.assertIn(b"Executive Claim Intelligence Summary", res_rev.data)
+        self.assertIn(b"Hardware Asset", res_rev.data)
+
+    def test_req_xxxiii_claim_preparation_assistance(self):
+        """
+        Req 1.6.xxxiii: Claim Preparation Assistance.
+        Guides the user before final submission by displaying:
+        - Missing information
+        - Missing documents
+        - Approaching deadlines
+        - Possible contradictions
+        - Recommended corrective actions
+        Computes dossier readiness percentage score and provides JSON verification endpoint.
+        """
+        from src.rules.validator import ClaimValidator
+
+        with self.app.app_context():
+            product = Product.query.first()
+            self.assertIsNotNone(product)
+
+            # Case A: Incomplete form data with missing information & missing documents
+            incomplete_form = {
+                "fault_category": "",
+                "damage_type": "",
+                "fault_description": "short",
+                "fault_occurrence_date": ""
+            }
+            readiness_bad = ClaimValidator.check_claim_preparation_readiness(incomplete_form, {}, product=product)
+            self.assertFalse(readiness_bad["is_ready_for_submission"])
+            self.assertLess(readiness_bad["readiness_score"], 80)
+            self.assertTrue(len(readiness_bad["missing_information"]) >= 3)
+            self.assertTrue(len(readiness_bad["missing_documents"]) >= 3)
+            self.assertTrue(len(readiness_bad["recommended_corrective_actions"]) >= 3)
+
+            # Case B: Possible Contradictions detected (future fault date)
+            future_form = {
+                "product_id": str(product.id),
+                "fault_category": "Display Malfunction",
+                "damage_type": "Manufacturing Defect",
+                "fault_description": "Screen flickering when connected to AC adapter power",
+                "fault_occurrence_date": "2099-12-31"  # Obvious future date
+            }
+            readiness_future = ClaimValidator.check_claim_preparation_readiness(future_form, {}, product=product)
+            self.assertFalse(readiness_future["is_ready_for_submission"])
+            self.assertTrue(any("future" in c.lower() for c in readiness_future["possible_contradictions"]))
+            self.assertTrue(any("date" in a.lower() for a in readiness_future["recommended_corrective_actions"]))
+
+            # Case C: Valid complete form data with documents
+            complete_form = {
+                "product_id": str(product.id),
+                "fault_category": "Display Malfunction",
+                "damage_type": "Manufacturing Defect",
+                "fault_description": "Screen panel flickering continuously during boot sequence.",
+                "fault_occurrence_date": "2026-09-01"
+            }
+            mock_files = {
+                "receipt": ("receipt.pdf", "receipt.pdf"),
+                "warranty_card": ("card.png", "card.png"),
+                "product_photo": ("product.jpg", "product.jpg"),
+                "serial_photo": ("serial.jpg", "serial.jpg"),
+                "damage_photo": ("damage.jpg", "damage.jpg")
+            }
+            readiness_ok = ClaimValidator.check_claim_preparation_readiness(complete_form, mock_files, product=product)
+            self.assertTrue(readiness_ok["is_ready_for_submission"])
+            self.assertEqual(len(readiness_ok["missing_information"]), 0)
+            self.assertEqual(len(readiness_ok["possible_contradictions"]), 0)
+            self.assertGreaterEqual(readiness_ok["readiness_score"], 80)
+
+        # Case D: Test preparation check API endpoint POST /claims/preparation-check
+        with self.client.session_transaction() as sess:
+            with self.app.app_context():
+                user = User.query.filter_by(role=Config.ROLE_CUSTOMER).first()
+                sess["user_id"] = user.id
+                sess["role"] = user.role
+                sess["user_code"] = user.user_id
+
+        res_api = self.client.post("/claims/preparation-check", data={
+            "product_id": str(product.id),
+            "fault_category": "Audio Jack Failure",
+            "damage_type": "Manufacturing Defect",
+            "fault_description": "Right channel sound completely cuts out when headphone wire wiggles.",
+            "fault_occurrence_date": "2026-09-10"
+        })
+        self.assertEqual(res_api.status_code, 200)
+        api_data = res_api.get_json()
+        self.assertTrue(api_data["success"])
+        readiness = api_data["readiness"]
+        self.assertIn("readiness_score", readiness)
+        self.assertIn("is_ready_for_submission", readiness)
+        self.assertIn("missing_information", readiness)
+        self.assertIn("missing_documents", readiness)
+        self.assertIn("approaching_deadlines", readiness)
+        self.assertIn("possible_contradictions", readiness)
+        self.assertIn("recommended_corrective_actions", readiness)
+
+    def test_req_xxxiv_final_claim_decision_seven_factors(self):
+        """
+        Req 1.6.xxxiv: Final Claim Decision.
+        Generates final result by synthesizing 7 factors:
+        1. Python model prediction
+        2. Google Teachable Machine prediction
+        3. Confidence-score difference
+        4. Warranty rules
+        5. Missing documents
+        6. Duplicate indicators
+        7. Contradictions
+        Result is strictly one of: 'Likely Valid', 'Likely Invalid', 'Manual Review Required'.
+        """
+        from src.core.decision_engine import MasterDecisionEngine
+        ALLOWED_DECISIONS = {"Likely Valid", "Likely Invalid", "Manual Review Required"}
+
+        # Base clean payloads
+        model_results_valid = {
+            "python_model": {"predicted_class": "Valid Claim", "top_confidence": 0.92},
+            "gtm_model": {"predicted_class": "Valid Claim", "top_confidence": 0.88},
+            "consensus": {
+                "is_class_match": True,
+                "top_confidence_difference": 0.04,
+                "model_consistency_status": "Strong Match"
+            }
+        }
+        rule_results_pass = {
+            "overall_status": "PASS",
+            "passed_rules": ["Warranty active", "Fault covered", "Serial verified"],
+            "failed_rules": [],
+            "warnings": []
+        }
+
+        # Factor 1 & 2 & 3: Unanimous Valid, Low Diff, PASS Rules, No Issues -> "Likely Valid"
+        res_valid = MasterDecisionEngine.adjudicate_claim(
+            model_results_valid,
+            rule_results_pass,
+            contradiction_list=[],
+            duplicate_flags=[],
+            missing_documents=[]
+        )
+        self.assertIn(res_valid["final_decision"], ALLOWED_DECISIONS)
+        self.assertEqual(res_valid["final_decision"], "Likely Valid")
+
+        # Factor 4: Warranty Rules Hard Fail (e.g. Liquid damage / Excluded) -> "Likely Invalid"
+        rule_results_fail = {
+            "overall_status": "FAIL",
+            "passed_rules": [],
+            "failed_rules": ["Excluded damage: Liquid ingress detected"],
+            "warnings": []
+        }
+        res_invalid_rule = MasterDecisionEngine.adjudicate_claim(
+            model_results_valid,
+            rule_results_fail,
+            contradiction_list=[],
+            duplicate_flags=[],
+            missing_documents=[]
+        )
+        self.assertIn(res_invalid_rule["final_decision"], ALLOWED_DECISIONS)
+        self.assertEqual(res_invalid_rule["final_decision"], "Likely Invalid")
+
+        # Factor 5: Missing Mandatory Documents -> "Manual Review Required"
+        res_missing_docs = MasterDecisionEngine.adjudicate_claim(
+            model_results_valid,
+            rule_results_pass,
+            contradiction_list=[],
+            duplicate_flags=[],
+            missing_documents=["Purchase Receipt", "Serial Tag Photo"]
+        )
+        self.assertIn(res_missing_docs["final_decision"], ALLOWED_DECISIONS)
+        self.assertEqual(res_missing_docs["final_decision"], "Manual Review Required")
+        self.assertTrue(res_missing_docs["has_missing_documents"])
+
+        # Factor 6: Duplicate Indicators Triggered -> "Manual Review Required"
+        res_duplicate = MasterDecisionEngine.adjudicate_claim(
+            model_results_valid,
+            rule_results_pass,
+            contradiction_list=[],
+            duplicate_flags=["Invoice INV-2026-9901 matches active claim CLM-DEMO-001"],
+            missing_documents=[]
+        )
+        self.assertIn(res_duplicate["final_decision"], ALLOWED_DECISIONS)
+        self.assertEqual(res_duplicate["final_decision"], "Manual Review Required")
+
+        # Factor 7: Contradiction Flagged -> "Manual Review Required"
+        res_contradiction = MasterDecisionEngine.adjudicate_claim(
+            model_results_valid,
+            rule_results_pass,
+            contradiction_list=["Fault date predates product purchase date"],
+            duplicate_flags=[],
+            missing_documents=[]
+        )
+        self.assertIn(res_contradiction["final_decision"], ALLOWED_DECISIONS)
+        self.assertEqual(res_contradiction["final_decision"], "Manual Review Required")
+
+        # Factor 1 & 2 Disagreement (Python says Valid, GTM says Invalid) -> "Manual Review Required"
+        model_results_disagree = {
+            "python_model": {"predicted_class": "Valid Claim", "top_confidence": 0.85},
+            "gtm_model": {"predicted_class": "Invalid Claim", "top_confidence": 0.80},
+            "consensus": {
+                "is_class_match": False,
+                "top_confidence_difference": 0.05,
+                "model_consistency_status": "Model Disagreement"
+            }
+        }
+        res_disagree = MasterDecisionEngine.adjudicate_claim(
+            model_results_disagree,
+            rule_results_pass,
+            contradiction_list=[],
+            duplicate_flags=[],
+            missing_documents=[]
+        )
+        self.assertIn(res_disagree["final_decision"], ALLOWED_DECISIONS)
+        self.assertEqual(res_disagree["final_decision"], "Manual Review Required")
+
+        # Factor 1 & 2 Unanimous Invalid -> "Likely Invalid"
+        model_results_invalid = {
+            "python_model": {"predicted_class": "Invalid Claim", "top_confidence": 0.95},
+            "gtm_model": {"predicted_class": "Invalid Claim", "top_confidence": 0.90},
+            "consensus": {
+                "is_class_match": True,
+                "top_confidence_difference": 0.05,
+                "model_consistency_status": "Strong Match"
+            }
+        }
+        res_invalid_models = MasterDecisionEngine.adjudicate_claim(
+            model_results_invalid,
+            rule_results_fail,
+            contradiction_list=[],
+            duplicate_flags=[],
+            missing_documents=[]
+        )
+        self.assertIn(res_invalid_models["final_decision"], ALLOWED_DECISIONS)
+        self.assertEqual(res_invalid_models["final_decision"], "Likely Invalid")
+
 
 if __name__ == "__main__":
     unittest.main()
