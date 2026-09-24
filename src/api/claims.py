@@ -15,6 +15,8 @@ from src.ocr.document_processor import get_document_processor
 from src.core.decision_engine import get_decision_engine
 from src.core.card_generator import render_claim_summary_card
 from src.services.alert_service import scan_and_generate_warranty_alerts
+from src.rules.validator import ClaimValidator
+from src.core.preprocessor import ClaimDataPreprocessor
 
 claim_bp = Blueprint("claims", __name__, url_prefix="/claims")
 
@@ -70,35 +72,32 @@ def create_claim_wizard():
     products = Product.query.filter_by(user_id=user.id).all() if session.get("role") == Config.ROLE_CUSTOMER else Product.query.all()
 
     if request.method == "POST":
-        product_id_str = request.form.get("product_id")
-        fault_date_str = request.form.get("fault_occurrence_date")
-        fault_category = request.form.get("fault_category")
-        damage_type = request.form.get("damage_type")
-        fault_description = request.form.get("fault_description", "").strip()
-
-        product = None
-        if product_id_str:
-            if str(product_id_str).isdigit():
-                product = db.session.get(Product, int(product_id_str))
-            if not product:
-                product = Product.query.filter_by(product_id=str(product_id_str)).first()
-
-        if not product or not product.warranty:
-            flash("Please select a registered product with an active warranty policy.", "danger")
+        # Req 1.6.xv: Data Validation - Check mandatory fields, dates, numbers, files, duplicate IDs
+        is_valid, val_errors, val_warnings, cleaned_data = ClaimValidator.validate_claim_submission(
+            request.form, request.files, user_role=session.get("role")
+        )
+        if not is_valid:
+            for err in val_errors:
+                flash(err, "danger")
+            for warn in val_warnings:
+                flash(warn, "warning")
             return redirect(url_for("claims.create_claim_wizard"))
 
-        try:
-            fault_date = datetime.strptime(fault_date_str, "%Y-%m-%d").date()
-        except Exception:
-            fault_date = date.today()
+        for warn in val_warnings:
+            flash(warn, "info")
+
+        product = cleaned_data["product"]
+        fault_date = cleaned_data["fault_occurrence_date"]
+        fault_category = cleaned_data["fault_category"]
+        damage_type = cleaned_data["damage_type"]
+        fault_description = cleaned_data["fault_description"]
+        previous_replacement = cleaned_data.get("previous_replacement_details")
+        claim_amount = cleaned_data.get("claim_amount", product.purchase_price)
 
         # Determine Claim Owner User (Req 1.6.x):
         # Customers file claims for their own assets.
         # Service-center staff or admin filing on customer's behalf link claim directly to the product owner!
         claim_user_id = product.user_id if session.get("role") in [Config.ROLE_STAFF, Config.ROLE_ADMIN] else user.id
-
-        # Collect claim details (Req 1.6.xi)
-        previous_replacement = request.form.get("previous_replacement_details", "").strip()
 
         # 1. Create Initial Claim in 'Submitted' status
         claim = Claim(
@@ -204,38 +203,26 @@ def create_claim_wizard():
         )
         db.session.add(eval_status_log)
 
-        # 4. Prepare Feature Payload for Dual-Model Evaluation
-        warr = product.warranty
-        product_age = (date.today() - product.purchase_date).days
-        rem_days = warr.remaining_days()
-
-        claim_feature_payload = {
-            "claim_id": claim.claim_id,
-            "product_category": product.category,
-            "product_model": product.model_number,
-            "product_serial": product.serial_number,
-            "purchase_date": product.purchase_date.strftime("%Y-%m-%d"),
-            "purchase_price": product.purchase_price,
-            "retailer": product.retailer,
-            "warranty_expiry_date": warr.expiry_date.strftime("%Y-%m-%d"),
-            "warranty_duration_months": product.warranty.policy.coverage_duration_months if product.warranty.policy else 12,
-            "product_age_days": max(0, product_age),
-            "remaining_warranty_days": max(0, rem_days),
-            "fault_occurrence_date": fault_date.strftime("%Y-%m-%d"),
-            "fault_category": fault_category,
-            "damage_type": damage_type,
-            "is_extended_warranty": 1 if warr.is_extended else 0,
-            "has_receipt": 1 if has_receipt else 0,
-            "has_warranty_card": 1 if has_warranty_card else 0,
-            "has_damage_photo": 1 if has_damage_photo else 0,
-            "has_serial_photo": 1 if has_serial_photo else 0,
-            "has_repair_report": 0,
-            "missing_document_count": missing_count,
-            "serial_number_match": 1,
-            "previous_repairs_count": len(product.repair_records),
-            "unauthorized_repair_flag": 1 if any(not r.is_authorized_center for r in product.repair_records) else 0,
-            "claim_date_conflict_flag": 1 if fault_date < product.purchase_date else 0
-        }
+        # 4. Data Pre-Processing using Python (Req 1.6.xvi)
+        # Cleans, handles missing values, converts date formats, and computes derived fields:
+        # product age, remaining warranty period, and missing-document count.
+        claim_feature_payload = ClaimDataPreprocessor.clean_and_prepare(
+            {
+                "claim_id": claim.claim_id,
+                "fault_category": fault_category,
+                "damage_type": damage_type,
+                "fault_occurrence_date": fault_date,
+                "claim_submission_date": date.today(),
+                "claim_amount": claim_amount,
+                "has_receipt": 1 if has_receipt else 0,
+                "has_warranty_card": 1 if has_warranty_card else 0,
+                "has_damage_photo": 1 if has_damage_photo else 0,
+                "has_serial_photo": 1 if has_serial_photo else 0,
+                "has_repair_report": 1 if has_diagnostic_report else 0
+            },
+            product=product,
+            documents=claim.documents
+        )
 
         # 5. Execute Master Decision Engine
         engine = get_decision_engine()

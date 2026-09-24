@@ -106,3 +106,162 @@ def load_preprocessor(filepath: Path = None) -> ColumnTransformer:
     if not target.exists():
         raise FileNotFoundError(f"Preprocessor not found at: {target}")
     return joblib.load(target)
+
+
+class ClaimDataPreprocessor:
+    """
+    Fulfills Req 1.6.xvi: Data Pre-Processing.
+    Cleans and prepares submitted claim data using Python:
+    - Handling missing values
+    - Converting date formats (into ISO strings and Python date objects)
+    - Creating derived fields (product age, remaining warranty period, missing-document count, repairs count, flags)
+    - Encoding categorical values
+    - Normalizing numerical values via fitted ColumnTransformer
+    """
+
+    @staticmethod
+    def clean_and_prepare(
+        raw_claim_data: dict,
+        product=None,
+        documents: list = None
+    ) -> dict:
+        """
+        Cleans and calculates all derived fields from raw claim input.
+        """
+        from datetime import date, datetime
+
+        cleaned = dict(raw_claim_data)
+
+        # 1. Date Format Conversion & Normalization
+        sub_date = cleaned.get("claim_submission_date")
+        if not sub_date:
+            sub_date = date.today()
+        elif isinstance(sub_date, str):
+            try:
+                sub_date = datetime.strptime(sub_date, "%Y-%m-%d").date()
+            except Exception:
+                sub_date = date.today()
+
+        purch_date = None
+        if product and getattr(product, "purchase_date", None):
+            purch_date = product.purchase_date
+        elif cleaned.get("purchase_date"):
+            pd_val = cleaned.get("purchase_date")
+            if isinstance(pd_val, str):
+                try:
+                    purch_date = datetime.strptime(pd_val, "%Y-%m-%d").date()
+                except Exception:
+                    purch_date = sub_date
+            elif isinstance(pd_val, (date, datetime)):
+                purch_date = pd_val.date() if isinstance(pd_val, datetime) else pd_val
+
+        fault_date = None
+        fd_val = cleaned.get("fault_occurrence_date")
+        if isinstance(fd_val, str):
+            try:
+                fault_date = datetime.strptime(fd_val, "%Y-%m-%d").date()
+            except Exception:
+                fault_date = sub_date
+        elif isinstance(fd_val, (date, datetime)):
+            fault_date = fd_val.date() if isinstance(fd_val, datetime) else fd_val
+        else:
+            fault_date = sub_date
+
+        # Standardize dates back to ISO strings
+        cleaned["claim_submission_date"] = sub_date.strftime("%Y-%m-%d")
+        cleaned["fault_occurrence_date"] = fault_date.strftime("%Y-%m-%d")
+        if purch_date:
+            cleaned["purchase_date"] = purch_date.strftime("%Y-%m-%d")
+
+        # 2. Derived Field: Product Age in Days
+        if purch_date:
+            product_age_days = max(0, (sub_date - purch_date).days)
+        else:
+            product_age_days = int(cleaned.get("product_age_days", 0))
+        cleaned["product_age_days"] = product_age_days
+
+        # 3. Derived Field: Remaining Warranty Period in Days
+        warr = product.warranty if product else None
+        if warr and warr.expiry_date:
+            rem_days = (warr.expiry_date - sub_date).days
+            cleaned["warranty_expiry_date"] = warr.expiry_date.strftime("%Y-%m-%d")
+            cleaned["is_extended_warranty"] = 1 if warr.is_extended else 0
+            cleaned["warranty_duration_months"] = (
+                warr.policy.coverage_duration_months if (warr.policy and hasattr(warr.policy, "coverage_duration_months")) else 12
+            )
+        elif cleaned.get("warranty_expiry_date"):
+            try:
+                exp_date = datetime.strptime(cleaned["warranty_expiry_date"], "%Y-%m-%d").date()
+                rem_days = (exp_date - sub_date).days
+            except Exception:
+                rem_days = 0
+        else:
+            rem_days = int(cleaned.get("remaining_warranty_days", 0))
+        cleaned["remaining_warranty_days"] = rem_days
+
+        # 4. Derived Field: Missing-Document Count
+        doc_types = set()
+        if documents:
+            for d in documents:
+                dtype = getattr(d, "document_type", None) or (d.get("document_type") if isinstance(d, dict) else str(d))
+                if dtype:
+                    doc_types.add(dtype)
+
+        has_receipt = 1 if (cleaned.get("has_receipt") or "receipt" in doc_types or "invoice_document" in doc_types) else 0
+        has_warranty_card = 1 if (cleaned.get("has_warranty_card") or "warranty_card" in doc_types) else 0
+        has_damage_photo = 1 if (cleaned.get("has_damage_photo") or "damage_photo" in doc_types or "product_photo" in doc_types) else 0
+        has_serial_photo = 1 if (cleaned.get("has_serial_photo") or "serial_photo" in doc_types) else 0
+
+        cleaned["has_receipt"] = has_receipt
+        cleaned["has_warranty_card"] = has_warranty_card
+        cleaned["has_damage_photo"] = has_damage_photo
+        cleaned["has_serial_photo"] = has_serial_photo
+
+        missing_count = 0
+        if not has_receipt: missing_count += 1
+        if not has_warranty_card: missing_count += 1
+        if not has_damage_photo: missing_count += 1
+        if not has_serial_photo: missing_count += 1
+        cleaned["missing_document_count"] = missing_count
+
+        # 5. Derived Field: Previous Repairs Count & Flags
+        repair_records = getattr(product, "repair_records", []) if product else []
+        cleaned["previous_repairs_count"] = len(repair_records)
+        cleaned["unauthorized_repair_flag"] = 1 if any(not getattr(r, "is_authorized_center", True) for r in repair_records) else int(cleaned.get("unauthorized_repair_flag", 0))
+
+        # 6. Derived Field: Claim Date Conflict Flag
+        if purch_date and fault_date and fault_date < purch_date:
+            cleaned["claim_date_conflict_flag"] = 1
+        else:
+            cleaned["claim_date_conflict_flag"] = int(cleaned.get("claim_date_conflict_flag", 0))
+
+        # 7. Handling Missing Values for Numerical & Categorical Features
+        if product:
+            cleaned["purchase_price"] = float(product.purchase_price)
+            cleaned["product_category"] = str(product.category)
+            cleaned["product_model"] = str(product.model_number)
+            cleaned["product_serial"] = str(product.serial_number)
+            cleaned["retailer"] = str(product.retailer)
+        else:
+            cleaned["purchase_price"] = float(cleaned.get("purchase_price", 0.0))
+            cleaned["product_category"] = str(cleaned.get("product_category", "Unknown"))
+
+        cleaned["damage_type"] = str(cleaned.get("damage_type", "Unknown"))
+        cleaned["fault_category"] = str(cleaned.get("fault_category", "Unknown"))
+        cleaned["serial_number_match"] = int(cleaned.get("serial_number_match", 1))
+
+        return cleaned
+
+    @classmethod
+    def transform_normalized(cls, cleaned_features: dict, preprocessor: ColumnTransformer = None) -> np.ndarray:
+        """
+        Encodes categorical values and normalizes numerical values
+        using the fitted scikit-learn ColumnTransformer.
+        """
+        import pandas as pd
+        df = pd.DataFrame([cleaned_features])
+        df_feat = extract_features(df)
+        if preprocessor is None:
+            preprocessor = load_preprocessor()
+        return preprocessor.transform(df_feat)
+

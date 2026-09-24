@@ -1,5 +1,6 @@
 import os
 import io
+from pathlib import Path
 import unittest
 from src.app import create_app
 from database.db import db
@@ -697,8 +698,132 @@ class TestPhase6Frontend(unittest.TestCase):
             db.session.delete(rep)
             db.session.commit()
 
+    def test_req_xiv_document_organization_replace_remove(self):
+        """Req 1.6.xiv: Verify document view, download, replace, and remove according to access rights."""
+        with self.app.app_context():
+            user = User.query.filter_by(role=Config.ROLE_CUSTOMER).first()
+            product = Product.query.filter_by(user_id=user.id).first()
+            # Create a sample document attached to this product
+            doc = ClaimDocument(
+                product_id=product.id,
+                document_type="warranty_card",
+                file_path=str(Path(Config.UPLOAD_DIR) / "test_doc_xiv.pdf"),
+                original_filename="test_doc_xiv.pdf",
+                file_size_bytes=1024,
+                file_hash_sha256="abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
+            )
+            # Create dummy file on disk
+            test_file = Path(doc.file_path)
+            test_file.parent.mkdir(parents=True, exist_ok=True)
+            test_file.write_text("Dummy content for testing document organization")
+            db.session.add(doc)
+            db.session.commit()
+            doc_id = doc.document_id
+            user_id_val = user.id
+            user_role_val = user.role
+
+        # 1. Download / View as authorized user
+        with self.client.session_transaction() as sess:
+            sess["user_id"] = user_id_val
+            sess["role"] = user_role_val
+        res_view = self.client.get(f"/products/documents/{doc_id}/download")
+        self.assertEqual(res_view.status_code, 200)
+
+        res_dl = self.client.get(f"/products/documents/{doc_id}/download?mode=download")
+        self.assertEqual(res_dl.status_code, 200)
+
+        # 2. Replace Document
+        replacement_data = {
+            "replacement_file": (io.BytesIO(b"Updated replacement warranty certificate content"), "updated_warranty.pdf")
+        }
+        res_replace = self.client.post(f"/products/documents/{doc_id}/replace", data=replacement_data, content_type="multipart/form-data", follow_redirects=True)
+        self.assertEqual(res_replace.status_code, 200)
+        self.assertIn(b"successfully replaced", res_replace.data)
+
+        # 3. Remove Document
+        res_delete = self.client.post(f"/products/documents/{doc_id}/delete", follow_redirects=True)
+        self.assertEqual(res_delete.status_code, 200)
+        self.assertIn(b"successfully removed", res_delete.data)
+
+        with self.app.app_context():
+            deleted_check = ClaimDocument.query.filter_by(document_id=doc_id).first()
+            self.assertIsNone(deleted_check)
+
+    def test_req_xv_data_validation(self):
+        """Req 1.6.xv: Verify Data Validation for mandatory fields, dates, numbers, file types/sizes, duplicate IDs."""
+        from src.rules.validator import ClaimValidator
+
+        with self.app.app_context():
+            user = User.query.filter_by(role=Config.ROLE_CUSTOMER).first()
+            product = Product.query.filter_by(user_id=user.id).first()
+
+            # 1. Missing mandatory fields
+            is_valid, errors, warnings, cleaned = ClaimValidator.validate_claim_submission({}, {})
+            self.assertFalse(is_valid)
+            self.assertTrue(any("mandatory" in e.lower() for e in errors))
+
+            # 2. Future date rejection
+            bad_date_form = {
+                "product_id": product.product_id,
+                "fault_category": "Hardware Malfunction",
+                "damage_type": "Display Failure",
+                "fault_description": "Screen panel flickering violently upon booting",
+                "fault_occurrence_date": "2099-01-01",
+                "claim_amount": "150.00"
+            }
+            is_valid, errors, warnings, cleaned = ClaimValidator.validate_claim_submission(bad_date_form, {})
+            self.assertFalse(is_valid)
+            self.assertTrue(any("future" in e.lower() for e in errors))
+
+            # 3. Negative numerical claim value
+            bad_num_form = dict(bad_date_form)
+            bad_num_form["fault_occurrence_date"] = "2026-09-01"
+            bad_num_form["claim_amount"] = "-45.00"
+            is_valid, errors, warnings, cleaned = ClaimValidator.validate_claim_submission(bad_num_form, {})
+            self.assertFalse(is_valid)
+            self.assertTrue(any("greater than zero" in e.lower() for e in errors))
+
+            # 4. Disallowed file extension
+            disallowed_file = {
+                "receipt": (io.BytesIO(b"binary executable payload"), "invoice.exe")
+            }
+            is_valid, errors, warnings, cleaned = ClaimValidator.validate_claim_submission(bad_date_form, disallowed_file)
+            self.assertFalse(is_valid)
+            self.assertTrue(any("unsupported extension" in e.lower() for e in errors))
+
+    def test_req_xvi_data_preprocessing(self):
+        """Req 1.6.xvi: Verify Python Data Preprocessing calculates derived fields and handles missing values."""
+        from src.core.preprocessor import ClaimDataPreprocessor
+
+        with self.app.app_context():
+            product = Product.query.first()
+            raw_claim = {
+                "claim_id": "CLM-TEST-PREPROC",
+                "fault_category": "Internal Component Failure",
+                "damage_type": "Battery Defect",
+                "fault_occurrence_date": "2026-08-15",
+                "claim_submission_date": "2026-09-01"
+            }
+
+            cleaned = ClaimDataPreprocessor.clean_and_prepare(raw_claim, product=product, documents=[])
+
+            # Derived fields must exist and be accurately calculated
+            self.assertIn("product_age_days", cleaned)
+            self.assertIn("remaining_warranty_days", cleaned)
+            self.assertIn("missing_document_count", cleaned)
+            self.assertIn("previous_repairs_count", cleaned)
+            self.assertIn("unauthorized_repair_flag", cleaned)
+            self.assertIn("claim_date_conflict_flag", cleaned)
+
+            self.assertIsInstance(cleaned["product_age_days"], int)
+            self.assertIsInstance(cleaned["remaining_warranty_days"], int)
+            # Since no documents were provided, missing_document_count should equal 4
+            self.assertEqual(cleaned["missing_document_count"], 4)
+            self.assertGreaterEqual(cleaned["product_age_days"], 0)
+
 
 if __name__ == "__main__":
     unittest.main()
+
 
 

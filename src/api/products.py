@@ -256,18 +256,184 @@ def scan_receipt():
 @login_required
 def download_document(document_id):
     """
-    Req v & xiv: Securely serves uploaded purchase receipts, invoices, and warranty cards.
+    Req 1.6.v & xiv: Securely serves or downloads uploaded purchase receipts,
+    invoices, warranty cards, damage photos, and repair reports.
+    Enforces user access rights before serving.
     """
     doc = ClaimDocument.query.filter_by(document_id=document_id).first_or_404()
+    user_id = session.get("user_id")
+    user_role = session.get("role")
+
+    # Access control verification (Req 1.6.xiv)
+    is_authorized = False
+    if user_role in [Config.ROLE_ADMIN, Config.ROLE_REVIEWER, Config.ROLE_STAFF]:
+        is_authorized = True
+    elif doc.product and doc.product.user_id == user_id:
+        is_authorized = True
+    elif doc.claim and doc.claim.user_id == user_id:
+        is_authorized = True
+
+    if not is_authorized:
+        flash("Access denied: You do not possess permissions to view or download this document.", "danger")
+        return redirect(request.referrer or url_for("auth.portal_redirect"))
+
     file_path = Path(doc.file_path)
     if not file_path.exists():
         flash("Document file not found on disk.", "warning")
         return redirect(request.referrer or url_for("products.list_products"))
+
+    as_attachment = request.args.get("mode") == "download" or request.args.get("download") == "1"
     return send_file(
         file_path,
-        as_attachment=False,
+        as_attachment=as_attachment,
         download_name=doc.original_filename
     )
+
+
+@product_bp.route("/documents/<string:document_id>/replace", methods=["POST"])
+@login_required
+def replace_document(document_id):
+    """
+    Req 1.6.xiv: Document Organization - Replace document.
+    Allows authorized users (owner, staff, admin) to replace an existing document file
+    with an updated version, recalculating checksum, file size, and re-running OCR extraction.
+    """
+    doc = ClaimDocument.query.filter_by(document_id=document_id).first_or_404()
+    user_id = session.get("user_id")
+    user_role = session.get("role")
+
+    # Access control verification
+    is_authorized = False
+    if user_role in [Config.ROLE_ADMIN, Config.ROLE_STAFF]:
+        is_authorized = True
+    elif doc.product and doc.product.user_id == user_id:
+        is_authorized = True
+    elif doc.claim and doc.claim.user_id == user_id:
+        if doc.claim.status not in [Config.STATUS_APPROVED, Config.STATUS_REJECTED]:
+            is_authorized = True
+        else:
+            flash("Evidence documents cannot be altered on finalized claims.", "warning")
+            return redirect(request.referrer or url_for("claims.view_claim_detail", claim_id=doc.claim.claim_id))
+
+    if not is_authorized:
+        flash("Access denied: You do not possess permissions to replace this document.", "danger")
+        return redirect(request.referrer or url_for("auth.portal_redirect"))
+
+    uploaded_file = request.files.get("replacement_file")
+    if not uploaded_file or not uploaded_file.filename:
+        flash("Please select a valid replacement file.", "warning")
+        return redirect(request.referrer or url_for("products.list_products"))
+
+    from src.rules.validator import ClaimValidator
+    ok, err_msg = ClaimValidator.validate_file(uploaded_file)
+    if not ok:
+        flash(err_msg, "danger")
+        return redirect(request.referrer or url_for("products.list_products"))
+
+    upload_folder = Path(Config.UPLOAD_DIR)
+    upload_folder.mkdir(parents=True, exist_ok=True)
+    clean_filename = secure_filename(uploaded_file.filename)
+    dest_filename = f"rep_{doc.document_id}_{clean_filename}"
+    save_path = upload_folder / dest_filename
+    uploaded_file.save(save_path)
+
+    # Recalculate file metadata & SHA-256
+    doc_processor = get_document_processor()
+    doc_info = doc_processor.process_document(save_path, document_type=doc.document_type)
+
+    # Delete old file safely if different
+    try:
+        old_path = Path(doc.file_path)
+        if old_path.exists() and old_path.resolve() != save_path.resolve():
+            old_path.unlink()
+    except Exception:
+        pass
+
+    prev_name = doc.original_filename
+    doc.file_path = str(save_path)
+    doc.original_filename = clean_filename
+    doc.file_size_bytes = doc_info["file_size_bytes"]
+    doc.file_hash_sha256 = doc_info["sha256_hash"]
+    if doc_info.get("raw_text"):
+        doc.ocr_extracted_text = doc_info["raw_text"]
+        doc.ocr_data_json = json.dumps(doc_info.get("entities", {}))
+
+    audit = AuditLog(
+        user_id=user_id,
+        user_role=user_role,
+        action="DOCUMENT_REPLACED",
+        entity_type="CLAIM_DOCUMENT",
+        entity_id=doc.document_id,
+        details_json=json.dumps({
+            "previous_file": prev_name,
+            "new_file": clean_filename,
+            "new_sha256": doc.file_hash_sha256
+        }),
+        ip_address=request.remote_addr
+    )
+    db.session.add(audit)
+    db.session.commit()
+
+    flash(f"Document successfully replaced with '{clean_filename}'.", "success")
+    return redirect(request.referrer or url_for("products.list_products"))
+
+
+@product_bp.route("/documents/<string:document_id>/delete", methods=["POST"])
+@login_required
+def delete_document(document_id):
+    """
+    Req 1.6.xiv: Document Organization - Remove document.
+    Allows authorized users (owner, staff, admin) to remove an uploaded document
+    according to their access rights.
+    """
+    doc = ClaimDocument.query.filter_by(document_id=document_id).first_or_404()
+    user_id = session.get("user_id")
+    user_role = session.get("role")
+
+    # Access control verification
+    is_authorized = False
+    if user_role in [Config.ROLE_ADMIN, Config.ROLE_STAFF]:
+        is_authorized = True
+    elif doc.product and doc.product.user_id == user_id:
+        is_authorized = True
+    elif doc.claim and doc.claim.user_id == user_id:
+        if doc.claim.status not in [Config.STATUS_APPROVED, Config.STATUS_REJECTED]:
+            is_authorized = True
+        else:
+            flash("Evidence documents cannot be deleted from finalized claims.", "warning")
+            return redirect(request.referrer or url_for("claims.view_claim_detail", claim_id=doc.claim.claim_id))
+
+    if not is_authorized:
+        flash("Access denied: You do not possess permissions to remove this document.", "danger")
+        return redirect(request.referrer or url_for("auth.portal_redirect"))
+
+    # Safely remove file on disk
+    try:
+        f_path = Path(doc.file_path)
+        if f_path.exists():
+            f_path.unlink()
+    except Exception:
+        pass
+
+    doc_name = doc.original_filename
+    doc_id_val = doc.document_id
+
+    audit = AuditLog(
+        user_id=user_id,
+        user_role=user_role,
+        action="DOCUMENT_REMOVED",
+        entity_type="CLAIM_DOCUMENT",
+        entity_id=doc_id_val,
+        details_json=json.dumps({"filename": doc_name}),
+        ip_address=request.remote_addr
+    )
+    db.session.add(audit)
+    db.session.delete(doc)
+    db.session.commit()
+
+    flash(f"Document '{doc_name}' has been successfully removed.", "success")
+    return redirect(request.referrer or url_for("products.list_products"))
+
 
 
 @product_bp.route("/<string:product_id>", methods=["GET"])

@@ -252,9 +252,69 @@
                                 {% endif %}
                             </td>
                             <td class="text-end">
-                                <a href="{{ url_for('products.download_document', document_id=doc.document_id) }}" target="_blank" class="btn btn-sm btn-outline-primary py-1 px-2">
-                                    <i class="bi bi-download"></i> View
-                                </a>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="{{ url_for('products.download_document', document_id=doc.document_id) }}" target="_blank" class="btn btn-outline-primary py-1 px-2" title="View in Browser">
+                                        <i class="bi bi-eye"></i> View
+                                    </a>
+                                    <a href="{{ url_for('products.download_document', document_id=doc.document_id, mode='download') }}" class="btn btn-outline-secondary py-1 px-2" title="Download File">
+                                        <i class="bi bi-download"></i>
+                                    </a>
+                                    {% if session.get('role') in ['administrator', 'service_center_staff'] or (doc.claim and doc.claim.status not in ['Approved', 'Rejected']) %}
+                                        <button type="button" class="btn btn-outline-warning py-1 px-2" data-bs-toggle="modal" data-bs-target="#replaceDocModal_{{ doc.document_id }}" title="Replace Document">
+                                            <i class="bi bi-arrow-repeat"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-danger py-1 px-2" data-bs-toggle="modal" data-bs-target="#deleteDocModal_{{ doc.document_id }}" title="Remove Document">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Modal: Replace Document (Req 1.6.xiv) -->
+                                <div class="modal fade text-start" id="replaceDocModal_{{ doc.document_id }}" tabindex="-1" aria-hidden="true">
+                                    <div class="modal-dialog modal-dialog-centered">
+                                        <div class="modal-content rounded-4 border-0 shadow">
+                                            <form action="{{ url_for('products.replace_document', document_id=doc.document_id) }}" method="POST" enctype="multipart/form-data">
+                                                <div class="modal-header border-0 pb-0">
+                                                    <h6 class="modal-title fw-bold text-slate-800"><i class="bi bi-arrow-repeat text-warning me-2"></i>Replace Evidence Document</h6>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                </div>
+                                                <div class="modal-body p-4">
+                                                    <div class="alert alert-light border small text-muted mb-3">
+                                                        Current: <b>{{ doc.original_filename }}</b> ({{ doc.document_type|replace('_', ' ')|title }})
+                                                    </div>
+                                                    <label class="form-label small fw-semibold text-slate-700">Upload New File Version</label>
+                                                    <input type="file" name="replacement_file" class="form-control form-control-sm" required accept=".pdf,.png,.jpg,.jpeg,.mp4,.mov,.webm">
+                                                    <small class="text-muted extra-small mt-1 d-block">Supported formats: PDF, JPG, PNG, MP4, MOV (Max: 16 MB). Checksum and OCR extraction will re-run automatically.</small>
+                                                </div>
+                                                <div class="modal-footer border-0 pt-0">
+                                                    <button type="button" class="btn btn-sm btn-light" data-bs-dismiss="modal">Cancel</button>
+                                                    <button type="submit" class="btn btn-sm btn-primary">Upload &amp; Replace</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Modal: Delete Document (Req 1.6.xiv) -->
+                                <div class="modal fade text-start" id="deleteDocModal_{{ doc.document_id }}" tabindex="-1" aria-hidden="true">
+                                    <div class="modal-dialog modal-dialog-centered">
+                                        <div class="modal-content rounded-4 border-0 shadow">
+                                            <form action="{{ url_for('products.delete_document', document_id=doc.document_id) }}" method="POST">
+                                                <div class="modal-header border-0 pb-0">
+                                                    <h6 class="modal-title fw-bold text-danger"><i class="bi bi-exclamation-triangle-fill text-danger me-2"></i>Confirm Document Removal</h6>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                </div>
+                                                <div class="modal-body p-4">
+                                                    <p class="small text-slate-700 mb-0">Are you sure you want to remove <b>{{ doc.original_filename }}</b> from this claim dossier? This action cannot be undone.</p>
+                                                </div>
+                                                <div class="modal-footer border-0 pt-0">
+                                                    <button type="button" class="btn btn-sm btn-light" data-bs-dismiss="modal">Cancel</button>
+                                                    <button type="submit" class="btn btn-sm btn-danger">Confirm Delete</button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
                             </td>
                         </tr>
                     {% endfor %}
