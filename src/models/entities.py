@@ -263,6 +263,20 @@ class Claim(db.Model):
             reason_comment=notes or f"Status transitioned from {prev} to {new_status}"
         )
         db.session.add(history_entry)
+
+        # Req xlvii: Record status change in system AuditLog
+        status_audit = AuditLog(
+            user_id=updated_by_user_id,
+            action="STATUS_CHANGE",
+            entity_type="Claim",
+            entity_id=self.claim_id,
+            details_json=json.dumps({
+                "previous_status": prev,
+                "new_status": new_status,
+                "reason": notes or f"Transitioned from {prev} to {new_status}"
+            })
+        )
+        db.session.add(status_audit)
         return history_entry
 
     @property

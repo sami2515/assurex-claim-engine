@@ -318,18 +318,31 @@ def audit_logs():
 @login_required
 @role_required(Config.ROLE_ADMIN)
 def export_data(export_type):
-    """Req xlv: CSV exporter for claims, products, and audit trail."""
+    """Req xlv: CSV exporter for selected claims, products, warranties, analytics records, and audit logs."""
     service = DataExportService()
     timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
 
     if export_type == "claims":
-        claims = Claim.query.all()
+        selected_ids = request.args.get("ids") or request.args.get("claim_ids")
+        if selected_ids:
+            id_list = [i.strip() for i in selected_ids.split(",") if i.strip()]
+            claims = Claim.query.filter(Claim.claim_id.in_(id_list)).all()
+        else:
+            claims = Claim.query.all()
         csv_data = service.export_claims_csv(claims)
         filename = f"assurex_claims_export_{timestamp_str}.csv"
     elif export_type == "products":
         products = Product.query.all()
         csv_data = service.export_products_csv(products)
         filename = f"assurex_products_export_{timestamp_str}.csv"
+    elif export_type == "warranties":
+        warranties = ProductWarranty.query.all()
+        csv_data = service.export_warranties_csv(warranties)
+        filename = f"assurex_warranties_export_{timestamp_str}.csv"
+    elif export_type == "analytics":
+        analytics_payload = AnalyticsService.get_comprehensive_analytics()
+        csv_data = service.export_analytics_csv(analytics_payload)
+        filename = f"assurex_analytics_export_{timestamp_str}.csv"
     elif export_type == "audit":
         logs = AuditLog.query.all()
         csv_data = service.export_audit_logs_csv(logs)
@@ -359,3 +372,19 @@ def policy_editor():
 def export_claims():
     """Alias for claims CSV export."""
     return export_data("claims")
+
+
+@admin_bp.route("/export-warranties", methods=["GET"])
+@login_required
+@role_required(Config.ROLE_ADMIN)
+def export_warranties():
+    """Alias for warranties CSV export (Req xlv)."""
+    return export_data("warranties")
+
+
+@admin_bp.route("/export-analytics", methods=["GET"])
+@login_required
+@role_required(Config.ROLE_ADMIN)
+def export_analytics():
+    """Alias for analytics CSV export (Req xlv)."""
+    return export_data("analytics")

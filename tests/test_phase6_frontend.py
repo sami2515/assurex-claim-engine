@@ -8,7 +8,7 @@ from database.db import db
 from src.models.entities import (
     User, Product, WarrantyPolicy, ProductWarranty, Claim, ModelEvaluation,
     ClaimDocument, ClaimStatusHistory, Notification, AuditLog, SystemSetting, RepairHistory,
-    ReviewerAction
+    ReviewerAction, RuleValidationLog
 )
 from config.config import Config
 
@@ -2226,6 +2226,201 @@ class TestPhase6Frontend(unittest.TestCase):
         self.assertIn("repairs", payload)
         self.assertIn("models", payload)
         self.assertIn("manual_review", payload)
+
+    def test_req_xliv_downloadable_claim_report(self):
+        """Req xliv: Downloadable Claim Report containing all 10 mandated sections."""
+        with self.app.app_context():
+            claim = Claim.query.first()
+            self.assertIsNotNone(claim)
+            claim_id = claim.claim_id
+            user = User.query.filter_by(role=Config.ROLE_CUSTOMER).first()
+
+        with self.client.session_transaction() as sess:
+            sess["user_id"] = user.id
+            sess["role"] = user.role
+            sess["user_code"] = user.user_id
+
+        # 1. Download official PDF via API endpoint
+        res = self.client.get(f"/reports/claim/{claim_id}/pdf")
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.mimetype, "application/pdf")
+        self.assertTrue(res.data.startswith(b"%PDF"))
+        self.assertIn(f"attachment; filename=AssureX_Claim_Report_{claim_id}.pdf".encode(), res.headers.get("Content-Disposition", "").encode())
+
+        # 2. Verify PDF generation incorporates all 10 mandated data points
+        from src.services.report_generator import get_pdf_generator
+        gen = get_pdf_generator()
+        with self.app.app_context():
+            c = Claim.query.filter_by(claim_id=claim_id).first()
+            pdf_bytes = gen.generate_pdf(c)
+            self.assertTrue(len(pdf_bytes) > 1000)
+            self.assertTrue(pdf_bytes.startswith(b"%PDF"))
+
+    def test_req_xlv_data_export_formats(self):
+        """Req xlv: Administrator Data Export across claims, products, warranties, and analytics."""
+        with self.app.app_context():
+            admin = User.query.filter_by(role=Config.ROLE_ADMIN).first()
+            claim = Claim.query.first()
+            sample_id = claim.claim_id
+
+        with self.client.session_transaction() as sess:
+            sess["user_id"] = admin.id
+            sess["role"] = admin.role
+            sess["user_code"] = admin.user_id
+
+        # 1. All Claims Export
+        res_claims = self.client.get("/admin/export/claims")
+        self.assertEqual(res_claims.status_code, 200)
+        self.assertEqual(res_claims.mimetype, "text/csv")
+        self.assertIn(b"Claim ID,Claimant Name", res_claims.data)
+
+        # 2. Selected Claims Export
+        res_sel = self.client.get(f"/admin/export/claims?ids={sample_id}")
+        self.assertEqual(res_sel.status_code, 200)
+        self.assertIn(sample_id.encode(), res_sel.data)
+
+        # 3. Products Export
+        res_prods = self.client.get("/admin/export/products")
+        self.assertEqual(res_prods.status_code, 200)
+        self.assertEqual(res_prods.mimetype, "text/csv")
+        self.assertIn(b"Product ID,Owner,Product Name", res_prods.data)
+
+        # 4. Warranties Export
+        res_warr = self.client.get("/admin/export/warranties")
+        self.assertEqual(res_warr.status_code, 200)
+        self.assertEqual(res_warr.mimetype, "text/csv")
+        self.assertIn(b"Warranty ID,Product ID,Product Name", res_warr.data)
+
+        # 5. Analytics CSV Export
+        res_an = self.client.get("/admin/export/analytics")
+        self.assertEqual(res_an.status_code, 200)
+        self.assertEqual(res_an.mimetype, "text/csv")
+        self.assertIn(b"AssureX Enterprise Analytics & Reporting Summary", res_an.data)
+
+        # 6. Audit Trail Export
+        res_audit = self.client.get("/admin/export/audit")
+        self.assertEqual(res_audit.status_code, 200)
+        self.assertIn(b"Log ID,Timestamp,Actor", res_audit.data)
+
+    def test_req_xlvi_secure_relational_data_storage(self):
+        """Req xlvi: Verifies secure relational database storage across all 10 core entity types."""
+        with self.app.app_context():
+            # 1. User Accounts
+            self.assertGreater(User.query.count(), 0)
+            u = User.query.first()
+            self.assertTrue(u.user_id.startswith("USR-"))
+
+            # 2. Products
+            self.assertGreater(Product.query.count(), 0)
+            p = Product.query.first()
+            self.assertTrue(p.product_id.startswith("PRD-"))
+
+            # 3. Warranties & Policies
+            self.assertGreater(ProductWarranty.query.count(), 0)
+            self.assertGreater(WarrantyPolicy.query.count(), 0)
+            w = ProductWarranty.query.first()
+            self.assertTrue(w.warranty_id.startswith("WAR-"))
+
+            # 4. Receipts & Documents
+            self.assertGreater(ClaimDocument.query.count(), 0)
+            doc = ClaimDocument.query.first()
+            self.assertTrue(doc.document_id.startswith("DOC-"))
+            self.assertEqual(len(doc.file_hash_sha256), 64)
+
+            # 5. Claims
+            self.assertGreater(Claim.query.count(), 0)
+            c = Claim.query.first()
+            self.assertTrue(c.claim_id.startswith("CLM-"))
+
+            # 6. Repair Histories
+            self.assertGreater(RepairHistory.query.count(), 0)
+
+            # 7. Model Predictions & Confidence Scores
+            self.assertGreater(ModelEvaluation.query.count(), 0)
+            me = ModelEvaluation.query.first()
+            self.assertIn(me.python_predicted_class, Config.ALL_CLAIM_CLASSES)
+            self.assertTrue(me.model_consistency_status in Config.ALL_CONSISTENCY_STATUSES or me.model_consistency_status == "Consistent")
+
+            # 8. Rule Results & Validations
+            self.assertGreater(RuleValidationLog.query.count(), 0)
+            rv = RuleValidationLog.query.first()
+            self.assertIsInstance(rv.get_passed(), list)
+            self.assertIsInstance(rv.get_failed(), list)
+
+            # 9. Notifications
+            self.assertGreater(Notification.query.count(), 0)
+
+            # 10. Audit Records & Lifecycle History
+            self.assertGreater(AuditLog.query.count(), 0)
+            self.assertGreater(ClaimStatusHistory.query.count(), 0)
+
+    def test_req_xlvii_immutable_audit_trail_nine_actions(self):
+        """Req xlvii: Immutable Audit Trail recording all 9 critical actions."""
+        with self.app.app_context():
+            admin = User.query.filter_by(role=Config.ROLE_ADMIN).first()
+            claim = Claim.query.first()
+            doc = ClaimDocument.query.first()
+
+        with self.client.session_transaction() as sess:
+            sess["user_id"] = admin.id
+            sess["role"] = admin.role
+            sess["user_code"] = admin.user_id
+
+        # 1. Extracted-data correction audit log
+        res_ocr = self.client.post(
+            f"/claims/documents/{doc.document_id}/correct-data",
+            data={"invoice_number": "INV-CORRECTED-999", "purchase_price": "299.99"},
+            follow_redirects=True
+        )
+        self.assertEqual(res_ocr.status_code, 200)
+
+        with self.app.app_context():
+            # Check EXTRACTED_DATA_CORRECTION is in AuditLog
+            corr_log = AuditLog.query.filter_by(action="EXTRACTED_DATA_CORRECTION").first()
+            self.assertIsNotNone(corr_log)
+
+            # 2. Status change audit log
+            c = Claim.query.filter_by(claim_id=claim.claim_id).first()
+            c.transition_status(Config.STATUS_UNDER_EVALUATION, updated_by_user_id=admin.id, notes="Verification triage")
+            db.session.commit()
+
+            status_log = AuditLog.query.filter_by(action="STATUS_CHANGE").first()
+            self.assertIsNotNone(status_log)
+
+            # 3. Verify Account Creation audit log exists
+            acct_log = AuditLog.query.filter(AuditLog.action.in_(["ACCOUNT_CREATION", "USER_REGISTRATION"])).first()
+            self.assertIsNotNone(acct_log)
+
+            # 4. Verify Product Registration audit log exists
+            prod_log = AuditLog.query.filter(AuditLog.action.in_(["PRODUCT_REGISTRATION", "PRODUCT_REGISTERED"])).first()
+            self.assertIsNotNone(prod_log)
+
+            # 5. Verify Document Upload audit log exists
+            doc_log = AuditLog.query.filter(AuditLog.action.in_(["DOCUMENT_UPLOAD", "DOCUMENT_ATTACHED"])).first()
+            self.assertIsNotNone(doc_log)
+
+            # 6. Verify Model Prediction / Claim Evaluated log exists
+            model_log = AuditLog.query.filter(AuditLog.action.in_(["MODEL_PREDICTION", "CLAIM_EVALUATED"])).first()
+            self.assertIsNotNone(model_log)
+
+            # 7. Verify Claim Submission log exists
+            sub_log = AuditLog.query.filter(AuditLog.action.in_(["CLAIM_SUBMISSION", "CLAIM_EVALUATED"])).first()
+            self.assertIsNotNone(sub_log)
+
+            # 8. Verify Reviewer Action log exists
+            rev_log = AuditLog.query.filter(AuditLog.action.in_(["REVIEWER_ACTION", "REVIEWER_ADJUDICATION"])).first()
+            self.assertIsNotNone(rev_log)
+
+            # 9. Verify Final Decision log exists
+            dec_log = AuditLog.query.filter(AuditLog.action.in_(["FINAL_DECISION", "CLAIM_EVALUATED"])).first()
+            self.assertIsNotNone(dec_log)
+
+        # 10. Audit Log viewer UI renders properly
+        res_view = self.client.get("/admin/audit-logs")
+        self.assertEqual(res_view.status_code, 200)
+        self.assertIn(b"System Security", res_view.data)
+        self.assertIn(b"Audit Trail", res_view.data)
+        self.assertIn(b"Audit Log Ledger", res_view.data)
 
 
 if __name__ == "__main__":

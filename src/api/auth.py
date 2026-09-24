@@ -1,3 +1,4 @@
+import json
 from functools import wraps
 from flask import Blueprint, request, session, redirect, url_for, flash, jsonify, render_template, g
 from config.config import Config
@@ -139,10 +140,11 @@ def register():
         audit = AuditLog(
             user_id=user.id,
             user_role=user.role,
-            action="USER_REGISTRATION",
+            action="ACCOUNT_CREATION",
             entity_type="USER",
             entity_id=user.user_id,
-            ip_address=request.remote_addr
+            ip_address=request.remote_addr,
+            details_json=json.dumps({"role": user.role, "email": user.email})
         )
         db.session.add(audit)
         db.session.commit()

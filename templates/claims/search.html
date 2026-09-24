@@ -285,6 +285,9 @@
                                     <a href="{{ url_for('claims.track_claim_status', claim_id=c.claim_id) }}" class="btn btn-outline-secondary" title="Track Lifecycle Progress">
                                         <i class="bi bi-clock-history"></i>
                                     </a>
+                                    <a href="{{ url_for('reports.download_claim_pdf', claim_id=c.claim_id) }}" class="btn btn-outline-danger" title="Download Official PDF Report (Req xliv)">
+                                        <i class="bi bi-file-earmark-pdf"></i>
+                                    </a>
                                 </div>
                             </td>
                         </tr>

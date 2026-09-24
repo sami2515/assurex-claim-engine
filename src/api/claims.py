@@ -613,20 +613,54 @@ def create_claim_wizard():
             )
             db.session.add(rev_done_notif)
 
-        audit = AuditLog(
+        # Req xlvii: 1. Claim Submission Audit
+        audit_sub = AuditLog(
             user_id=user.id,
             user_role=session.get("role"),
-            action="CLAIM_EVALUATED",
-            entity_type="CLAIM",
+            action="CLAIM_SUBMISSION",
+            entity_type="Claim",
             entity_id=claim.claim_id,
             ip_address=request.remote_addr,
             details_json=json.dumps({
-                "decision": final_rec,
-                "status": claim.status,
-                "consistency": dual_eval["model_consistency_status"]
+                "product_id": product.product_id,
+                "fault_category": claim.fault_category,
+                "submission_date": str(claim.claim_submission_date)
             })
         )
-        db.session.add(audit)
+        db.session.add(audit_sub)
+
+        # Req xlvii: 2. Model Prediction Audit
+        audit_pred = AuditLog(
+            user_id=user.id,
+            user_role=session.get("role"),
+            action="MODEL_PREDICTION",
+            entity_type="ModelEvaluation",
+            entity_id=claim.claim_id,
+            ip_address=request.remote_addr,
+            details_json=json.dumps({
+                "python_predicted_class": model_eval_obj.python_predicted_class,
+                "gtm_predicted_class": model_eval_obj.gtm_predicted_class,
+                "model_consistency_status": model_eval_obj.model_consistency_status,
+                "top_confidence_difference": model_eval_obj.top_confidence_difference
+            })
+        )
+        db.session.add(audit_pred)
+
+        # Req xlvii: 3. Final Decision Audit
+        audit_dec = AuditLog(
+            user_id=user.id,
+            user_role=session.get("role"),
+            action="FINAL_DECISION",
+            entity_type="Claim",
+            entity_id=claim.claim_id,
+            ip_address=request.remote_addr,
+            details_json=json.dumps({
+                "final_decision": final_rec,
+                "status": claim.status,
+                "decision_reason": claim.decision_reason
+            })
+        )
+        db.session.add(audit_dec)
         db.session.commit()
 
         flash(f"Claim {claim.claim_id} submitted and evaluated! Final Status: {claim.status}", "success")
@@ -820,12 +854,12 @@ def upload_claim_document(claim_id):
     missing_check = ClaimValidator.identify_missing_documents(claim.documents, has_previous_repairs=has_repairs)
     claim.missing_document_flag = missing_check["has_missing"]
 
-    # Log audit event
+    # Log audit event (Req xlvii: Document Upload)
     audit = AuditLog(
         user_id=user.id,
         user_role=role,
-        action="DOCUMENT_ATTACHED",
-        entity_type="CLAIM_DOCUMENT",
+        action="DOCUMENT_UPLOAD",
+        entity_type="ClaimDocument",
         entity_id=claim_doc.document_id,
         ip_address=request.remote_addr,
         details_json=json.dumps({
@@ -848,6 +882,43 @@ def upload_claim_document(claim_id):
         )
 
     return redirect(url_for("claims.view_claim", claim_id=claim.claim_id))
+
+
+@claim_bp.route("/documents/<string:doc_id>/correct-data", methods=["POST"])
+@login_required
+def correct_extracted_data(doc_id):
+    """
+    Req xlvii: Extracted-data correction audit trail recording.
+    Allows user/reviewer to correct OCR extracted details on an uploaded document.
+    """
+    user = get_current_user()
+    doc = ClaimDocument.query.filter_by(document_id=doc_id).first_or_404()
+    corrected_payload = request.form.to_dict() or (request.get_json(silent=True) or {})
+
+    prev_data = doc.get_ocr_payload()
+    prev_data.update(corrected_payload)
+    doc.ocr_data_json = json.dumps(prev_data)
+    doc.verified_by_user = True
+
+    audit = AuditLog(
+        user_id=user.id,
+        user_role=session.get("role"),
+        action="EXTRACTED_DATA_CORRECTION",
+        entity_type="ClaimDocument",
+        entity_id=doc.document_id,
+        ip_address=request.remote_addr,
+        details_json=json.dumps({
+            "claim_id": doc.claim.claim_id if doc.claim else None,
+            "corrected_fields": corrected_payload
+        })
+    )
+    db.session.add(audit)
+    db.session.commit()
+
+    if request.is_json:
+        return jsonify({"success": True, "message": "Extracted data corrected and audit trail logged.", "entities": prev_data})
+    flash("Extracted document details corrected and verified successfully.", "success")
+    return redirect(url_for("claims.view_claim", claim_id=doc.claim.claim_id if doc.claim else ""))
 
 
 @claim_bp.route("/<string:claim_id>/summary-card", methods=["GET"])

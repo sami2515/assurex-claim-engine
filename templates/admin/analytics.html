@@ -19,6 +19,9 @@
         <a href="{{ url_for('claims.search_records') }}" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1 shadow-sm">
             <i class="bi bi-search"></i> Search Records
         </a>
+        <a href="{{ url_for('admin.export_data', export_type='analytics') }}" class="btn btn-outline-success btn-sm d-inline-flex align-items-center gap-1 shadow-sm">
+            <i class="bi bi-file-earmark-spreadsheet"></i> Export Analytics CSV (Req xlv)
+        </a>
         <a href="{{ url_for('admin.export_analytics_json') }}" class="btn btn-primary btn-sm d-inline-flex align-items-center gap-1 shadow-sm">
             <i class="bi bi-download"></i> Export Analytics JSON
         </a>

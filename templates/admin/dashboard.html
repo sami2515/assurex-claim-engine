@@ -21,6 +21,12 @@
         <a href="{{ url_for('admin.export_data', export_type='products') }}" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1 shadow-sm">
             <i class="bi bi-box-seam"></i> Products CSV
         </a>
+        <a href="{{ url_for('admin.export_data', export_type='warranties') }}" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1 shadow-sm">
+            <i class="bi bi-shield-check"></i> Warranties CSV
+        </a>
+        <a href="{{ url_for('admin.export_data', export_type='analytics') }}" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1 shadow-sm">
+            <i class="bi bi-graph-up"></i> Analytics CSV
+        </a>
         <a href="{{ url_for('admin.export_data', export_type='audit') }}" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1 shadow-sm">
             <i class="bi bi-shield-lock"></i> Audit Logs
         </a>

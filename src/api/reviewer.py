@@ -189,12 +189,12 @@ def adjudicate(claim_id):
         )
         db.session.add(review_comp_notif)
 
-    # System Audit
+    # System Audit (Req xlvii: Reviewer Action & Final Decision)
     audit = AuditLog(
         user_id=user.id,
         user_role=session.get("role"),
         action="REVIEWER_ADJUDICATION",
-        entity_type="CLAIM",
+        entity_type="Claim",
         entity_id=claim.claim_id,
         ip_address=request.remote_addr,
         details_json=json.dumps({
@@ -205,6 +205,23 @@ def adjudicate(claim_id):
         })
     )
     db.session.add(audit)
+
+    if new_status in [Config.STATUS_APPROVED, Config.STATUS_REJECTED]:
+        final_audit = AuditLog(
+            user_id=user.id,
+            user_role=session.get("role"),
+            action="FINAL_DECISION",
+            entity_type="Claim",
+            entity_id=claim.claim_id,
+            ip_address=request.remote_addr,
+            details_json=json.dumps({
+                "outcome": new_status,
+                "decision": new_decision,
+                "adjudicated_by": user.full_name
+            })
+        )
+        db.session.add(final_audit)
+
     db.session.commit()
 
     flash(f"Claim {claim.claim_id} adjudicated successfully as '{new_status}'!", "success")

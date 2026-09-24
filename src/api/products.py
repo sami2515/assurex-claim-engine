@@ -191,14 +191,15 @@ def register_product():
                 )
                 db.session.add(claim_doc)
 
-        # Record Audit Log
+        # Record Audit Log (Req xlvii)
         audit = AuditLog(
             user_id=user.id,
             user_role=session.get("role"),
-            action="PRODUCT_REGISTERED",
+            action="PRODUCT_REGISTRATION",
             entity_type="PRODUCT",
             entity_id=product.product_id,
-            ip_address=request.remote_addr
+            ip_address=request.remote_addr,
+            details_json=json.dumps({"product_name": product.product_name, "serial": product.serial_number})
         )
         db.session.add(audit)
         db.session.commit()
