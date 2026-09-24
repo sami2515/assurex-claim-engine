@@ -1,35 +1,39 @@
 {% extends "components/base.html" %}
 
-{% block title %}Claim Intake Wizard{% endblock %}
+{% block title %}Warranty Claim Intake Wizard{% endblock %}
 
 {% block content %}
-<div class="wizard-container">
-    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2 mb-4">
-        <div>
-            <h2 class="fw-bold text-slate-900 mb-1">Warranty Claim Intake Wizard</h2>
-            <p class="text-muted mb-0">Follow the 5-step guided process to prepare, verify documents, and submit for automated adjudication</p>
-        </div>
-        <a href="{{ url_for('claims.customer_dashboard') }}" class="btn btn-outline-secondary btn-sm">
-            <i class="bi bi-x-lg"></i> Exit Wizard
-        </a>
+<div class="wizard-container mx-auto" style="max-width: 900px;">
+    <!-- Wizard Header -->
+    <div class="text-center mb-4">
+        <span class="badge bg-primary-subtle text-primary border border-primary-subtle font-mono mb-2">SRS Req 1.6.vii & 1.6.viii</span>
+        <h2 class="fw-bold text-slate-900 mb-1">Warranty Claim Intake Wizard</h2>
+        <p class="text-muted small">Submit hardware malfunction claims for real-time dual-model intelligence & policy adjudication</p>
     </div>
 
-    <!-- Stepper Navigation Header -->
-    <div class="wizard-steps bg-white rounded-4 shadow-sm px-3 pt-2 mb-4">
-        <div class="wizard-step-tab active" data-step="1">
-            <i class="bi bi-1-circle-fill me-1"></i> 1. Select Asset
-        </div>
-        <div class="wizard-step-tab" data-step="2">
-            <i class="bi bi-2-circle me-1"></i> 2. Defect Details
-        </div>
-        <div class="wizard-step-tab" data-step="3">
-            <i class="bi bi-3-circle me-1"></i> 3. Document OCR
-        </div>
-        <div class="wizard-step-tab" data-step="4">
-            <i class="bi bi-4-circle me-1"></i> 4. Summary Preview
-        </div>
-        <div class="wizard-step-tab" data-step="5">
-            <i class="bi bi-5-circle me-1"></i> 5. Submit & Evaluate
+    <!-- Step Progress Bar Indicator -->
+    <div class="card border-0 shadow-sm rounded-4 bg-white p-3 mb-4">
+        <div class="row text-center g-2">
+            <div class="col wizard-step-tab active" data-step="1">
+                <div class="step-num">1</div>
+                <div class="step-label">Asset & Warranty</div>
+            </div>
+            <div class="col wizard-step-tab" data-step="2">
+                <div class="step-num">2</div>
+                <div class="step-label">Fault Declaration</div>
+            </div>
+            <div class="col wizard-step-tab" data-step="3">
+                <div class="step-num">3</div>
+                <div class="step-label">Receipt & Verification</div>
+            </div>
+            <div class="col wizard-step-tab" data-step="4">
+                <div class="step-num">4</div>
+                <div class="step-label">Card Preview</div>
+            </div>
+            <div class="col wizard-step-tab" data-step="5">
+                <div class="step-num">5</div>
+                <div class="step-label">Adjudication</div>
+            </div>
         </div>
     </div>
 
@@ -37,24 +41,86 @@
     <form id="claim-wizard-form" method="POST" action="{{ url_for('claims.create_claim_wizard') }}" enctype="multipart/form-data">
         
         <!-- ===================================================================
-             STEP 1: Asset & Warranty Selection
+             STEP 1: Asset & Warranty Selection (Req 1.6.viii Warranty Tracking)
              =================================================================== -->
         <div class="wizard-step-pane active" id="step-1">
             <div class="card border-0 shadow-sm rounded-4 bg-white p-4 p-md-5">
-                <h4 class="fw-bold text-slate-900 mb-2">Step 1: Choose Registered Product & Warranty</h4>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h4 class="fw-bold text-slate-900 mb-0">Step 1: Choose Registered Product & Warranty</h4>
+                    <span class="badge bg-light text-secondary border font-mono">Req 1.6.viii</span>
+                </div>
                 <p class="text-muted mb-4 small">Select the hardware unit experiencing malfunction from your active registered assets.</p>
 
                 <div class="mb-4">
                     <label for="product_id" class="form-label fw-semibold small text-slate-700">Select Equipment <span class="text-danger">*</span></label>
-                    <select class="form-select form-select-lg bg-light" id="product_id" name="product_id" required>
+                    <select class="form-select form-select-lg bg-light" id="product_id" name="product_id" required onchange="handleProductSelected(this)">
                         <option value="" disabled selected>-- Select a registered product --</option>
                         {% for p in products %}
                             {% set w = p.warranty %}
-                            <option value="{{ p.id }}">
-                                {{ p.product_name }} (Serial: {{ p.serial_number }}) - [{{ p.category }}] - {{ 'Active Warranty' if w and w.is_active() else 'Expired/No Policy' }}
+                            <option value="{{ p.id }}"
+                                data-code="{{ p.product_id }}"
+                                data-name="{{ p.product_name }}"
+                                data-serial="{{ p.serial_number }}"
+                                data-category="{{ p.category }}"
+                                data-brand="{{ p.brand }}"
+                                data-model="{{ p.model_number }}"
+                                data-price="{{ '%.2f'|format(p.purchase_price) }}"
+                                data-start="{{ w.start_date.strftime('%Y-%m-%d') if w else 'N/A' }}"
+                                data-expiry="{{ w.expiry_date.strftime('%Y-%m-%d') if w else 'N/A' }}"
+                                data-remaining="{{ w.remaining_days() if w else 0 }}"
+                                data-status="{{ w.status if w else 'No Warranty' }}"
+                                data-extended="{{ 'true' if w and w.is_extended else 'false' }}"
+                                data-extended-months="{{ w.extended_months if w else 0 }}"
+                                data-provider="{{ w.warranty_provider if w else 'N/A' }}"
+                                data-center="{{ w.service_center_name if w else 'N/A' }}">
+                                {{ p.product_name }} (Serial: {{ p.serial_number }}) - [{{ p.category }}] - {{ w.status if w else 'No Policy' }}
                             </option>
                         {% endfor %}
                     </select>
+                </div>
+
+                <!-- Warranty Tracking Panel (Req 1.6.viii) -->
+                <div id="warranty-tracking-panel" class="d-none bg-light p-4 rounded-4 border mb-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom flex-wrap gap-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-primary text-white"><i class="bi bi-shield-check me-1"></i>Warranty Tracking (Req 1.6.viii)</span>
+                            <span class="badge font-mono bg-white text-primary border" id="wt-code">PRD-XXXX</span>
+                        </div>
+                        <div id="wt-status-badge">
+                            <!-- Populated via JS -->
+                        </div>
+                    </div>
+                    <div class="row g-3 small">
+                        <div class="col-sm-6 col-md-3">
+                            <span class="text-muted d-block extra-small">Coverage Start</span>
+                            <strong class="text-slate-900" id="wt-start">YYYY-MM-DD</strong>
+                        </div>
+                        <div class="col-sm-6 col-md-3">
+                            <span class="text-muted d-block extra-small">Expiration Date</span>
+                            <strong class="text-slate-900" id="wt-expiry">YYYY-MM-DD</strong>
+                        </div>
+                        <div class="col-sm-6 col-md-3">
+                            <span class="text-muted d-block extra-small">Remaining Period</span>
+                            <strong class="text-primary fs-6" id="wt-remaining">0 Days Left</strong>
+                        </div>
+                        <div class="col-sm-6 col-md-3">
+                            <span class="text-muted d-block extra-small">Warranty Plan Tier</span>
+                            <span id="wt-tier" class="badge bg-white border text-dark">Standard Tier</span>
+                        </div>
+                        <div class="col-12 mt-2">
+                            <div class="d-flex justify-content-between extra-small text-muted mb-1">
+                                <span>Warranty Term Elapsed</span>
+                                <span id="wt-remaining-label">0 days remaining</span>
+                            </div>
+                            <div class="progress" style="height: 6px;">
+                                <div class="progress-bar bg-success" id="wt-progress-bar" role="progressbar" style="width: 50%"></div>
+                            </div>
+                        </div>
+                        <div class="col-12 mt-2 extra-small text-muted d-flex justify-content-between">
+                            <span>Provider: <strong class="text-dark" id="wt-provider">N/A</strong></span>
+                            <span>Service Center: <strong class="text-dark" id="wt-center">N/A</strong></span>
+                        </div>
+                    </div>
                 </div>
 
                 {% if not products %}
@@ -93,10 +159,13 @@
                         <label for="fault_category" class="form-label fw-semibold small text-slate-700">Primary Fault Category <span class="text-danger">*</span></label>
                         <select class="form-select bg-light" id="fault_category" name="fault_category" required>
                             <option value="" disabled selected>Select Fault Classification</option>
-                            <option value="Screen Flickering">Screen Flickering & Display Lines</option>
-                            <option value="Battery Degradation">Battery Drainage / Inability to Charge</option>
-                            <option value="Audio Distortion">Speaker Distortion / No Audio Output</option>
-                            <option value="Compressor Failure">Compressor Failure / Refrigeration Fault</option>
+                            <option value="Screen flickering">Screen Flickering / Backlight Failure</option>
+                            <option value="Motherboard failure">Motherboard / Logic Board Failure</option>
+                            <option value="Battery failure to charge">Battery Charging Failure / Capacity Loss</option>
+                            <option value="Speaker malfunction">Speaker Malfunction / Audio Distortion</option>
+                            <option value="Unresponsive touch panel">Touch Panel / Digitizer Failure</option>
+                            <option value="Bluetooth/Wi-Fi failure">Wireless Connectivity Failure</option>
+                            <option value="Cooling System Failure">Cooling Fan / Thermal Regulation Fault</option>
                             <option value="Drum Balance Error">Drum Imbalance / Motor Vibration</option>
                             <option value="Thermostat Malfunction">Thermostat Regulation Failure</option>
                             <option value="Motor Burnout">Motor Stalling / Thermal Burnout</option>
@@ -161,12 +230,15 @@
         </div>
 
         <!-- ===================================================================
-             STEP 3: Document Intake & OCR Verification
+             STEP 3: Document Intake & Extracted Data Verification (Req 1.6.vii)
              =================================================================== -->
         <div class="wizard-step-pane" id="step-3">
             <div class="card border-0 shadow-sm rounded-4 bg-white p-4 p-md-5">
-                <h4 class="fw-bold text-slate-900 mb-2">Step 3: Document Intake & Automated OCR Verification</h4>
-                <p class="text-muted mb-4 small">Upload proof of purchase. AssureX scans invoices via OCR and verifies SHA-256 integrity (Req vi & vii).</p>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h4 class="fw-bold text-slate-900 mb-0">Step 3: Document Intake & Extracted Data Verification</h4>
+                    <span class="badge bg-light text-secondary border font-mono">Req 1.6.v, vi, vii</span>
+                </div>
+                <p class="text-muted mb-4 small">Upload proof of purchase. AssureX scans invoices via OCR and allows you to review and verify extracted values (Req vi & vii).</p>
 
                 <!-- Drag & Drop Dropzone -->
                 <div class="upload-dropzone mb-3" id="receipt-dropzone">
@@ -178,14 +250,14 @@
 
                 <div id="file-preview-info"></div>
 
-                <!-- Live OCR Verification Preview Card -->
-                <div class="card bg-light border-0 rounded-3 p-3 mt-4" id="ocr-results-panel">
+                <!-- Live OCR Verification Preview Card & Review Form (Req 1.6.vii) -->
+                <div class="card bg-light border-0 rounded-4 p-4 mt-4" id="ocr-results-panel">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <span class="fw-bold small text-slate-800"><i class="bi bi-cpu text-primary me-2"></i>Optical Character Recognition (OCR) Engine</span>
                         <span class="badge bg-secondary extra-small">Automated Verification Ready</span>
                     </div>
                     <p class="extra-small text-muted mb-0">
-                        Upon submission, your document is scanned by our intelligent OCR extractor. Extracted vendor credentials, invoice dates, and purchase totals are cross-referenced with policy rules to prevent fraud and duplicate submissions.
+                        Upon document upload, our intelligent OCR extractor parses invoice credentials, purchase dates, serial numbers, and totals. You will be able to review and verify the extracted values below before saving or submitting your claim (Req 1.6.vii).
                     </p>
                 </div>
 
@@ -297,4 +369,83 @@
 
     </form>
 </div>
+
+<script>
+function handleProductSelected(selectElement) {
+    const selectedOption = selectElement.options[selectElement.selectedIndex];
+    if (!selectedOption || !selectedOption.value) return;
+
+    const panel = document.getElementById("warranty-tracking-panel");
+    panel.classList.remove("d-none");
+
+    const code = selectedOption.getAttribute("data-code");
+    const start = selectedOption.getAttribute("data-start");
+    const expiry = selectedOption.getAttribute("data-expiry");
+    const remaining = parseInt(selectedOption.getAttribute("data-remaining") || 0);
+    const status = selectedOption.getAttribute("data-status");
+    const isExtended = selectedOption.getAttribute("data-extended") === 'true';
+    const extMonths = selectedOption.getAttribute("data-extended-months");
+    const provider = selectedOption.getAttribute("data-provider");
+    const center = selectedOption.getAttribute("data-center");
+
+    document.getElementById("wt-code").innerText = code;
+    document.getElementById("wt-start").innerText = start;
+    document.getElementById("wt-expiry").innerText = expiry;
+    document.getElementById("wt-remaining").innerText = remaining + " Days";
+    document.getElementById("wt-remaining-label").innerText = remaining + " days remaining";
+    document.getElementById("wt-provider").innerText = provider;
+    document.getElementById("wt-center").innerText = center;
+
+    // Status Badge
+    const statusBadge = document.getElementById("wt-status-badge");
+    if (status === 'Expired') {
+        statusBadge.innerHTML = '<span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1"><i class="bi bi-shield-x"></i> Expired</span>';
+    } else if (status === 'Approaching Expiry' || remaining <= 30) {
+        statusBadge.innerHTML = '<span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1"><i class="bi bi-clock-history"></i> Approaching Expiry (' + remaining + 'd)</span>';
+    } else {
+        statusBadge.innerHTML = '<span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"><i class="bi bi-shield-check"></i> Active Warranty (' + remaining + 'd)</span>';
+    }
+
+    // Tier badge
+    const tierBadge = document.getElementById("wt-tier");
+    if (isExtended) {
+        tierBadge.className = "badge bg-info-subtle text-info-emphasis border border-info-subtle";
+        tierBadge.innerHTML = '<i class="bi bi-award-fill"></i> Extended Plan (+' + extMonths + 'm)';
+    } else {
+        tierBadge.className = "badge bg-white border text-dark";
+        tierBadge.innerHTML = 'Standard Manufacturer';
+    }
+
+    // Progress bar estimation
+    const progressBar = document.getElementById("wt-progress-bar");
+    if (remaining <= 0) {
+        progressBar.style.width = "0%";
+        progressBar.className = "progress-bar bg-danger";
+    } else if (remaining <= 30) {
+        progressBar.style.width = "15%";
+        progressBar.className = "progress-bar bg-warning";
+    } else {
+        progressBar.style.width = "75%";
+        progressBar.className = "progress-bar bg-success";
+    }
+}
+
+// Auto-select if URL has ?product_id=X
+document.addEventListener("DOMContentLoaded", function () {
+    const urlParams = new URLSearchParams(window.location.search);
+    const prodIdParam = urlParams.get('product_id');
+    if (prodIdParam) {
+        const prodSelect = document.getElementById("product_id");
+        if (prodSelect) {
+            for (let i = 0; i < prodSelect.options.length; i++) {
+                if (prodSelect.options[i].value === prodIdParam) {
+                    prodSelect.selectedIndex = i;
+                    handleProductSelected(prodSelect);
+                    break;
+                }
+            }
+        }
+    }
+});
+</script>
 {% endblock %}

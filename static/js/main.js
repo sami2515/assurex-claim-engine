@@ -188,40 +188,50 @@ document.addEventListener("DOMContentLoaded", function () {
             })
             .then(res => res.json())
             .then(data => {
-                if (data.success && data.entities) {
-                    const e = data.entities;
                     ocrPanel.innerHTML = `
                         <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
-                            <span class="fw-bold small text-slate-800"><i class="bi bi-cpu text-primary me-2"></i>Live OCR Extraction Results (Req 1.6.vi)</span>
-                            <span class="badge bg-success-subtle text-success extra-small">Verified</span>
+                            <span class="fw-bold small text-slate-800"><i class="bi bi-cpu text-primary me-2"></i>Extracted Data Verification (Req 1.6.vii)</span>
+                            <span class="badge bg-success-subtle text-success extra-small">Extracted &amp; Editable</span>
                         </div>
+                        <p class="extra-small text-muted mb-3">
+                            Review and correct any inaccurate or incomplete values extracted from your invoice before proceeding:
+                        </p>
                         <div class="row g-2 extra-small">
-                            <div class="col-sm-4">
-                                <span class="text-muted d-block">Invoice #:</span>
-                                <strong class="font-mono text-dark">${e.invoice_number || 'N/A'}</strong>
+                            <div class="col-sm-6 col-md-3">
+                                <label class="text-muted d-block extra-small">Invoice / Receipt #</label>
+                                <input type="text" class="form-control form-control-sm font-mono" id="wizard_verified_invoice" value="${e.invoice_number || ''}">
                             </div>
-                            <div class="col-sm-4">
-                                <span class="text-muted d-block">Purchase Date:</span>
-                                <strong class="text-dark">${e.purchase_date || 'N/A'}</strong>
+                            <div class="col-sm-6 col-md-3">
+                                <label class="text-muted d-block extra-small">Purchase Date</label>
+                                <input type="date" class="form-control form-control-sm" id="wizard_verified_date" value="${e.purchase_date || ''}">
                             </div>
-                            <div class="col-sm-4">
-                                <span class="text-muted d-block">Serial Number:</span>
-                                <strong class="font-mono text-primary">${e.serial_number || 'N/A'}</strong>
+                            <div class="col-sm-6 col-md-3">
+                                <label class="text-muted d-block extra-small">Hardware Serial #</label>
+                                <input type="text" class="form-control form-control-sm font-mono text-primary fw-semibold" id="wizard_verified_serial" value="${e.serial_number || ''}">
                             </div>
-                            <div class="col-sm-4">
-                                <span class="text-muted d-block">Purchase Price:</span>
-                                <strong class="text-success">$${e.purchase_amount ? parseFloat(e.purchase_amount).toFixed(2) : '0.00'}</strong>
+                            <div class="col-sm-6 col-md-3">
+                                <label class="text-muted d-block extra-small">Purchase / Claim Value ($)</label>
+                                <input type="number" step="0.01" class="form-control form-control-sm fw-bold text-success" id="wizard_verified_amount" value="${e.purchase_amount ? parseFloat(e.purchase_amount).toFixed(2) : '150.00'}" onchange="if(document.getElementById('claim_amount')) document.getElementById('claim_amount').value = this.value">
                             </div>
-                            <div class="col-sm-8">
-                                <span class="text-muted d-block">Merchant / Retailer:</span>
-                                <strong class="text-dark">${e.retailer || 'N/A'}</strong>
+                            <div class="col-sm-12 col-md-6 mt-2">
+                                <label class="text-muted d-block extra-small">Merchant / Retailer</label>
+                                <input type="text" class="form-control form-control-sm" id="wizard_verified_retailer" value="${e.retailer || ''}">
                             </div>
-                            <div class="col-12 mt-1">
-                                <span class="text-muted d-block">SHA-256 Digest:</span>
-                                <code class="extra-small text-secondary">${data.sha256 || 'N/A'}</code>
+                            <div class="col-sm-12 col-md-6 mt-2">
+                                <label class="text-muted d-block extra-small">Cryptographic SHA-256 Digest</label>
+                                <input type="text" class="form-control form-control-sm font-mono extra-small bg-white" readonly value="${data.sha256 || 'N/A'}">
                             </div>
+                        </div>
+                        <div class="alert alert-success d-flex align-items-center gap-2 mt-3 mb-0 py-2 extra-small">
+                            <i class="bi bi-check-circle-fill fs-6 text-success"></i>
+                            <div>Values verified and synchronized with claim adjudication features.</div>
                         </div>
                     `;
+
+                    // Synchronize verified amount with Step 2 claim amount
+                    if (e.purchase_amount && document.getElementById('claim_amount')) {
+                        document.getElementById('claim_amount').value = parseFloat(e.purchase_amount).toFixed(2);
+                    }
                 }
             })
             .catch(err => {

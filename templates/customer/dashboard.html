@@ -237,14 +237,25 @@
                                 {% endif %}
                             </td>
                             <td>
-                                {% if w and w.is_active() %}
-                                    <span class="badge bg-success-subtle text-success border border-success-subtle">
-                                        Active ({{ w.remaining_days() }}d left)
+                                {% if w and not w.is_active() %}
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle">
+                                        <i class="bi bi-shield-x"></i> Expired
                                     </span>
-                                {% elif w %}
-                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Expired</span>
+                                {% elif w and w.is_approaching_expiry(30) %}
+                                    <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle" title="Approaching expiration">
+                                        <i class="bi bi-clock-history"></i> Nearing Expiry ({{ w.remaining_days() }}d)
+                                    </span>
+                                {% elif w and w.is_active() %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                        <i class="bi bi-shield-check"></i> Active ({{ w.remaining_days() }}d left)
+                                    </span>
                                 {% else %}
                                     <span class="badge bg-secondary-subtle text-secondary">No Warranty</span>
+                                {% endif %}
+                                {% if w and w.is_extended %}
+                                    <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle ms-1 extra-small">
+                                        <i class="bi bi-award-fill"></i> Extended
+                                    </span>
                                 {% endif %}
                             </td>
                             <td class="text-end">
