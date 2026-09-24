@@ -1012,6 +1012,154 @@ class TestPhase6Frontend(unittest.TestCase):
         self.assertEqual(eval_excl["overall_status"], "FAIL")
         self.assertTrue(any("excluded damage detected" in f.lower() for f in eval_excl["failed_rules"]))
 
+    def test_req_xxvi_configurable_warranty_policies_db_and_files(self):
+        """Req 1.6.xxvi: Verify warranty policies stored in configurable files & DB supporting multiple product categories."""
+        import json
+        from src.rules.policy_engine import get_policy_engine
+        engine = get_policy_engine()
+
+        # 1. Multi-category file-based policy retrieval
+        categories = ["Consumer Electronics", "Home Appliances", "Industrial & Automotive Tools"]
+        for cat in categories:
+            pol = engine.get_policy_for_category(cat)
+            self.assertEqual(pol["category"], cat)
+            self.assertIn("coverage_duration_months", pol)
+            self.assertIn("covered_faults", pol)
+            self.assertIn("exclusions", pol)
+            self.assertIn("claim_reporting_period_days", pol)
+            self.assertIn("mandatory_documents", pol)
+            self.assertIn("authorized_service_center_required", pol)
+            self.assertIsInstance(pol["covered_faults"], list)
+            self.assertIsInstance(pol["exclusions"], list)
+
+        # 2. Database stored policy takes dynamic precedence
+        with self.app.app_context():
+            custom_policy = WarrantyPolicy.query.filter_by(category="Test Category Gadgets").first()
+            if not custom_policy:
+                custom_policy = WarrantyPolicy(
+                    category="Test Category Gadgets",
+                    policy_name="Custom Gadget Policy DB",
+                    coverage_duration_months=36,
+                    grace_period_days=10,
+                    claim_reporting_period_days=60,
+                    authorized_service_center_required=True,
+                    policy_rules_json=json.dumps({
+                        "covered_faults": ["OLED Burn-in", "Capacitor failure"],
+                        "exclusions": ["Cracked lens", "Commercial use"],
+                        "mandatory_documents": ["Serial Photo", "Invoice"]
+                    })
+                )
+                db.session.add(custom_policy)
+                db.session.commit()
+
+            pol_db = engine.get_policy_for_category("Test Category Gadgets")
+            self.assertEqual(pol_db["coverage_duration_months"], 36)
+            self.assertEqual(pol_db["claim_reporting_period_days"], 60)
+            self.assertIn("OLED Burn-in", pol_db["covered_faults"])
+
+    def test_req_xxvii_serial_number_verification_across_4_sources(self):
+        """Req 1.6.xxvii: Verify serial comparison across user entry, receipt, warranty card, product image, and repair records."""
+        from src.rules.contradiction_detector import get_contradiction_detector
+        detector = get_contradiction_detector()
+
+        user_serial = "SN-APX-8829104"
+
+        # Case A: Perfect match across all 4 sources
+        claim_consistent = {
+            "product_serial": user_serial,
+            "receipt_serial": user_serial,
+            "warranty_card_serial": user_serial,
+            "product_image_serial": user_serial,
+            "repair_record_serial": user_serial,
+            "purchase_date": "2026-01-01",
+            "fault_occurrence_date": "2026-03-01",
+            "claim_submission_date": "2026-03-10"
+        }
+        res_ok = detector.detect_contradictions(claim_consistent)
+        self.assertFalse(res_ok["has_contradiction"])
+        self.assertEqual(len(res_ok["contradictions"]), 0)
+
+        # Case B: Receipt serial mismatch
+        res_receipt = detector.detect_contradictions(dict(claim_consistent, receipt_serial="SN-WRONG-RECEIPT"))
+        self.assertTrue(res_receipt["has_contradiction"])
+        self.assertTrue(any("receipt" in c.lower() for c in res_receipt["contradictions"]))
+
+        # Case C: Warranty card serial mismatch
+        res_card = detector.detect_contradictions(dict(claim_consistent, warranty_card_serial="SN-WRONG-CARD"))
+        self.assertTrue(res_card["has_contradiction"])
+        self.assertTrue(any("warranty card" in c.lower() for c in res_card["contradictions"]))
+
+        # Case D: Product image serial mismatch
+        res_img = detector.detect_contradictions(dict(claim_consistent, product_image_serial="SN-WRONG-PHOTO"))
+        self.assertTrue(res_img["has_contradiction"])
+        self.assertTrue(any("product image" in c.lower() for c in res_img["contradictions"]))
+
+        # Case E: Repair record serial mismatch
+        res_rep = detector.detect_contradictions(dict(claim_consistent, repair_record_serial="SN-WRONG-REPAIR"))
+        self.assertTrue(res_rep["has_contradiction"])
+        self.assertTrue(any("repair record" in c.lower() for c in res_rep["contradictions"]))
+
+    def test_req_xxviii_contradiction_detection_all_5_scenarios(self):
+        """Req 1.6.xxviii: Verify all 5 contradiction scenarios including repair date before purchase and model conflicts."""
+        from src.rules.contradiction_detector import get_contradiction_detector
+        detector = get_contradiction_detector()
+
+        # Scenario 1: Claim date before purchase date
+        res_1 = detector.detect_contradictions({
+            "product_serial": "SN-001",
+            "purchase_date": "2026-06-01",
+            "claim_submission_date": "2026-05-15",
+            "fault_occurrence_date": "2026-05-10"
+        })
+        self.assertTrue(res_1["has_contradiction"])
+        self.assertTrue(any("submission date" in c.lower() and "predates" in c.lower() for c in res_1["contradictions"]))
+
+        # Scenario 2: Repair date before purchase date
+        res_2 = detector.detect_contradictions({
+            "product_serial": "SN-001",
+            "purchase_date": "2026-06-01",
+            "claim_submission_date": "2026-07-01",
+            "fault_occurrence_date": "2026-06-15",
+            "repair_records": [{"repair_date": "2026-04-10", "repair_center": "Workshop A"}]
+        })
+        self.assertTrue(res_2["has_contradiction"])
+        self.assertTrue(any("repair date" in c.lower() and "predates" in c.lower() for c in res_2["contradictions"]))
+
+        # Scenario 3: Inconsistent product models
+        res_3 = detector.detect_contradictions(
+            {
+                "product_serial": "SN-001",
+                "product_model": "Dell XPS 15",
+                "purchase_date": "2026-01-01",
+                "claim_submission_date": "2026-02-01",
+                "fault_occurrence_date": "2026-01-15"
+            },
+            ocr_data={"model_name": "MacBook Pro 16"}
+        )
+        self.assertTrue(res_3["has_contradiction"])
+        self.assertTrue(any("model" in c.lower() for c in res_3["contradictions"]))
+
+        # Scenario 4: Conflicting serial numbers
+        res_4 = detector.detect_contradictions({
+            "product_serial": "SN-ALPHA-123",
+            "receipt_serial": "SN-BETA-999",
+            "purchase_date": "2026-01-01",
+            "claim_submission_date": "2026-02-01",
+            "fault_occurrence_date": "2026-01-15"
+        })
+        self.assertTrue(res_4["has_contradiction"])
+        self.assertTrue(any("serial number mismatch" in c.lower() for c in res_4["contradictions"]))
+
+        # Scenario 5: Fault date after claim submission date
+        res_5 = detector.detect_contradictions({
+            "product_serial": "SN-001",
+            "purchase_date": "2026-01-01",
+            "claim_submission_date": "2026-02-01",
+            "fault_occurrence_date": "2026-02-15"  # Future fault date
+        })
+        self.assertTrue(res_5["has_contradiction"])
+        self.assertTrue(any("future relative to submission" in c.lower() for c in res_5["contradictions"]))
+
 
 if __name__ == "__main__":
     unittest.main()

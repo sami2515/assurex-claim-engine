@@ -31,7 +31,28 @@ class WarrantyPolicyEngine:
                 print(f"[!] Warning: Failed loading policy {p_file.name}: {e}")
 
     def get_policy_for_category(self, category_name: str) -> dict:
-        """Retrieves category policy or returns standard fallback."""
+        """
+        Req 1.6.xxvi: Retrieves category policy from database (WarrantyPolicy) or configurable JSON files.
+        Supports different warranty rules for different product categories.
+        """
+        # 1. Attempt lookup from persistent database
+        try:
+            from src.models.entities import WarrantyPolicy
+            db_policy = WarrantyPolicy.query.filter(WarrantyPolicy.category.ilike(category_name)).first()
+            if db_policy:
+                rules = db_policy.get_rules()
+                combined = dict(rules)
+                combined["category"] = db_policy.category
+                combined["policy_name"] = db_policy.policy_name
+                combined["coverage_duration_months"] = db_policy.coverage_duration_months
+                combined["grace_period_days"] = db_policy.grace_period_days
+                combined["claim_reporting_period_days"] = db_policy.claim_reporting_period_days
+                combined["authorized_service_center_required"] = db_policy.authorized_service_center_required
+                return combined
+        except Exception:
+            pass
+
+        # 2. Lookup from configurable JSON policy files
         if category_name in self.policies:
             return self.policies[category_name]
 
