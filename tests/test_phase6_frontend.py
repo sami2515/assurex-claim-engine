@@ -26,10 +26,31 @@ class TestPhase6Frontend(unittest.TestCase):
         self.assertEqual(res_login.status_code, 200)
         self.assertIn(b"AssureX Claim Engine", res_login.data)
         self.assertIn(b"Sign In to Portal", res_login.data)
+        self.assertIn(b"quickLogin", res_login.data)
 
         res_reg = self.client.get("/register")
         self.assertEqual(res_reg.status_code, 200)
         self.assertIn(b"Create Customer Account", res_reg.data)
+
+    def test_login_all_roles(self):
+        """Verify login works for all 4 seeded roles and handles invalid credentials gracefully."""
+        credentials = [
+            ("admin@assurex.local", "AdminPass123!", "/admin/dashboard"),
+            ("reviewer@assurex.local", "ReviewerPass123!", "/reviewer/dashboard"),
+            ("staff@assurex.local", "StaffPass123!", "/staff/dashboard"),
+            ("customer@assurex.local", "CustomerPass123!", "/customer/dashboard")
+        ]
+        for email, password, expected_dest in credentials:
+            client = self.app.test_client()
+            res = client.post("/login", data={"email": email, "password": password}, follow_redirects=True)
+            self.assertEqual(res.status_code, 200)
+            self.assertIn(b"Welcome back", res.data)
+
+        # Invalid password check
+        bad_client = self.app.test_client()
+        res_bad = bad_client.post("/login", data={"email": "admin@assurex.local", "password": "WrongPassword999!"}, follow_redirects=True)
+        self.assertEqual(res_bad.status_code, 200)
+        self.assertIn(b"Invalid password", res_bad.data)
 
     def test_user_profile_management(self):
         """Req 1.6.ii: Verify User Profile management renders unique User ID and updates details."""

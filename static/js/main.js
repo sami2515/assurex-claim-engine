@@ -188,6 +188,7 @@ document.addEventListener("DOMContentLoaded", function () {
             })
             .then(res => res.json())
             .then(data => {
+                    const e = data.extracted_entities || {};
                     ocrPanel.innerHTML = `
                         <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
                             <span class="fw-bold small text-slate-800"><i class="bi bi-cpu text-primary me-2"></i>Extracted Data Verification (Req 1.6.vii)</span>
@@ -232,28 +233,29 @@ document.addEventListener("DOMContentLoaded", function () {
                     if (e.purchase_amount && document.getElementById('claim_amount')) {
                         document.getElementById('claim_amount').value = parseFloat(e.purchase_amount).toFixed(2);
                     }
-                }
-            })
+                })
             .catch(err => {
                 console.error("Live OCR extraction preview failed:", err);
             });
         }
     }
+});
 
-    // 5. Quick Demo Credentials Auto-Fill & Instant 1-Click Login
-    window.fillCredentials = function (email, password) {
-        const emailInput = document.getElementById("email");
-        const passwordInput = document.getElementById("password");
-        if (emailInput && passwordInput) {
-            emailInput.value = email;
-            passwordInput.value = password;
-        }
-    };
+// Top-level global definitions for Demo Credentials & Instant 1-Click Login
+window.fillCredentials = function (email, password) {
+    var emailInput = document.getElementById("email");
+    var passwordInput = document.getElementById("password");
+    if (emailInput && passwordInput) {
+        emailInput.value = email;
+        passwordInput.value = password;
+    }
+};
 
-    window.quickLogin = function (email, password) {
-        const emailInput = document.getElementById("email");
-        const passwordInput = document.getElementById("password");
-        const form = document.getElementById("loginForm");
+window.quickLogin = function (email, password) {
+    try {
+        var emailInput = document.getElementById("email");
+        var passwordInput = document.getElementById("password");
+        var form = document.getElementById("loginForm");
         if (emailInput && passwordInput) {
             emailInput.value = email;
             passwordInput.value = password;
@@ -261,5 +263,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (form) {
             form.submit();
         }
-    };
-});
+    } catch(e) {
+        console.error("quickLogin error:", e);
+    }
+};

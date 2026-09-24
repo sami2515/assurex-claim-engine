@@ -51,7 +51,11 @@ def login():
         password = request.form.get("password", "")
 
         user = User.query.filter_by(email=email).first()
-        if user and user.check_password(password) and user.is_active:
+        if user and user.check_password(password) and (user.is_active is not False):
+            if not user.is_active:
+                user.is_active = True
+                db.session.commit()
+
             session["user_id"] = user.id
             session["user_code"] = user.user_id
             session["role"] = user.role
@@ -73,7 +77,12 @@ def login():
             flash(f"Welcome back, {user.full_name}!", "success")
             return redirect(url_for("auth.portal_redirect"))
         else:
-            flash("Invalid email or password. Please verify credentials.", "danger")
+            if not user:
+                flash(f"Account with email '{email}' does not exist. Please register first or use a demo account.", "danger")
+            elif not user.check_password(password):
+                flash("Invalid password entered. Please check your credentials.", "danger")
+            else:
+                flash("Account is disabled. Please contact the administrator.", "danger")
 
     return render_template("auth/login.html")
 

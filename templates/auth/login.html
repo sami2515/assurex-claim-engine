@@ -59,19 +59,19 @@
             </div>
             <p class="text-muted extra-small mb-3">Click any role below to instantly log in as that user:</p>
             <div class="d-grid gap-2">
-                <button type="button" class="btn btn-sm btn-outline-primary text-start d-flex justify-content-between align-items-center" onclick="quickLogin('admin@assurex.local', 'AdminPass123!')">
+                <button type="button" class="btn btn-sm btn-outline-primary text-start d-flex justify-content-between align-items-center quick-login-btn" data-email="admin@assurex.local" data-password="AdminPass123!" onclick="quickLogin('admin@assurex.local', 'AdminPass123!')">
                     <span><i class="bi bi-person-badge-fill me-1"></i> <b>System Administrator</b> (admin@assurex.local)</span>
                     <span class="badge bg-primary">1-Click Sign In</span>
                 </button>
-                <button type="button" class="btn btn-sm btn-outline-dark text-start d-flex justify-content-between align-items-center" onclick="quickLogin('reviewer@assurex.local', 'ReviewerPass123!')">
+                <button type="button" class="btn btn-sm btn-outline-dark text-start d-flex justify-content-between align-items-center quick-login-btn" data-email="reviewer@assurex.local" data-password="ReviewerPass123!" onclick="quickLogin('reviewer@assurex.local', 'ReviewerPass123!')">
                     <span><i class="bi bi-shield-check me-1"></i> <b>Staff Claim Reviewer</b> (reviewer@assurex.local)</span>
                     <span class="badge bg-dark">1-Click Sign In</span>
                 </button>
-                <button type="button" class="btn btn-sm btn-outline-secondary text-start d-flex justify-content-between align-items-center" onclick="quickLogin('staff@assurex.local', 'StaffPass123!')">
+                <button type="button" class="btn btn-sm btn-outline-secondary text-start d-flex justify-content-between align-items-center quick-login-btn" data-email="staff@assurex.local" data-password="StaffPass123!" onclick="quickLogin('staff@assurex.local', 'StaffPass123!')">
                     <span><i class="bi bi-tools me-1"></i> <b>Service Staff</b> (staff@assurex.local)</span>
                     <span class="badge bg-secondary">1-Click Sign In</span>
                 </button>
-                <button type="button" class="btn btn-sm btn-outline-success text-start d-flex justify-content-between align-items-center" onclick="quickLogin('customer@assurex.local', 'CustomerPass123!')">
+                <button type="button" class="btn btn-sm btn-outline-success text-start d-flex justify-content-between align-items-center quick-login-btn" data-email="customer@assurex.local" data-password="CustomerPass123!" onclick="quickLogin('customer@assurex.local', 'CustomerPass123!')">
                     <span><i class="bi bi-person-circle me-1"></i> <b>Verified Customer</b> (customer@assurex.local)</span>
                     <span class="badge bg-success">1-Click Sign In</span>
                 </button>
@@ -82,4 +82,46 @@
         </div>
     </div>
 </div>
+
+<script>
+// Immediate self-contained definition to guarantee availability even before external JS loads or if cached
+function quickLogin(email, password) {
+    try {
+        var emailInput = document.getElementById("email");
+        var passwordInput = document.getElementById("password");
+        var form = document.getElementById("loginForm");
+        if (emailInput) {
+            emailInput.value = email;
+            try { emailInput.dispatchEvent(new Event('input', { bubbles: true })); } catch(e){}
+            try { emailInput.dispatchEvent(new Event('change', { bubbles: true })); } catch(e){}
+        }
+        if (passwordInput) {
+            passwordInput.value = password;
+            try { passwordInput.dispatchEvent(new Event('input', { bubbles: true })); } catch(e){}
+            try { passwordInput.dispatchEvent(new Event('change', { bubbles: true })); } catch(e){}
+        }
+        if (form) {
+            form.submit();
+        }
+    } catch(err) {
+        console.error("quickLogin execution error:", err);
+    }
+}
+window.quickLogin = quickLogin;
+window.fillCredentials = quickLogin;
+
+// Delegated click handler as an additional fallback for button clicks
+document.addEventListener("DOMContentLoaded", function() {
+    var buttons = document.querySelectorAll(".quick-login-btn");
+    buttons.forEach(function(btn) {
+        btn.addEventListener("click", function(e) {
+            var em = this.getAttribute("data-email");
+            var pw = this.getAttribute("data-password");
+            if (em && pw) {
+                quickLogin(em, pw);
+            }
+        });
+    });
+});
+</script>
 {% endblock %}
