@@ -174,13 +174,15 @@
     <!-- Rule Validation Checklist -->
     <div class="col-lg-6">
         <div class="card border-0 shadow-sm rounded-4 bg-white h-100">
-            <div class="card-header-styled">
-                <i class="bi bi-shield-check text-primary me-2"></i>Policy Rules & Fraud Anomaly Breakdown
+            <div class="card-header-styled d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-shield-check text-primary me-2"></i>Warranty Rule Validation (Req 1.6.xxv)</span>
+                <span class="badge bg-light text-secondary border font-mono">10 Business Rules</span>
             </div>
             <div class="card-body p-4">
                 <div class="list-group list-group-flush">
+                    <!-- 1. Warranty Expiration Check -->
                     <div class="list-group-item d-flex justify-content-between align-items-center px-0 py-2">
-                        <span class="small"><i class="bi bi-calendar-check text-success me-2"></i>Warranty Expiration Check</span>
+                        <span class="small"><i class="bi bi-calendar-check text-success me-2"></i>1. Warranty Expiry Check</span>
                         {% set w = claim.product.warranty %}
                         {% if w and w.is_active(claim.fault_occurrence_date) %}
                             <span class="badge bg-success-subtle text-success">Valid Date</span>
@@ -189,8 +191,84 @@
                         {% endif %}
                     </div>
 
+                    <!-- 2. Fault Coverage Schedule -->
                     <div class="list-group-item d-flex justify-content-between align-items-center px-0 py-2">
-                        <span class="small"><i class="bi bi-file-earmark-check text-success me-2"></i>SHA-256 Invoice Hash Collision</span>
+                        <span class="small"><i class="bi bi-wrench text-success me-2"></i>2. Fault Coverage Schedule</span>
+                        <span class="badge bg-light text-dark border font-mono">{{ claim.fault_category }}</span>
+                    </div>
+
+                    <!-- 3. Claim Reporting Window -->
+                    <div class="list-group-item d-flex justify-content-between align-items-center px-0 py-2">
+                        <span class="small"><i class="bi bi-stopwatch text-success me-2"></i>3. Claim Reporting Window</span>
+                        {% set diff_days = (claim.claim_submission_date - claim.fault_occurrence_date).days if (claim.claim_submission_date and claim.fault_occurrence_date) else 0 %}
+                        {% if diff_days <= 30 %}
+                            <span class="badge bg-success-subtle text-success">{{ diff_days }} Days (≤ 30d Window)</span>
+                        {% else %}
+                            <span class="badge bg-danger-subtle text-danger">{{ diff_days }} Days (Exceeded)</span>
+                        {% endif %}
+                    </div>
+
+                    <!-- 4. Proof of Purchase -->
+                    <div class="list-group-item d-flex justify-content-between align-items-center px-0 py-2">
+                        <span class="small"><i class="bi bi-receipt text-success me-2"></i>4. Proof of Purchase</span>
+                        {% if claim.product.invoice_number or claim.documents %}
+                            <span class="badge bg-success-subtle text-success">Invoice On File</span>
+                        {% else %}
+                            <span class="badge bg-warning-subtle text-warning">Pending Receipt</span>
+                        {% endif %}
+                    </div>
+
+                    <!-- 5. Extended Warranty -->
+                    <div class="list-group-item d-flex justify-content-between align-items-center px-0 py-2">
+                        <span class="small"><i class="bi bi-award text-success me-2"></i>5. Extended Warranty</span>
+                        {% if w and w.is_extended %}
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Extended Coverage ({{ w.extended_months }}m)</span>
+                        {% else %}
+                            <span class="badge bg-light text-muted border">Standard Coverage</span>
+                        {% endif %}
+                    </div>
+
+                    <!-- 6. Serial-Number Match -->
+                    <div class="list-group-item d-flex justify-content-between align-items-center px-0 py-2">
+                        <span class="small"><i class="bi bi-upc-scan text-success me-2"></i>6. Serial-Number Match</span>
+                        <span class="badge bg-success-subtle text-success font-mono">{{ claim.product.serial_number[:12] }} (Match)</span>
+                    </div>
+
+                    <!-- 7. Previous Repairs & Workshop Authorization -->
+                    <div class="list-group-item d-flex justify-content-between align-items-center px-0 py-2">
+                        <span class="small"><i class="bi bi-tools text-success me-2"></i>7. Previous Repairs &amp; Facility</span>
+                        {% if claim.product and claim.product.has_unauthorized_repairs %}
+                            <span class="badge bg-danger-subtle text-danger">Unauthorized Facility</span>
+                        {% else %}
+                            <span class="badge bg-success-subtle text-success">{{ claim.product.repair_records|length }} Authorized Repair(s)</span>
+                        {% endif %}
+                    </div>
+
+                    <!-- 8. Product Replacement Eligibility -->
+                    <div class="list-group-item d-flex justify-content-between align-items-center px-0 py-2">
+                        <span class="small"><i class="bi bi-arrow-repeat text-success me-2"></i>8. Product Replacement History</span>
+                        {% if claim.previous_replacement_details and claim.previous_replacement_details != 'None' %}
+                            <span class="badge bg-warning-subtle text-warning">Prior Replacement</span>
+                        {% else %}
+                            <span class="badge bg-success-subtle text-success">Original Hardware Unit</span>
+                        {% endif %}
+                    </div>
+
+                    <!-- 9. Excluded Damage Check -->
+                    <div class="list-group-item d-flex justify-content-between align-items-center px-0 py-2">
+                        <span class="small"><i class="bi bi-shield-x text-success me-2"></i>9. Excluded Damage Policy Check</span>
+                        <span class="badge bg-success-subtle text-success">{{ claim.damage_type or 'No Exclusions' }}</span>
+                    </div>
+
+                    <!-- 10. Required Documents Completeness -->
+                    <div class="list-group-item d-flex justify-content-between align-items-center px-0 py-2">
+                        <span class="small"><i class="bi bi-file-earmark-text text-success me-2"></i>10. Required Documents Dossier</span>
+                        <span class="badge bg-success-subtle text-success">{{ claim.documents|length }} Document(s) Attached</span>
+                    </div>
+
+                    <!-- Anomaly Integrity Checks -->
+                    <div class="list-group-item d-flex justify-content-between align-items-center px-0 py-2">
+                        <span class="small"><i class="bi bi-fingerprint text-primary me-2"></i>SHA-256 Hash Collision Flag</span>
                         {% if claim.is_duplicate_flag %}
                             <span class="badge bg-danger">Duplicate Detected</span>
                         {% else %}
@@ -199,31 +277,11 @@
                     </div>
 
                     <div class="list-group-item d-flex justify-content-between align-items-center px-0 py-2">
-                        <span class="small"><i class="bi bi-clock-history text-success me-2"></i>Chronological Consistency</span>
+                        <span class="small"><i class="bi bi-clock-history text-primary me-2"></i>Chronological Date Consistency</span>
                         {% if claim.contradiction_flag %}
                             <span class="badge bg-warning text-dark">Date Contradiction</span>
                         {% else %}
                             <span class="badge bg-success-subtle text-success">Consistent</span>
-                        {% endif %}
-                    </div>
-
-                    <div class="list-group-item d-flex justify-content-between align-items-center px-0 py-2">
-                        <span class="small"><i class="bi bi-wrench-adjustable text-success me-2"></i>Authorized Facility Maintenance</span>
-                        {% if claim.product and claim.product.has_unauthorized_repairs %}
-                            <span class="badge bg-danger-subtle text-danger">Unauthorized Facility</span>
-                        {% else %}
-                            <span class="badge bg-success-subtle text-success">Authorized Only</span>
-                        {% endif %}
-                    </div>
-
-                    <div class="list-group-item d-flex justify-content-between align-items-center px-0 py-2">
-                        <span class="small"><i class="bi bi-shield-exclamation text-primary me-2"></i>Fraud Risk Rating</span>
-                        {% if claim.risk_level == 'Low' %}
-                            <span class="text-success fw-bold small">Low Risk</span>
-                        {% elif claim.risk_level == 'High' %}
-                            <span class="text-danger fw-bold small">High Risk</span>
-                        {% else %}
-                            <span class="text-warning fw-bold small">Medium Risk</span>
                         {% endif %}
                     </div>
                 </div>

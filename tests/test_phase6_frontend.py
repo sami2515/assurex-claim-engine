@@ -885,6 +885,134 @@ class TestPhase6Frontend(unittest.TestCase):
             self.assertEqual(res.mimetype, "image/png")
 
 
+    def test_req_xxiii_xxiv_confidence_comparison_and_consistency_status(self):
+        """Req 1.6.xxiii & xxiv: Verify top-confidence score comparison, absolute difference, and 5 consistency statuses with dynamic thresholds."""
+        from src.core.model_comparator import get_model_comparator
+        comparator = get_model_comparator()
+
+        # Req xxiii: Calculate absolute difference between two top confidence scores
+        py_top = 0.92
+        gtm_top = 0.85
+        py_res = {"predicted_class": "Valid Claim", "top_confidence": py_top, "confidence_scores": {"Valid Claim": py_top, "Invalid Claim": 0.05, "Manual Review": 0.03}}
+        gtm_res = {"predicted_class": "Valid Claim", "top_confidence": gtm_top, "confidence_scores": {"Valid Claim": gtm_top, "Invalid Claim": 0.08, "Manual Review": 0.07}}
+
+        res = comparator.evaluate_consensus(py_res, gtm_res)
+        expected_diff = round(abs(py_top - gtm_top), 4)
+        self.assertEqual(res["top_confidence_difference"], expected_diff)
+        self.assertTrue(res["is_class_match"])
+
+        # Req xxiv: All 5 model consistency statuses
+        # 1. Strong Match (|Δ| <= 0.15)
+        self.assertEqual(res["model_consistency_status"], "Strong Match")
+
+        # 2. Acceptable Match (0.15 < |Δ| <= 0.30)
+        gtm_acc = {"predicted_class": "Valid Claim", "top_confidence": 0.70, "confidence_scores": {}}
+        res_acc = comparator.evaluate_consensus(py_res, gtm_acc)
+        self.assertEqual(res_acc["model_consistency_status"], "Acceptable Match")
+
+        # 3. Weak Match (|Δ| > 0.30)
+        gtm_weak = {"predicted_class": "Valid Claim", "top_confidence": 0.61, "confidence_scores": {}}
+        res_weak = comparator.evaluate_consensus(py_res, gtm_weak)
+        self.assertEqual(res_weak["model_consistency_status"], "Weak Match")
+
+        # 4. Model Disagreement (different classes)
+        gtm_dis = {"predicted_class": "Invalid Claim", "top_confidence": 0.85, "confidence_scores": {}}
+        res_dis = comparator.evaluate_consensus(py_res, gtm_dis)
+        self.assertEqual(res_dis["model_consistency_status"], "Model Disagreement")
+        self.assertFalse(res_dis["is_class_match"])
+
+        # 5. Uncertain Result (top confidence < min_confidence)
+        gtm_unc = {"predicted_class": "Valid Claim", "top_confidence": 0.50, "confidence_scores": {}}
+        res_unc = comparator.evaluate_consensus(py_res, gtm_unc)
+        self.assertEqual(res_unc["model_consistency_status"], "Uncertain Result")
+
+        # Test Admin route to configure model thresholds dynamically
+        with self.client.session_transaction() as sess:
+            with self.app.app_context():
+                admin = User.query.filter_by(role=Config.ROLE_ADMIN).first()
+                sess["user_id"] = admin.id
+                sess["role"] = admin.role
+                sess["email"] = admin.email
+
+        res_post = self.client.post("/admin/settings/model-thresholds", data={
+            "min_confidence": "0.65",
+            "strong_diff": "0.10",
+            "acceptable_diff": "0.25"
+        }, follow_redirects=True)
+        self.assertEqual(res_post.status_code, 200)
+
+        with self.app.app_context():
+            self.assertEqual(SystemSetting.get_val("min_confidence_threshold"), "0.65")
+            self.assertEqual(SystemSetting.get_val("strong_match_diff"), "0.10")
+            self.assertEqual(SystemSetting.get_val("acceptable_match_diff"), "0.25")
+
+    def test_req_xxv_warranty_rule_validation_all_10_rules(self):
+        """Req 1.6.xxv: Verify independent validation of all 10 warranty business rules."""
+        from src.rules.policy_engine import get_policy_engine
+        engine = get_policy_engine()
+
+        # Clean claim payload with all required features
+        claim_payload = {
+            "claim_id": "CLM-RULE-TEST-XXV",
+            "product_category": "Consumer Electronics",
+            "fault_category": "Screen flickering",
+            "damage_type": "Hardware Defect",
+            "fault_occurrence_date": "2026-09-01",
+            "claim_submission_date": "2026-09-10",
+            "remaining_warranty_days": 180,
+            "product_age_days": 120,
+            "warranty_duration_months": 12,
+            "has_receipt": 1,
+            "is_extended_warranty": 1,
+            "serial_number_match": 1,
+            "previous_repairs_count": 0,
+            "unauthorized_repair_flag": 0,
+            "previous_replacement_details": None,
+            "missing_document_count": 0,
+            "claim_date_conflict_flag": 0
+        }
+
+        eval_res = engine.evaluate_claim_rules(claim_payload)
+
+        # 1. Warranty Expiry check passed
+        self.assertTrue(any("warranty active" in p.lower() for p in eval_res["passed_rules"]))
+
+        # 2. Fault Coverage verified
+        self.assertTrue(any("fault coverage verified" in p.lower() for p in eval_res["passed_rules"]))
+
+        # 3. Claim Reporting Window verified
+        self.assertTrue(any("permissible reporting window" in p.lower() for p in eval_res["passed_rules"]))
+
+        # 4. Proof of Purchase verified
+        self.assertTrue(any("proof of purchase verified" in p.lower() for p in eval_res["passed_rules"]))
+
+        # 5. Extended Warranty validated
+        self.assertTrue(any("extended warranty validated" in p.lower() for p in eval_res["passed_rules"]))
+
+        # 6. Serial-number match verified
+        self.assertTrue(any("serial number verification passed" in p.lower() for p in eval_res["passed_rules"]))
+
+        # 7. Previous Repairs verified
+        self.assertTrue(any("service center history verified" in p.lower() or "previous repairs" in p.lower() for p in eval_res["passed_rules"]))
+
+        # 8. Product Replacement verified
+        self.assertTrue(any("product replacement check" in p.lower() for p in eval_res["passed_rules"]))
+
+        # 9. Excluded Damage check passed
+        self.assertTrue(any("excluded damage check" in p.lower() for p in eval_res["passed_rules"]))
+
+        # 10. Required Documents dossier verified
+        self.assertTrue(any("mandatory documentation complete" in p.lower() for p in eval_res["passed_rules"]))
+
+        self.assertEqual(eval_res["overall_status"], "PASS")
+
+        # Now test Hard Fail: Excluded damage (e.g. liquid ingress)
+        claim_excluded = dict(claim_payload, damage_type="Liquid ingress damage")
+        eval_excl = engine.evaluate_claim_rules(claim_excluded)
+        self.assertEqual(eval_excl["overall_status"], "FAIL")
+        self.assertTrue(any("excluded damage detected" in f.lower() for f in eval_excl["failed_rules"]))
+
+
 if __name__ == "__main__":
     unittest.main()
 

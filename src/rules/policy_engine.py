@@ -78,7 +78,7 @@ class WarrantyPolicyEngine:
         review_triggers = []
 
         # -------------------------------------------------------------
-        # 1. Warranty Expiry & Grace Period Check
+        # 1. Warranty Expiry & Grace Period Check (Req 1.6.xxv.1)
         # -------------------------------------------------------------
         remaining_days = claim_data.get("remaining_warranty_days")
         if remaining_days is None:
@@ -94,9 +94,8 @@ class WarrantyPolicyEngine:
         grace_days = policy.get("grace_period_days", 7)
 
         if remaining_days > 0 or (remaining_days >= 0 and overdue_days == 0):
-            passed_rules.append(f"Warranty active: {remaining_days} days remaining within standard coverage.")
+            passed_rules.append(f"Warranty active: {remaining_days} days remaining within coverage.")
         else:
-            # Check if within grace period
             if overdue_days <= grace_days and overdue_days > 0:
                 warnings.append(
                     f"Claim submitted during grace period window: {overdue_days} days past standard term (allowance: {grace_days} days)."
@@ -109,7 +108,18 @@ class WarrantyPolicyEngine:
                 )
 
         # -------------------------------------------------------------
-        # 2. Claim Reporting Window
+        # 2. Fault Coverage Schedule Check (Req 1.6.xxv.2)
+        # -------------------------------------------------------------
+        fault_cat = claim_data.get("fault_category", "")
+        covered = policy.get("covered_faults", [])
+        is_covered = any(c.lower() in fault_cat.lower() for c in covered)
+        if is_covered or claim_data.get("damage_type") == "Hardware Defect":
+            passed_rules.append(f"Fault coverage verified: '{fault_cat}' is covered under standard protection schedule.")
+        else:
+            review_triggers.append(f"Uncommon fault category '{fault_cat}': Manual technician inspection required.")
+
+        # -------------------------------------------------------------
+        # 3. Claim Reporting Period Window (Req 1.6.xxv.3)
         # -------------------------------------------------------------
         max_reporting = policy.get("claim_reporting_period_days", 30)
         days_between = claim_data.get("days_between_fault_and_claim")
@@ -133,41 +143,29 @@ class WarrantyPolicyEngine:
             passed_rules.append("Claim reported within permissible reporting window.")
 
         # -------------------------------------------------------------
-        # 3. Exclusions & Damage Type (Hard-Fail Checks)
+        # 4. Proof of Purchase Verification (Req 1.6.xxv.4)
         # -------------------------------------------------------------
-        damage_type = claim_data.get("damage_type", "")
-        fault_cat = claim_data.get("fault_category", "")
-        exclusions = policy.get("exclusions", [])
+        has_receipt = claim_data.get("has_receipt", 1)
+        if claim_data.get("mandatory_documents_present") == 0:
+            has_receipt = 0
 
-        # Check for explicit exclusion matches
-        exclusion_matched = False
-        for excl in exclusions:
-            if excl.lower() in damage_type.lower() or excl.lower() in fault_cat.lower():
-                failed_rules.append(f"HARD FAIL: Excluded damage detected - '{excl}' is explicitly excluded by policy terms.")
-                exclusion_matched = True
-                break
-
-        if not exclusion_matched:
-            # Check covered faults
-            covered = policy.get("covered_faults", [])
-            is_covered = any(c.lower() in fault_cat.lower() for c in covered)
-            if is_covered or damage_type == "Hardware Defect":
-                passed_rules.append(f"Reported fault '{fault_cat}' is covered under standard protection schedule.")
-            else:
-                review_triggers.append(f"Uncommon fault category '{fault_cat}': Manual technician inspection required.")
+        if has_receipt == 0:
+            review_triggers.append("Primary proof of purchase receipt missing: Claimant identity verification required.")
+            warnings.append("Missing primary tax invoice.")
+        else:
+            passed_rules.append("Proof of purchase verified: Valid sales invoice / receipt on record.")
 
         # -------------------------------------------------------------
-        # 4. Authorized Service Center Adherence
+        # 5. Extended Warranty Validation (Req 1.6.xxv.5)
         # -------------------------------------------------------------
-        if policy.get("authorized_service_center_required", True):
-            if claim_data.get("unauthorized_repair_flag", 0) == 1:
-                review_triggers.append("Unauthorized Service Alert: Product has history of maintenance by uncertified third-party facility.")
-                warnings.append("Unauthorized service facility record found.")
-            else:
-                passed_rules.append("Service center history verified: No unauthorized workshop tampering detected.")
+        is_extended = bool(claim_data.get("is_extended_warranty") or claim_data.get("is_extended"))
+        if is_extended:
+            passed_rules.append("Extended warranty validated: Product protected under supplementary service agreement.")
+        else:
+            passed_rules.append("Standard warranty terms applied (no supplementary extension active).")
 
         # -------------------------------------------------------------
-        # 5. Serial Number Cross-Check
+        # 6. Serial Number Cross-Check (Req 1.6.xxv.6)
         # -------------------------------------------------------------
         if claim_data.get("serial_number_match", 1) == 0:
             review_triggers.append("Serial Mismatch Trigger: Hardware serial number does not match purchase invoice documentation.")
@@ -176,17 +174,49 @@ class WarrantyPolicyEngine:
             passed_rules.append("Serial number verification passed: Exact match between device backplate and tax invoice.")
 
         # -------------------------------------------------------------
-        # 6. Mandatory Document Completeness
+        # 7. Previous Repairs History & Workshop Authorization (Req 1.6.xxv.7)
         # -------------------------------------------------------------
-        missing_count = claim_data.get("missing_document_count", 0)
-        has_receipt = claim_data.get("has_receipt", 1)
+        prev_repairs = int(claim_data.get("previous_repairs_count", 0))
+        unauth_flag = int(claim_data.get("unauthorized_repair_flag", 0))
+        if policy.get("authorized_service_center_required", True) and unauth_flag == 1:
+            review_triggers.append("Unauthorized Service Alert: Product has history of maintenance by uncertified third-party facility.")
+            warnings.append("Unauthorized service facility record found.")
+        elif prev_repairs > 2:
+            warnings.append(f"Frequent repair history flagged: {prev_repairs} previous service interventions on file.")
+            passed_rules.append(f"Previous repairs logged: {prev_repairs} authorized maintenance records on file.")
+        else:
+            passed_rules.append(f"Service center history verified: {prev_repairs} previous repair(s), no unauthorized workshop tampering detected.")
+
+        # -------------------------------------------------------------
+        # 8. Product Replacement Eligibility & History (Req 1.6.xxv.8)
+        # -------------------------------------------------------------
+        prev_replacement = claim_data.get("previous_replacement_details")
+        if prev_replacement and str(prev_replacement).strip() and str(prev_replacement).lower() not in ["none", "null", "no", "false", ""]:
+            warnings.append(f"Prior product replacement recorded: '{prev_replacement}'. Unit serial history inspection required.")
+            review_triggers.append("Prior product replacement on file: Unit replacement eligibility verification required.")
+        else:
+            passed_rules.append("Product replacement check: Original hardware unit verified with no conflicting replacement history.")
+
+        # -------------------------------------------------------------
+        # 9. Excluded Damage & Policy Exclusions (Req 1.6.xxv.9)
+        # -------------------------------------------------------------
+        damage_type = claim_data.get("damage_type", "")
+        exclusions = policy.get("exclusions", [])
+        exclusion_matched = False
+        for excl in exclusions:
+            if excl.lower() in damage_type.lower() or excl.lower() in fault_cat.lower():
+                failed_rules.append(f"HARD FAIL: Excluded damage detected - '{excl}' is explicitly excluded by policy terms.")
+                exclusion_matched = True
+                break
+        if not exclusion_matched:
+            passed_rules.append(f"Excluded damage check: Reported damage '{damage_type}' contains no policy exclusions.")
+
+        # -------------------------------------------------------------
+        # 10. Required Documents Dossier Completeness (Req 1.6.xxv.10)
+        # -------------------------------------------------------------
+        missing_count = int(claim_data.get("missing_document_count", 0))
         if claim_data.get("mandatory_documents_present") == 0:
             missing_count = max(missing_count, 2)
-            has_receipt = 0
-
-        if has_receipt == 0:
-            review_triggers.append("Primary proof of purchase receipt missing: Claimant identity verification required.")
-            warnings.append("Missing primary tax invoice.")
 
         if missing_count > 0:
             warnings.append(f"{missing_count} mandatory claim document(s) missing from submission dossier.")
@@ -196,7 +226,7 @@ class WarrantyPolicyEngine:
             passed_rules.append("Mandatory documentation complete: Receipt, warranty card, and photos verified.")
 
         # -------------------------------------------------------------
-        # 7. Chronological Coherence Check
+        # 11. Chronological Coherence Check
         # -------------------------------------------------------------
         if claim_data.get("claim_date_conflict_flag", 0) == 1:
             review_triggers.append("Chronological Contradiction Trigger: Fault date conflict detected relative to purchase date.")

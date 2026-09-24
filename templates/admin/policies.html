@@ -65,6 +65,68 @@
             </div>
         </div>
     </div>
+<!-- Model Consistency Status Thresholds Configuration (Req 1.6.xxiv) -->
+<div class="card border-0 shadow-sm rounded-4 bg-white mb-4 border-start border-4 border-primary">
+    <div class="card-header-styled bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-primary-subtle text-primary p-2 rounded-circle fs-6">
+                <i class="bi bi-sliders2-vertical"></i>
+            </span>
+            <div>
+                <span class="fw-bold text-slate-900 fs-6">Dual-Model Consistency Thresholds (Req 1.6.xxiv)</span>
+                <span class="badge bg-light text-secondary border font-mono ms-2">Configurable Matrix</span>
+            </div>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2">
+                Strong: ≤ <strong>{{ "%.2f"|format(strong_diff_val) }}</strong>
+            </span>
+            <span class="badge bg-info-subtle text-info border border-info-subtle px-3 py-2">
+                Acceptable: ≤ <strong>{{ "%.2f"|format(acceptable_diff_val) }}</strong>
+            </span>
+            <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-3 py-2">
+                Min Conf: <strong>{{ "%.2f"|format(min_conf_val) }}</strong>
+            </span>
+        </div>
+    </div>
+    <div class="card-body p-4">
+        <p class="text-muted small mb-3">
+            The application dynamically evaluates dual-model consensus across 5 standardized statuses (<em>Strong Match</em>, <em>Acceptable Match</em>, <em>Weak Match</em>, <em>Model Disagreement</em>, and <em>Uncertain Result</em>) based on the confidence difference (|Δconf|) and minimum confidence criteria:
+        </p>
+        <form method="POST" action="{{ url_for('admin.configure_model_thresholds') }}">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold small text-slate-700">Minimum Confidence Threshold</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light font-mono">conf ≥</span>
+                        <input type="number" step="0.01" min="0.10" max="0.99" class="form-control" name="min_confidence" value="{{ min_conf_val }}" required>
+                    </div>
+                    <div class="extra-small text-muted mt-1">Below this triggers <em>Uncertain Result</em></div>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold small text-slate-700">Strong Match Difference</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light font-mono">|Δ| ≤</span>
+                        <input type="number" step="0.01" min="0.01" max="0.50" class="form-control" name="strong_diff" value="{{ strong_diff_val }}" required>
+                    </div>
+                    <div class="extra-small text-muted mt-1">Threshold for <em>Strong Match</em> rating</div>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold small text-slate-700">Acceptable Match Difference</label>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light font-mono">|Δ| ≤</span>
+                        <input type="number" step="0.01" min="0.02" max="0.90" class="form-control" name="acceptable_diff" value="{{ acceptable_diff_val }}" required>
+                    </div>
+                    <div class="extra-small text-muted mt-1">Beyond this triggers <em>Weak Match</em></div>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary fw-bold w-100 py-2 d-inline-flex align-items-center justify-content-center gap-1 shadow-xs">
+                        <i class="bi bi-check2-circle"></i> Save Model Thresholds
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
 </div>
 
 <div class="row g-4">

@@ -4,7 +4,7 @@ from pathlib import Path
 from flask import Blueprint, request, session, redirect, url_for, flash, jsonify, render_template, Response
 from config.config import Config
 from database.db import db
-from src.models.entities import Claim, Product, User, WarrantyPolicy, ModelEvaluation, AuditLog, ProductWarranty
+from src.models.entities import Claim, Product, User, WarrantyPolicy, ModelEvaluation, AuditLog, ProductWarranty, SystemSetting
 from src.api.auth import login_required, role_required, get_current_user
 from src.services.export_service import DataExportService
 from src.services.alert_service import (
@@ -128,12 +128,66 @@ def manage_policies():
     alert_threshold_days = get_alert_threshold_days()
     approaching_warranties = get_approaching_warranties(threshold_days=alert_threshold_days)
 
+    # Req 1.6.xxiv: Configurable model consistency thresholds
+    try:
+        min_conf_val = float(SystemSetting.get_val("min_confidence_threshold", str(Config.MIN_CONFIDENCE_THRESHOLD)))
+        strong_diff_val = float(SystemSetting.get_val("strong_match_diff", str(Config.STRONG_MATCH_DIFF)))
+        acceptable_diff_val = float(SystemSetting.get_val("acceptable_match_diff", str(Config.ACCEPTABLE_MATCH_DIFF)))
+    except Exception:
+        min_conf_val = Config.MIN_CONFIDENCE_THRESHOLD
+        strong_diff_val = Config.STRONG_MATCH_DIFF
+        acceptable_diff_val = Config.ACCEPTABLE_MATCH_DIFF
+
     return render_template(
         "admin/policies.html",
         policies=policies,
         alert_threshold_days=alert_threshold_days,
-        approaching_warranties_count=len(approaching_warranties)
+        approaching_warranties_count=len(approaching_warranties),
+        min_conf_val=min_conf_val,
+        strong_diff_val=strong_diff_val,
+        acceptable_diff_val=acceptable_diff_val
     )
+
+
+@admin_bp.route("/settings/model-thresholds", methods=["POST"])
+@login_required
+@role_required(Config.ROLE_ADMIN)
+def configure_model_thresholds():
+    """Req 1.6.xxiv: Configure confidence-difference and minimum-confidence thresholds for Model Consistency Status."""
+    user = get_current_user()
+    try:
+        min_conf = float(request.form.get("min_confidence", "0.60").strip())
+        strong_diff = float(request.form.get("strong_diff", "0.15").strip())
+        acceptable_diff = float(request.form.get("acceptable_diff", "0.30").strip())
+
+        if not (0.0 < min_conf <= 1.0):
+            flash("Minimum confidence threshold must be between 0.01 and 1.00.", "warning")
+            return redirect(url_for("admin.manage_policies"))
+        if not (0.0 < strong_diff < acceptable_diff <= 1.0):
+            flash("Strong match diff must be less than acceptable match diff (between 0.01 and 1.00).", "warning")
+            return redirect(url_for("admin.manage_policies"))
+
+        SystemSetting.set_val("min_confidence_threshold", f"{min_conf:.2f}", description="Req xxiv: Minimum confidence threshold")
+        SystemSetting.set_val("strong_match_diff", f"{strong_diff:.2f}", description="Req xxiv: Strong match confidence difference threshold")
+        SystemSetting.set_val("acceptable_match_diff", f"{acceptable_diff:.2f}", description="Req xxiv: Acceptable match confidence difference threshold")
+
+        AuditLog.log_event(
+            action="UPDATE_MODEL_THRESHOLDS",
+            user_id=user.id if user else None,
+            user_role=user.role if user else None,
+            entity_type="SystemSetting",
+            details={
+                "min_confidence_threshold": min_conf,
+                "strong_match_diff": strong_diff,
+                "acceptable_match_diff": acceptable_diff
+            }
+        )
+        db.session.commit()
+        flash(f"Model consistency thresholds updated: Min Conf={min_conf:.2f}, Strong Diff<={strong_diff:.2f}, Acceptable Diff<={acceptable_diff:.2f}.", "success")
+    except ValueError:
+        flash("Invalid numerical values entered for model thresholds.", "danger")
+
+    return redirect(url_for("admin.manage_policies"))
 
 
 @admin_bp.route("/settings/warranty-alerts", methods=["POST"])

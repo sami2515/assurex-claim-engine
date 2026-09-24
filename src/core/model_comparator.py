@@ -59,14 +59,33 @@ class DualModelComparator:
         # Class Match Evaluation
         is_class_match = bool(py_pred_class == gtm_pred_class)
 
-        # Confidence Difference: |Python Top Conf - GTM Top Conf|
+        # Dynamic threshold lookup (falls back to Config defaults)
+        min_conf = self.min_confidence
+        strong_diff = self.strong_diff
+        acceptable_diff = self.acceptable_diff
+
+        try:
+            from src.models.entities import SystemSetting
+            mc = SystemSetting.get_val("min_confidence_threshold")
+            sd = SystemSetting.get_val("strong_match_diff")
+            ad = SystemSetting.get_val("acceptable_match_diff")
+            if mc is not None and str(mc).strip():
+                min_conf = float(mc)
+            if sd is not None and str(sd).strip():
+                strong_diff = float(sd)
+            if ad is not None and str(ad).strip():
+                acceptable_diff = float(ad)
+        except Exception:
+            pass
+
+        # Confidence Difference: |Python Top Conf - GTM Top Conf| (Req 1.6.xxiii)
         confidence_diff = round(abs(py_top_conf - gtm_top_conf), 4)
 
-        # Evaluate Formal Consistency Status from Decision Matrix
-        if (py_top_conf < self.min_confidence) or (gtm_top_conf < self.min_confidence):
+        # Evaluate Formal Consistency Status from Decision Matrix (Req 1.6.xxiv)
+        if (py_top_conf < min_conf) or (gtm_top_conf < min_conf):
             consistency_status = Config.CONSISTENCY_UNCERTAIN
             explanation = (
-                f"Confidence is below minimum threshold ({self.min_confidence:.2f}). "
+                f"Confidence is below minimum threshold ({min_conf:.2f}). "
                 f"Python Top: {py_top_conf:.4f}, GTM Top: {gtm_top_conf:.4f}."
             )
             consensus_reached = False
@@ -77,25 +96,25 @@ class DualModelComparator:
                 f"while Google Teachable Machine predicted '{gtm_pred_class}'."
             )
             consensus_reached = False
-        elif confidence_diff <= self.strong_diff:
+        elif confidence_diff <= strong_diff:
             consistency_status = Config.CONSISTENCY_STRONG
             explanation = (
                 f"Both models unanimously predicted '{py_pred_class}' with low confidence "
-                f"differential ({confidence_diff:.4f} <= {self.strong_diff:.2f})."
+                f"differential ({confidence_diff:.4f} <= {strong_diff:.2f})."
             )
             consensus_reached = True
-        elif confidence_diff <= self.acceptable_diff:
+        elif confidence_diff <= acceptable_diff:
             consistency_status = Config.CONSISTENCY_ACCEPTABLE
             explanation = (
                 f"Both models predicted '{py_pred_class}' with acceptable confidence "
-                f"differential ({confidence_diff:.4f} <= {self.acceptable_diff:.2f})."
+                f"differential ({confidence_diff:.4f} <= {acceptable_diff:.2f})."
             )
             consensus_reached = True
         else:
             consistency_status = Config.CONSISTENCY_WEAK
             explanation = (
                 f"Both models predicted '{py_pred_class}' but with high confidence "
-                f"divergence ({confidence_diff:.4f} > {self.acceptable_diff:.2f})."
+                f"divergence ({confidence_diff:.4f} > {acceptable_diff:.2f})."
             )
             consensus_reached = True
 
@@ -108,9 +127,9 @@ class DualModelComparator:
             "python_model": py_result,
             "gtm_model": gtm_result,
             "thresholds_used": {
-                "min_confidence": self.min_confidence,
-                "strong_diff": self.strong_diff,
-                "acceptable_diff": self.acceptable_diff
+                "min_confidence": min_conf,
+                "strong_diff": strong_diff,
+                "acceptable_diff": acceptable_diff
             }
         }
 
