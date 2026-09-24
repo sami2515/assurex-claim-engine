@@ -51,7 +51,7 @@ def seed_database():
                 "password": "AdminPass123!",
                 "full_name": "System Administrator",
                 "role": Config.ROLE_ADMIN,
-                "phone": "+1-800-555-0100",
+                "phone": "+92 300 5550100",
                 "address": "AssureX HQ, Suite 100, Tech District"
             },
             {
@@ -59,7 +59,7 @@ def seed_database():
                 "password": "ReviewerPass123!",
                 "full_name": "Sarah Jenkins",
                 "role": Config.ROLE_REVIEWER,
-                "phone": "+1-800-555-0101",
+                "phone": "+92 321 5550101",
                 "address": "Claims Adjudication Dept, Floor 4"
             },
             {
@@ -67,7 +67,7 @@ def seed_database():
                 "password": "StaffPass123!",
                 "full_name": "Marcus Vance",
                 "role": Config.ROLE_STAFF,
-                "phone": "+1-800-555-0102",
+                "phone": "+92 333 5550102",
                 "address": "Metro Authorized Service Center #12"
             },
             {
@@ -75,7 +75,7 @@ def seed_database():
                 "password": "CustomerPass123!",
                 "full_name": "David Miller",
                 "role": Config.ROLE_CUSTOMER,
-                "phone": "+1-800-555-0103",
+                "phone": "+92 345 5550103",
                 "address": "742 Evergreen Terrace, Springfield"
             }
         ]

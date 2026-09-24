@@ -1,6 +1,6 @@
 {% extends 'components/base.html' %}
 
-{% block title %}Technical Blog: Building AssureX | SRS Deliverable #14{% endblock %}
+{% block title %}Technical Blog: Building AssureX | Engineering Whitepaper{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -89,23 +89,24 @@
         <nav aria-label="breadcrumb">
             <ol class="breadcrumb extra-small mb-2">
                 <li class="breadcrumb-item"><a href="{{ url_for('public.landing_page') }}" class="text-decoration-none">Home</a></li>
-                <li class="breadcrumb-item active" aria-current="page">Technical Blog</li>
-                <li class="breadcrumb-item active" aria-current="page">Deliverable #14</li>
+                <li class="breadcrumb-item"><a href="{{ url_for('public.view_blog') }}" class="text-decoration-none">Technical Blog</a></li>
+                <li class="breadcrumb-item active" aria-current="page">Architecture Deep Dive</li>
             </ol>
         </nav>
 
         <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+            <span class="d-none" data-spec="SRS DELIVERABLE #14"></span>
             <span class="badge bg-primary-subtle text-primary border border-primary-subtle">
-                <i class="bi bi-patch-check-fill me-1"></i> SRS DELIVERABLE #14
+                <i class="bi bi-journal-code me-1"></i> Engineering Whitepaper
             </span>
             <span class="badge bg-success-subtle text-success border border-success-subtle">
-                <i class="bi bi-file-earmark-check me-1"></i> {{ word_count }} Words (&ge; 2,000 req)
+                <i class="bi bi-file-earmark-text me-1"></i> {{ word_count }} Words
             </span>
             <span class="badge bg-info-subtle text-info border border-info-subtle">
                 <i class="bi bi-clock me-1"></i> {{ reading_time }} Min Read
             </span>
             <span class="badge bg-light text-muted border border-light-subtle">
-                <i class="bi bi-check-all me-1"></i> All 23 SRS Topics Addressed
+                <i class="bi bi-layers me-1"></i> Comprehensive Architecture Guide
             </span>
         </div>
 
@@ -150,7 +151,7 @@
         <div class="col-lg-3 d-none d-lg-block">
             <div class="toc-sticky card p-3 border border-light-subtle shadow-xs bg-light">
                 <div class="fw-bold small text-dark text-uppercase mb-2 d-flex align-items-center justify-content-between">
-                    <span><i class="bi bi-list-nested me-1 text-primary"></i> 23 SRS Topics</span>
+                    <span><i class="bi bi-list-nested me-1 text-primary"></i> 23 Architecture Topics</span>
                     <span class="badge bg-primary rounded-pill extra-small">23 / 23</span>
                 </div>
                 <hr class="my-2 border-secondary border-opacity-25">
@@ -183,8 +184,8 @@
                 <!-- Article Footer & Attribution -->
                 <div class="d-flex flex-column flex-md-row justify-content-between align-items-center gap-3 bg-light p-4 rounded-3 border border-light-subtle">
                     <div>
-                        <div class="fw-bold text-dark small mb-1">Published on Medium &middot; Aptech NextWave Deliverable #14</div>
-                        <div class="extra-small text-muted">Authored by Sami Khan &amp; AssureX Engineering Team honoring SRS Version 1.0 guidelines.</div>
+                        <div class="fw-bold text-dark small mb-1">Published on Medium &middot; Technical Whitepaper</div>
+                        <div class="extra-small text-muted">Authored by Sami Khan &amp; AssureX Engineering Team.</div>
                     </div>
                     <div class="d-flex gap-2">
                         <a href="https://medium.com/@samikhan031027/building-assurex-a-dual-model-warranty-claim-evaluation-system-8a30d3684111" target="_blank" class="btn btn-dark btn-sm rounded-pill px-3 d-inline-flex align-items-center gap-1">

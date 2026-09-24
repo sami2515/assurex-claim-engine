@@ -54,33 +54,18 @@ class DocumentProcessor:
             return ""
 
     def extract_text_from_image(self, image_path: Path) -> str:
-        """Extracts text from scanned invoice image using Tesseract with safe fallback."""
+        """Extracts text from scanned invoice image using Tesseract."""
         if PYTESSERACT_AVAILABLE:
             try:
                 with Image.open(image_path) as img:
-                    # Basic preprocessing: convert to grayscale
                     gray = img.convert("L")
                     text = pytesseract.image_to_string(gray)
                     if text and text.strip():
-                        return text
-            except Exception as e:
-                # Native Tesseract binary not present or error
+                        return text.strip()
+            except Exception:
                 pass
 
-        # Intelligent Fallback: If image cannot be read by OCR binary,
-        # extract embedded text or generate plausible structured payload
-        return (
-            "OFFICIAL TAX INVOICE & PROOF OF PURCHASE\n"
-            f"File: {image_path.name}\n"
-            "Retailer: Official Authorized Merchant Hub\n"
-            "Product Name: ApexBook Pro 16 Laptop\n"
-            "Model Number: ABP-16-M3\n"
-            "Serial Number: SN-APX-8829104\n"
-            "Purchase Date: 2026-05-15\n"
-            "Invoice Number: INV-2026-88192\n"
-            "Purchase Amount: $1,249.99\n"
-            "Warranty Duration: 12 Months Standard Manufacturer Coverage"
-        )
+        return ""
 
     def extract_document_text(self, file_path: Path) -> str:
         """Universal text extractor routing based on file extension."""
@@ -88,7 +73,7 @@ class DocumentProcessor:
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
-                if "INVOICE" in content.upper() or "RECEIPT" in content.upper() or "PURCHASE" in content.upper():
+                if any(k in content.upper() for k in ["INVOICE", "RECEIPT", "PURCHASE", "ORDER", "TAX", "TOTAL"]):
                     return content
         except Exception:
             pass
@@ -96,22 +81,8 @@ class DocumentProcessor:
         suffix = file_path.suffix.lower()
         if suffix == ".pdf":
             text = self.extract_text_from_pdf(file_path)
-            if not text.strip():
-                # In case PDF is a scanned image container
-                text = (
-                    "OFFICIAL TAX INVOICE & PROOF OF PURCHASE [PDF Container]\n"
-                    f"File: {file_path.name}\n"
-                    "Retailer: Official Authorized Merchant Hub\n"
-                    "Product Name: ApexBook Pro 16 Laptop\n"
-                    "Model Number: ABP-16-M3\n"
-                    "Serial Number: SN-APX-8829104\n"
-                    "Purchase Date: 2026-05-15\n"
-                    "Invoice Number: INV-2026-88192\n"
-                    "Purchase Amount: $1,249.99\n"
-                    "Warranty Duration: 12 Months Standard Coverage"
-                )
-            return text
-        elif suffix in [".png", ".jpg", ".jpeg"]:
+            return text.strip() if text else ""
+        elif suffix in [".png", ".jpg", ".jpeg", ".webp", ".bmp"]:
             return self.extract_text_from_image(file_path)
         return ""
 
@@ -151,7 +122,7 @@ class DocumentProcessor:
         elif inv_labeled and inv_labeled.group(1).upper() not in ["NO", "NUM", "NUMBER"]:
             entities["invoice_number"] = inv_labeled.group(1).strip()
         else:
-            entities["invoice_number"] = "INV-2026-00000"
+            entities["invoice_number"] = None
 
         # 2. Purchase Date pattern (YYYY-MM-DD or DD/MM/YYYY)
         date_iso = re.search(r"\b(202[0-9]-[0-1][0-9]-[0-3][0-9])\b", raw_text)
@@ -164,7 +135,7 @@ class DocumentProcessor:
         elif date_labeled:
             entities["purchase_date"] = date_labeled.group(1)
         else:
-            entities["purchase_date"] = "2026-05-01"
+            entities["purchase_date"] = None
 
         # 3. Serial Number pattern (SN-XXX-XXXXXXX or Serial: XXX)
         sn_match = re.search(r"\b(SN-[A-Z0-9-]+)\b", raw_text)
@@ -172,7 +143,7 @@ class DocumentProcessor:
             entities["serial_number"] = sn_match.group(1).strip()
         else:
             sn_alt = re.search(r"Serial(?:\s*(?:No|Number|#))?[:\s]+([A-Z0-9-]+)", raw_text, re.IGNORECASE)
-            entities["serial_number"] = sn_alt.group(1).strip() if sn_alt else "SN-UNKNOWN"
+            entities["serial_number"] = sn_alt.group(1).strip() if sn_alt else None
 
         # 4. Purchase Amount pattern ($XXX.XX or labeled Amount)
         amt_match = re.search(r"\$\s*([0-9,]+\.[0-9]{2})", raw_text)
@@ -183,15 +154,16 @@ class DocumentProcessor:
             try:
                 entities["purchase_amount"] = float(cleaned_amt)
             except ValueError:
-                entities["purchase_amount"] = 499.00
+                entities["purchase_amount"] = None
         else:
-            entities["purchase_amount"] = 499.00
+            entities["purchase_amount"] = None
 
         # 5. Retailer pattern
         retailers = [
             "TechMegaStore Downtown", "Electronics Hub Metro", "National Appliance Depot",
             "Industrial Supply Direct", "Prime Retail Express", "Official Brand Store",
-            "Best Buy", "Home Depot", "Amazon", "Target", "Walmart", "Official Authorized Merchant Hub"
+            "Best Buy", "Home Depot", "Amazon", "Target", "Walmart", "Official Authorized Merchant Hub",
+            "TechWiz Retail Store"
         ]
         for ret in retailers:
             if ret.lower() in raw_text.lower():
@@ -199,7 +171,7 @@ class DocumentProcessor:
                 break
         if not entities["retailer"]:
             ret_match = re.search(r"(?:Retailer|Merchant|Store|Seller)[:\s]+([^\n\r,]+)", raw_text, re.IGNORECASE)
-            entities["retailer"] = ret_match.group(1).strip() if ret_match else "Official Authorized Merchant Hub"
+            entities["retailer"] = ret_match.group(1).strip() if ret_match else None
 
         # 6. Product Name pattern (Req 1.6.vi)
         prod_labeled = re.search(r"(?:Product(?:\s*Name)?|Item(?:\s*Description)?|Equipment|Device)[:\s]+([^\n\r,;]+)", raw_text, re.IGNORECASE)
@@ -215,8 +187,6 @@ class DocumentProcessor:
                 if kp.lower() in raw_text.lower():
                     entities["product_name"] = kp
                     break
-        if not entities["product_name"]:
-            entities["product_name"] = "ApexBook Pro 16 Laptop"
 
         # 7. Model Number pattern (Req 1.6.vi)
         model_labeled = re.search(r"(?:Model(?:\s*(?:No\.?|Num(?:ber)?|#))?)[:\s]+([A-Z0-9-]+)", raw_text, re.IGNORECASE)
@@ -228,7 +198,7 @@ class DocumentProcessor:
             if code_match and not code_match.group(1).startswith("SN-") and not code_match.group(1).startswith("INV-"):
                 entities["model_number"] = code_match.group(1).strip()
             else:
-                entities["model_number"] = "ABP-16-M3"
+                entities["model_number"] = None
 
         # 8. Warranty Duration pattern (Req 1.6.vi)
         warr_month_match = re.search(r"(?:Warranty(?:\s*(?:Duration|Period|Coverage|Term))?)[:\s]+(\d+)\s*(?:Months?|m\b)", raw_text, re.IGNORECASE)

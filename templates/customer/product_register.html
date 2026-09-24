@@ -72,6 +72,15 @@
                             <!-- Populated dynamically via JS -->
                         </div>
                     </div>
+
+                    <!-- Scan Warning / Error Panel -->
+                    <div id="scan-error-panel" class="d-none mt-3 p-3 bg-warning-subtle rounded-3 border border-warning text-dark small d-flex align-items-center gap-3">
+                        <i class="bi bi-info-circle-fill fs-4 text-warning"></i>
+                        <div>
+                            <div class="fw-bold" id="scan-error-title">No Invoice Details Detected</div>
+                            <div class="extra-small text-muted" id="scan-error-msg">Could not extract readable invoice fields from this file. Please ensure the document is clear, or enter details manually below.</div>
+                        </div>
+                    </div>
                 </div>
 
                 <form method="POST" action="{{ url_for('products.register_product') }}" enctype="multipart/form-data" id="product-registration-form">
@@ -263,8 +272,10 @@ function triggerOcrScan() {
 
     const spinner = document.getElementById('scan-loading-spinner');
     const verificationPanel = document.getElementById('extracted-verification-panel');
+    const errorPanel = document.getElementById('scan-error-panel');
     spinner.classList.remove('d-none');
     verificationPanel.classList.add('d-none');
+    if (errorPanel) errorPanel.classList.add('d-none');
 
     fetch("{{ url_for('products.scan_receipt') }}", {
         method: "POST",
@@ -276,10 +287,11 @@ function triggerOcrScan() {
         if (data.success && data.entities) {
             const e = data.entities;
             verificationPanel.classList.remove('d-none');
+            if (errorPanel) errorPanel.classList.add('d-none');
             document.getElementById('extracted-file-name').innerText = data.filename;
             document.getElementById('extracted-sha256').innerText = 'SHA-256: ' + (data.sha256 ? data.sha256.substring(0, 12) + '...' : 'Verified');
 
-            // 1. Auto-fill form inputs (Req 1.6.vi)
+            // 1. Auto-fill form inputs
             if (e.product_name) document.getElementById('product_name').value = e.product_name;
             if (e.model_number) document.getElementById('model_number').value = e.model_number;
             if (e.serial_number && e.serial_number !== 'SN-UNKNOWN') document.getElementById('serial_number').value = e.serial_number;
@@ -320,7 +332,7 @@ function triggerOcrScan() {
                 }
             }
 
-            // Render Extracted Summary Grid for verification (Req 1.6.vii)
+            // Render Extracted Summary Grid for verification
             const summaryGrid = document.getElementById('extracted-summary-grid');
             summaryGrid.innerHTML = `
                 <div class="col-sm-6 col-md-3 p-2 bg-light rounded border">
@@ -353,12 +365,20 @@ function triggerOcrScan() {
                 </div>
             `;
         } else {
-            alert('Scan error: ' + (data.error || 'Could not parse document.'));
+            verificationPanel.classList.add('d-none');
+            if (errorPanel) {
+                errorPanel.classList.remove('d-none');
+                document.getElementById('scan-error-msg').innerText = data.error || 'No readable invoice text detected. Please enter details manually below.';
+            }
         }
     })
     .catch(err => {
         spinner.classList.add('d-none');
-        alert('Server communication error during OCR scan.');
+        verificationPanel.classList.add('d-none');
+        if (errorPanel) {
+            errorPanel.classList.remove('d-none');
+            document.getElementById('scan-error-msg').innerText = 'Error communicating with document processor. Please enter details manually below.';
+        }
         console.error(err);
     });
 }

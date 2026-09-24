@@ -2,7 +2,7 @@
 
 *Technical overview of machine learning, OCR, visual classification, and configurable warranty rules*
 
-> **SRS Deliverable #14 Compliance**: This technical blog addresses all 23 mandatory discussion topics specified in Aptech NextWave Software Requirements Specification (SRS Version 1.0, Page 35–36).
+> **Engineering Whitepaper**: An architectural deep dive exploring machine learning adjudication, dual-model consensus, OCR document intelligence, and automated warranty governance across enterprise workflows.
 
 ---
 

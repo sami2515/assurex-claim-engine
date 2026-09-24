@@ -91,7 +91,7 @@ def landing_page():
 
 @public_bp.route("/blog")
 def view_blog():
-    """Render the full 2,780+ word technical blog fulfilling SRS Deliverable 14."""
+    """Render the technical architecture whitepaper blog."""
     current_user = get_current_user()
     blog_path = Path(Config.BASE_DIR) / "documentation" / "TECHNICAL_BLOG.md"
     

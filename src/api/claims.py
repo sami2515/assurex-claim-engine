@@ -717,6 +717,24 @@ def ocr_extract_preview():
     doc_processor = get_document_processor()
     doc_info = doc_processor.process_document(temp_path)
 
+    raw_text = doc_info.get("raw_text", "").strip()
+    entities = doc_info.get("entities", {})
+    has_detected_fields = any([
+        entities.get("invoice_number"),
+        entities.get("serial_number"),
+        entities.get("product_name"),
+        entities.get("purchase_amount"),
+        entities.get("retailer")
+    ])
+
+    if not raw_text or not has_detected_fields:
+        return jsonify({
+            "success": False,
+            "filename": doc_info["filename"],
+            "sha256": doc_info["sha256_hash"],
+            "error": "No readable invoice or receipt details detected in the uploaded file."
+        }), 200
+
     return jsonify({
         "success": True,
         "filename": doc_info["filename"],
