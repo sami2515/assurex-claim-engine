@@ -95,6 +95,9 @@ def adjudicate(claim_id):
     elif action == "REQUEST_INFO":
         new_status = Config.STATUS_ADDITIONAL_INFO
         new_decision = "Additional Information Required"
+    elif action == "CLOSE":
+        new_status = Config.STATUS_CLOSED
+        new_decision = "Closed"
     else:
         flash("Invalid reviewer adjudication action.", "danger")
         return redirect(url_for("reviewer.inspect_claim", claim_id=claim_id))
@@ -104,7 +107,7 @@ def adjudicate(claim_id):
     claim.reviewer_notes = comments
     claim.assigned_reviewer_id = user.id
 
-    # Record ClaimStatusHistory
+    # Record ClaimStatusHistory (Req xxxviii: 8-stage lifecycle logging)
     status_log = ClaimStatusHistory(
         claim_id=claim.id,
         previous_status=old_status,
@@ -114,7 +117,7 @@ def adjudicate(claim_id):
     )
     db.session.add(status_log)
 
-    # Record ReviewerAction with override audit trail
+    # Record ReviewerAction with override audit trail (Req xxxvii)
     action_log = ReviewerAction(
         claim_id=claim.id,
         reviewer_id=user.id,
@@ -126,15 +129,65 @@ def adjudicate(claim_id):
     )
     db.session.add(action_log)
 
-    # Notify Claimant
-    notif = Notification(
+    # Notify Claimant across all SRS 1.6.xxxix event types:
+    # (status changes, requests for additional info, approval, rejection, review completion)
+    product_name = claim.product.product_name if claim.product else "Asset"
+    product_id_val = claim.product.product_id if claim.product else None
+
+    # 1. Primary Action Notification (Approval / Rejection / Additional Info / Closure)
+    if action == "APPROVE":
+        primary_notif = Notification(
+            user_id=claim.user_id,
+            notification_type=Config.NOTIF_TYPE_APPROVAL,
+            title=f"Claim Approved: {claim.claim_id}",
+            message=f"Official Approval: Your warranty claim {claim.claim_id} for '{product_name}' has been approved by authorized reviewer {user.full_name}. Adjudication notes: {comments}",
+            related_claim_id=claim.claim_id,
+            related_product_id=product_id_val
+        )
+        db.session.add(primary_notif)
+    elif action == "REJECT":
+        primary_notif = Notification(
+            user_id=claim.user_id,
+            notification_type=Config.NOTIF_TYPE_REJECTION,
+            title=f"Claim Rejected: {claim.claim_id}",
+            message=f"Adjudication Notice: Claim {claim.claim_id} for '{product_name}' has been rejected by authorized reviewer {user.full_name}. Rationale: {comments}",
+            related_claim_id=claim.claim_id,
+            related_product_id=product_id_val
+        )
+        db.session.add(primary_notif)
+    elif action == "REQUEST_INFO":
+        primary_notif = Notification(
+            user_id=claim.user_id,
+            notification_type=Config.NOTIF_TYPE_ADDITIONAL_INFO,
+            title=f"Action Required: Information Requested for Claim {claim.claim_id}",
+            message=f"Reviewer {user.full_name} has requested additional evidence for '{product_name}': {comments}. Please upload requested documents via the claim dossier.",
+            related_claim_id=claim.claim_id,
+            related_product_id=product_id_val
+        )
+        db.session.add(primary_notif)
+
+    # 2. General Lifecycle Status Change Notification (Req xxxix)
+    status_notif = Notification(
         user_id=claim.user_id,
         notification_type=Config.NOTIF_TYPE_STATUS_CHANGE,
-        title=f"Claim {claim.claim_id} Update: {new_decision}",
-        message=f"Reviewer {user.full_name} updated your claim status to '{new_status}'. Comment: {comments}",
-        related_claim_id=claim.claim_id
+        title=f"Claim {claim.claim_id} Status: {new_status}",
+        message=f"Claim status for '{product_name}' transitioned from '{old_status}' to '{new_status}'. Reviewer note: {comments}",
+        related_claim_id=claim.claim_id,
+        related_product_id=product_id_val
     )
-    db.session.add(notif)
+    db.session.add(status_notif)
+
+    # 3. Review Completion Notification (Req xxxix)
+    if action in ["APPROVE", "REJECT", "CLOSE"]:
+        review_comp_notif = Notification(
+            user_id=claim.user_id,
+            notification_type=Config.NOTIF_TYPE_REVIEW_COMPLETE,
+            title=f"Adjudication Review Completed: {claim.claim_id}",
+            message=f"The formal warranty review process for claim {claim.claim_id} has concluded with adjudication outcome: '{new_decision}'.",
+            related_claim_id=claim.claim_id,
+            related_product_id=product_id_val
+        )
+        db.session.add(review_comp_notif)
 
     # System Audit
     audit = AuditLog(

@@ -1836,6 +1836,205 @@ class TestPhase6Frontend(unittest.TestCase):
         self.assertIn(b"Override Applied", res_inspect.data)
         self.assertIn(b"Bench technician inspection verified", res_inspect.data)
 
+    def test_req_xxxviii_claim_status_tracking_eight_stages(self):
+        """
+        Req 1.6.xxxviii: Claim Status Tracking.
+        Users track claim progress through all 8 stages:
+        Draft, Submitted, Under Evaluation, Additional Information Required,
+        Manual Review, Approved, Rejected, and Closed.
+        """
+        with self.app.app_context():
+            reviewer = User.query.filter_by(role=Config.ROLE_REVIEWER).first()
+            rev_id = reviewer.id
+            rev_role = reviewer.role
+            rev_code = reviewer.user_id
+
+            claim = Claim.query.first()
+            claim_id_val = claim.claim_id
+
+        # 1. Access live tracker view
+        with self.client.session_transaction() as sess:
+            sess["user_id"] = rev_id
+            sess["role"] = rev_role
+            sess["user_code"] = rev_code
+
+        res_track = self.client.get(f"/claims/{claim_id_val}/track")
+        self.assertEqual(res_track.status_code, 200)
+        self.assertIn(b"Claim Progress Tracker", res_track.data)
+        self.assertIn(b"Lifecycle Progress Timeline", res_track.data)
+
+        # Verify all 8 lifecycle stages are defined in tracker template
+        for stage in Config.ALL_CLAIM_STATUSES:
+            self.assertIn(stage.encode(), res_track.data)
+
+        # 2. Test transition to Closed stage via Reviewer Workbench
+        res_close = self.client.post(
+            f"/reviewer/claim/{claim_id_val}/adjudicate",
+            data={
+                "action": "CLOSE",
+                "comments": "Claim settlement executed. Warranty replacement unit dispatched and case officially closed."
+            },
+            follow_redirects=True
+        )
+        self.assertEqual(res_close.status_code, 200)
+
+        with self.app.app_context():
+            closed_claim = Claim.query.filter_by(claim_id=claim_id_val).first()
+            self.assertEqual(closed_claim.status, Config.STATUS_CLOSED)
+
+            # Verify ClaimStatusHistory captured the Closed transition
+            latest_hist = ClaimStatusHistory.query.filter_by(claim_id=closed_claim.id).order_by(ClaimStatusHistory.id.desc()).first()
+            self.assertIsNotNone(latest_hist)
+            self.assertEqual(latest_hist.new_status, Config.STATUS_CLOSED)
+            self.assertIn("officially closed", latest_hist.reason_comment)
+
+    def test_req_xxxix_notifications_and_alerts_coverage(self):
+        """
+        Req 1.6.xxxix: Notification and Alerts.
+        Verifies notifications for:
+        warranty expiry, claim submission, missing documents, requests for additional info,
+        status changes, review completion, approval, and rejection.
+        Also tests mark-read and clear-all actions.
+        """
+        with self.app.app_context():
+            customer = User.query.filter_by(role=Config.ROLE_CUSTOMER).first()
+            cust_id = customer.id
+            cust_role = customer.role
+            cust_code = customer.user_id
+
+            # Seed sample notifications for all required categories
+            test_notifs = [
+                Notification(
+                    user_id=cust_id,
+                    notification_type=Config.NOTIF_TYPE_WARRANTY_EXPIRY,
+                    title="Warranty Expiry Alert: ApexBook",
+                    message="Warranty expires in 15 days."
+                ),
+                Notification(
+                    user_id=cust_id,
+                    notification_type=Config.NOTIF_TYPE_CLAIM_SUBMISSION,
+                    title="Claim Submission Confirmed: CLM-TEST-SUB",
+                    message="Your claim was successfully registered."
+                ),
+                Notification(
+                    user_id=cust_id,
+                    notification_type=Config.NOTIF_TYPE_MISSING_DOCUMENTS,
+                    title="Missing Documents: CLM-TEST-SUB",
+                    message="Please upload purchase receipt."
+                ),
+                Notification(
+                    user_id=cust_id,
+                    notification_type=Config.NOTIF_TYPE_ADDITIONAL_INFO,
+                    title="Action Required: Information Requested",
+                    message="Reviewer requested diagnostic report."
+                ),
+                Notification(
+                    user_id=cust_id,
+                    notification_type=Config.NOTIF_TYPE_STATUS_CHANGE,
+                    title="Claim Status Changed: Under Evaluation",
+                    message="Lifecycle updated to Under Evaluation."
+                ),
+                Notification(
+                    user_id=cust_id,
+                    notification_type=Config.NOTIF_TYPE_REVIEW_COMPLETE,
+                    title="Adjudication Review Complete",
+                    message="Review process concluded."
+                ),
+                Notification(
+                    user_id=cust_id,
+                    notification_type=Config.NOTIF_TYPE_APPROVAL,
+                    title="Claim Approved: CLM-TEST-SUB",
+                    message="Claim approved by reviewer."
+                ),
+                Notification(
+                    user_id=cust_id,
+                    notification_type=Config.NOTIF_TYPE_REJECTION,
+                    title="Claim Rejected: CLM-TEST-SUB",
+                    message="Claim rejected due to excluded damage."
+                ),
+            ]
+            db.session.add_all(test_notifs)
+            db.session.commit()
+            seeded_notif_id = test_notifs[0].id
+
+        with self.client.session_transaction() as sess:
+            sess["user_id"] = cust_id
+            sess["role"] = cust_role
+            sess["user_code"] = cust_code
+
+        # Verify dashboard renders notifications
+        res_dash = self.client.get("/claims/")
+        self.assertIn(b"Recent System Alerts", res_dash.data)
+        self.assertIn(b"Notifications", res_dash.data)
+        self.assertIn(b"Warranty Expiry Alert", res_dash.data)
+        self.assertIn(b"Claim Approved", res_dash.data)
+
+        # Test mark single notification as read
+        res_read = self.client.post(f"/claims/notifications/{seeded_notif_id}/read", follow_redirects=True)
+        self.assertEqual(res_read.status_code, 200)
+
+        with self.app.app_context():
+            n = db.session.get(Notification, seeded_notif_id)
+            self.assertTrue(n.is_read)
+
+        # Test mark all notifications as read
+        res_clear = self.client.post("/claims/notifications/mark-all-read", follow_redirects=True)
+        self.assertEqual(res_clear.status_code, 200)
+
+        with self.app.app_context():
+            unread_count = Notification.query.filter_by(user_id=cust_id, is_read=False).count()
+            self.assertEqual(unread_count, 0)
+
+    def test_req_xl_claim_dashboard_components(self):
+        """
+        Req 1.6.xl: Claim Dashboard.
+        Users should have access to a dashboard displaying:
+        1. Registered products
+        2. Active warranties
+        3. Expiring warranties
+        4. Saved receipts
+        5. Submitted claims
+        6. Pending actions
+        7. Recent claim decisions
+        """
+        with self.app.app_context():
+            customer = User.query.filter_by(role=Config.ROLE_CUSTOMER).first()
+            cust_id = customer.id
+            cust_role = customer.role
+            cust_code = customer.user_id
+
+        with self.client.session_transaction() as sess:
+            sess["user_id"] = cust_id
+            sess["role"] = cust_role
+            sess["user_code"] = cust_code
+
+        res = self.client.get("/claims/")
+        self.assertEqual(res.status_code, 200)
+
+        # 1. Registered products
+        self.assertIn(b"Registered Products", res.data)
+        self.assertIn(b"My Registered Products Fleet", res.data)
+
+        # 2. Active warranties
+        self.assertIn(b"Active Warranties", res.data)
+
+        # 3. Expiring warranties
+        self.assertIn(b"Expiring Soon", res.data)
+
+        # 4. Saved receipts
+        self.assertIn(b"Saved Receipts", res.data)
+        self.assertIn(b"Saved Purchase Receipts", res.data)
+
+        # 5. Submitted claims
+        self.assertIn(b"Submitted Claims", res.data)
+        self.assertIn(b"My Warranty Claims Registry", res.data)
+
+        # 6. Pending actions
+        self.assertIn(b"Pending Actions", res.data)
+
+        # 7. Recent claim decisions
+        self.assertIn(b"Final Decision", res.data)
+
 
 if __name__ == "__main__":
     unittest.main()

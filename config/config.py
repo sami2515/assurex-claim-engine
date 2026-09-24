@@ -116,6 +116,8 @@ class Config:
     NOTIF_TYPE_ADDITIONAL_INFO = "additional_info_required"
     NOTIF_TYPE_STATUS_CHANGE = "status_change"
     NOTIF_TYPE_REVIEW_COMPLETE = "review_complete"
+    NOTIF_TYPE_APPROVAL = "claim_approval"
+    NOTIF_TYPE_REJECTION = "claim_rejection"
     NOTIF_TYPE_ANOMALY_ALERT = "anomaly_alert"
 
 

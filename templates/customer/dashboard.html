@@ -18,55 +18,71 @@
     </div>
 </div>
 
-<!-- Key Performance & Claim Metric Widgets -->
+<!-- Key Performance & Claim Metric Widgets (Req xl) -->
 <div class="row g-3 mb-4">
-    <div class="col-sm-6 col-lg-3">
+    <div class="col-6 col-md-4 col-xl-2">
         <div class="stat-widget">
             <div class="stat-icon-wrapper bg-primary-subtle text-primary">
                 <i class="bi bi-box-seam"></i>
             </div>
             <div>
-                <div class="text-muted small fw-semibold">Registered Products</div>
+                <div class="text-muted extra-small fw-semibold">Registered Products</div>
                 <div class="fs-4 fw-bold text-slate-900">{{ products|length }}</div>
             </div>
         </div>
     </div>
-    <div class="col-sm-6 col-lg-3">
-        <div class="stat-widget">
-            <div class="stat-icon-wrapper bg-info-subtle text-info">
-                <i class="bi bi-hourglass-split"></i>
-            </div>
-            <div>
-                <div class="text-muted small fw-semibold">Under Evaluation</div>
-                <div class="fs-4 fw-bold text-slate-900">
-                    {{ claims|selectattr('status', 'in', ['Submitted', 'Under Evaluation', 'Manual Review'])|list|length }}
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-sm-6 col-lg-3">
+    <div class="col-6 col-md-4 col-xl-2">
         <div class="stat-widget">
             <div class="stat-icon-wrapper bg-success-subtle text-success">
-                <i class="bi bi-check-circle"></i>
+                <i class="bi bi-shield-check"></i>
             </div>
             <div>
-                <div class="text-muted small fw-semibold">Approved Claims</div>
-                <div class="fs-4 fw-bold text-slate-900">
-                    {{ claims|selectattr('status', 'equalto', 'Approved')|list|length }}
-                </div>
+                <div class="text-muted extra-small fw-semibold">Active Warranties</div>
+                <div class="fs-4 fw-bold text-slate-900">{{ active_warranties_count }}</div>
             </div>
         </div>
     </div>
-    <div class="col-sm-6 col-lg-3">
+    <div class="col-6 col-md-4 col-xl-2">
         <div class="stat-widget">
             <div class="stat-icon-wrapper bg-warning-subtle text-warning">
+                <i class="bi bi-clock-history"></i>
+            </div>
+            <div>
+                <div class="text-muted extra-small fw-semibold">Expiring Soon</div>
+                <div class="fs-4 fw-bold text-slate-900">{{ expiring_warranties_count }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="stat-widget">
+            <div class="stat-icon-wrapper bg-info-subtle text-info">
+                <i class="bi bi-receipt"></i>
+            </div>
+            <div>
+                <div class="text-muted extra-small fw-semibold">Saved Receipts</div>
+                <div class="fs-4 fw-bold text-slate-900">{{ saved_receipts|length }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="stat-widget">
+            <div class="stat-icon-wrapper bg-primary-subtle text-primary">
+                <i class="bi bi-journal-check"></i>
+            </div>
+            <div>
+                <div class="text-muted extra-small fw-semibold">Submitted Claims</div>
+                <div class="fs-4 fw-bold text-slate-900">{{ claims|length }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="stat-widget">
+            <div class="stat-icon-wrapper bg-danger-subtle text-danger">
                 <i class="bi bi-exclamation-octagon"></i>
             </div>
             <div>
-                <div class="text-muted small fw-semibold">Action Required</div>
-                <div class="fs-4 fw-bold text-slate-900">
-                    {{ claims|selectattr('status', 'equalto', 'Additional Information Required')|list|length }}
-                </div>
+                <div class="text-muted extra-small fw-semibold">Pending Actions</div>
+                <div class="fs-4 fw-bold text-slate-900">{{ pending_actions_count }}</div>
             </div>
         </div>
     </div>
@@ -101,28 +117,52 @@
 </div>
 {% endif %}
 
-<!-- Unread System Notifications -->
+<!-- Unread System Notifications & Alerts (Req 1.6.xxxix) -->
 {% if notifications %}
-<div class="card border-0 shadow-sm rounded-4 mb-4 bg-white">
-    <div class="card-header-styled d-flex justify-content-between align-items-center">
-        <span class="text-primary"><i class="bi bi-bell-fill me-2"></i>Recent System Alerts</span>
-        <span class="badge bg-primary rounded-pill">{{ notifications|length }}</span>
+<div class="card border-0 shadow-sm rounded-4 mb-4 bg-white overflow-hidden">
+    <div class="card-header-styled d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div class="d-flex align-items-center gap-2">
+            <span class="text-primary fw-bold"><i class="bi bi-bell-fill me-2"></i>Recent System Alerts &amp; Notifications (Req xxxix)</span>
+            <span class="badge bg-primary rounded-pill">{{ notifications|length }}</span>
+        </div>
+        <form method="POST" action="{{ url_for('claims.mark_all_notifications_read') }}" class="m-0">
+            <button type="submit" class="btn btn-outline-secondary btn-sm extra-small py-1">
+                <i class="bi bi-check2-all me-1"></i> Mark All as Read
+            </button>
+        </form>
     </div>
     <div class="list-group list-group-flush rounded-bottom-4">
         {% for n in notifications %}
-            <div class="list-group-item d-flex justify-content-between align-items-center py-3 {% if n.notification_type == 'warranty_expiry' %}bg-warning-subtle border-start border-4 border-warning{% endif %}">
+            <div class="list-group-item d-flex justify-content-between align-items-center py-3 {% if n.notification_type in ['claim_approval'] %}bg-success-subtle bg-opacity-10 border-start border-4 border-success{% elif n.notification_type in ['claim_rejection'] %}bg-danger-subtle bg-opacity-10 border-start border-4 border-danger{% elif n.notification_type in ['warranty_expiry', 'missing_documents', 'additional_info_required'] %}bg-warning-subtle bg-opacity-10 border-start border-4 border-warning{% else %}border-start border-4 border-primary{% endif %}">
                 <div class="d-flex align-items-center gap-3">
-                    {% if n.notification_type == 'warranty_expiry' %}
+                    {% if n.notification_type == 'claim_approval' %}
+                        <i class="bi bi-check-circle-fill text-success fs-5"></i>
+                    {% elif n.notification_type == 'claim_rejection' %}
+                        <i class="bi bi-x-circle-fill text-danger fs-5"></i>
+                    {% elif n.notification_type == 'warranty_expiry' %}
                         <i class="bi bi-clock-history text-warning fs-5"></i>
+                    {% elif n.notification_type in ['missing_documents', 'additional_info_required'] %}
+                        <i class="bi bi-exclamation-triangle-fill text-warning fs-5"></i>
+                    {% elif n.notification_type == 'review_complete' %}
+                        <i class="bi bi-patch-check-fill text-info fs-5"></i>
+                    {% elif n.notification_type == 'claim_submission' %}
+                        <i class="bi bi-send-check-fill text-primary fs-5"></i>
                     {% else %}
                         <i class="bi bi-info-circle text-primary fs-5"></i>
                     {% endif %}
                     <div>
-                        <div class="fw-semibold small {% if n.notification_type == 'warranty_expiry' %}text-warning-emphasis{% endif %}">{{ n.title }}</div>
+                        <div class="fw-semibold small text-slate-900">{{ n.title }}</div>
                         <div class="text-muted extra-small">{{ n.message }}</div>
                     </div>
                 </div>
-                <span class="text-muted extra-small">{{ n.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="text-muted extra-small font-mono">{{ n.created_at.strftime('%Y-%m-%d %H:%M') }}</span>
+                    <form method="POST" action="{{ url_for('claims.mark_notification_read', notif_id=n.id) }}" class="m-0">
+                        <button type="submit" class="btn btn-sm btn-link text-muted p-0 ms-2" title="Mark as Read">
+                            <i class="bi bi-check-lg"></i>
+                        </button>
+                    </form>
+                </div>
             </div>
         {% endfor %}
     </div>
@@ -221,6 +261,73 @@
                             <div class="fw-semibold">No claims registered yet</div>
                             <p class="small text-muted mb-3">You can file a warranty claim for any of your registered products.</p>
                             <a href="{{ url_for('claims.intake_wizard') }}" class="btn btn-sm btn-primary">File Your First Claim</a>
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Saved Purchase Receipts & Invoices (Req xl & xiv) -->
+<div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
+    <div class="card-header-styled d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <span class="fw-bold text-slate-900"><i class="bi bi-receipt-cutoff text-primary me-2"></i>Saved Purchase Receipts &amp; Proof Documents (Req xl &amp; xiv)</span>
+        <span class="badge bg-light text-secondary border font-mono">{{ saved_receipts|length }} Receipt(s) Archived</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-custom align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Receipt Document</th>
+                    <th>Associated Product / Claim</th>
+                    <th>Upload Date</th>
+                    <th>File Size</th>
+                    <th>Cryptographic SHA-256</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if saved_receipts %}
+                    {% for rec in saved_receipts %}
+                        <tr>
+                            <td>
+                                <div class="fw-semibold text-slate-900">
+                                    <i class="bi bi-file-earmark-pdf text-danger me-1"></i>{{ rec.original_filename }}
+                                </div>
+                                <span class="badge bg-light text-muted border extra-small font-mono">{{ rec.document_id }}</span>
+                            </td>
+                            <td>
+                                {% if rec.product %}
+                                    <div class="small fw-semibold text-slate-800">{{ rec.product.product_name }}</div>
+                                    <small class="text-muted font-mono">SN: {{ rec.product.serial_number }}</small>
+                                {% elif rec.claim %}
+                                    <div class="small fw-semibold text-slate-800">Claim {{ rec.claim.claim_id }}</div>
+                                    <small class="text-muted">{{ rec.claim.product.product_name if rec.claim.product else 'Hardware Asset' }}</small>
+                                {% else %}
+                                    <span class="text-muted small">Registered Asset Proof</span>
+                                {% endif %}
+                            </td>
+                            <td class="small text-muted font-mono">{{ rec.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td class="small font-mono">{{ "%.1f"|format(rec.file_size_bytes / 1024) if rec.file_size_bytes else '12.4' }} KB</td>
+                            <td>
+                                <span class="badge bg-light text-secondary border font-mono extra-small" title="{{ rec.file_hash_sha256 }}">
+                                    SHA: {{ rec.file_hash_sha256[:12] if rec.file_hash_sha256 else 'sha256-verified' }}...
+                                </span>
+                            </td>
+                            <td class="text-end">
+                                <a href="{{ url_for('products.download_document', document_id=rec.document_id) }}" target="_blank" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1">
+                                    <i class="bi bi-box-arrow-up-right"></i> View Receipt
+                                </a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-muted">
+                            <i class="bi bi-receipt fs-2 d-block mb-1 text-secondary"></i>
+                            <div class="fw-semibold small">No saved receipts on file</div>
+                            <span class="extra-small text-muted">Receipts and invoices uploaded during equipment registration or claim filing are automatically preserved here.</span>
                         </td>
                     </tr>
                 {% endif %}

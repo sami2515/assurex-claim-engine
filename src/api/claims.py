@@ -25,10 +25,10 @@ claim_bp = Blueprint("claims", __name__, url_prefix="/claims")
 @claim_bp.route("/", methods=["GET"])
 @login_required
 def customer_dashboard():
-    """Req xl & 1.6.ix: Customer dashboard with registered products, warranties, alerts, and claims."""
+    """Req xl & 1.6.ix: Customer dashboard displaying registered products, active warranties, expiring warranties, saved receipts, submitted claims, pending actions, and recent decisions."""
     user = get_current_user()
     
-    # Automatically scan & dispatch expiry alerts for the current customer (Req 1.6.ix)
+    # Automatically scan & dispatch expiry alerts for the current customer (Req 1.6.ix & xxxix)
     if session.get("role") == Config.ROLE_CUSTOMER:
         scan_and_generate_warranty_alerts(user_id=user.id)
 
@@ -39,15 +39,61 @@ def customer_dashboard():
         claims = Claim.query.filter_by(user_id=user.id).order_by(Claim.created_at.desc()).all()
         products = Product.query.filter_by(user_id=user.id).order_by(Product.created_at.desc()).all()
 
+    # Calculate exact metrics for Req xl dashboard
+    active_warranties_count = sum(1 for p in products if p.warranty and p.warranty.is_active())
+    expiring_warranties_count = sum(1 for p in products if p.warranty and p.warranty.is_approaching_expiry(30))
+    pending_actions_count = sum(1 for c in claims if c.status == Config.STATUS_ADDITIONAL_INFO or c.missing_document_flag)
+
+    # Fetch Saved Purchase Receipts & Invoices (Req xl & xiv)
+    prod_ids = [p.id for p in products]
+    claim_ids = [c.id for c in claims]
+    saved_receipts = []
+    if prod_ids or claim_ids:
+        from sqlalchemy import or_
+        saved_receipts = ClaimDocument.query.filter(
+            ClaimDocument.document_type.in_(["receipt", "invoice_document", "invoice"]),
+            or_(
+                ClaimDocument.product_id.in_(prod_ids) if prod_ids else False,
+                ClaimDocument.claim_id.in_(claim_ids) if claim_ids else False
+            )
+        ).order_by(ClaimDocument.created_at.desc()).all()
+
     notifications = Notification.query.filter_by(user_id=user.id, is_read=False).order_by(Notification.created_at.desc()).all()
 
     return render_template(
         "customer/dashboard.html",
         claims=claims,
         products=products,
+        saved_receipts=saved_receipts,
+        active_warranties_count=active_warranties_count,
+        expiring_warranties_count=expiring_warranties_count,
+        pending_actions_count=pending_actions_count,
         notifications=notifications,
         all_statuses=Config.ALL_CLAIM_STATUSES
     )
+
+
+@claim_bp.route("/notifications/<int:notif_id>/read", methods=["POST"])
+@login_required
+def mark_notification_read(notif_id):
+    """Mark a specific user alert or notification as read (Req xxxix)."""
+    user = get_current_user()
+    notif = Notification.query.filter_by(id=notif_id, user_id=user.id).first_or_404()
+    notif.is_read = True
+    db.session.commit()
+    flash("Notification marked as read.", "success")
+    return redirect(request.referrer or url_for("claims.customer_dashboard"))
+
+
+@claim_bp.route("/notifications/mark-all-read", methods=["POST"])
+@login_required
+def mark_all_notifications_read():
+    """Mark all unread notifications as read (Req xxxix)."""
+    user = get_current_user()
+    Notification.query.filter_by(user_id=user.id, is_read=False).update({"is_read": True})
+    db.session.commit()
+    flash("All notification alerts marked as read.", "success")
+    return redirect(url_for("claims.customer_dashboard"))
 
 
 @claim_bp.route("/my-claims", methods=["GET"])
@@ -130,6 +176,16 @@ def create_claim_wizard():
             reason_comment=sub_reason
         )
         db.session.add(status_log)
+
+        # Transition into Under Evaluation (Req xxxviii: 8-stage progress tracker)
+        eval_init_log = ClaimStatusHistory(
+            claim_id=claim.id,
+            previous_status=Config.STATUS_SUBMITTED,
+            new_status=Config.STATUS_UNDER_EVALUATION,
+            changed_by_user_id=None,
+            reason_comment="Automated dual-branch machine learning consensus and rule validation pipeline initiated."
+        )
+        db.session.add(eval_init_log)
 
         # 2. Process Uploaded Documents & Multi-Media Evidence (Req 1.6.v, xii)
         doc_processor = get_document_processor()
@@ -304,18 +360,34 @@ def create_claim_wizard():
         )
         db.session.add(rule_val_obj)
 
-        # 8. User Notification & Audit Log
-        notif = Notification(
+        # 8. User Notifications across all SRS 1.6.xxxix event types:
+        # A. Claim Submission Notification (Req xxxix)
+        sub_notif = Notification(
             user_id=claim.user_id,
-            notification_type=Config.NOTIF_TYPE_STATUS_CHANGE,
-            title=f"Claim {claim.claim_id} Evaluated",
-            message=f"Your claim for '{product.product_name}' is currently in '{claim.status}' status ({final_rec}).",
+            notification_type=Config.NOTIF_TYPE_CLAIM_SUBMISSION,
+            title=f"Claim Submission Confirmed: {claim.claim_id}",
+            message=(
+                f"Authorized service center staff ({user.full_name}) registered warranty claim {claim.claim_id} for your {product.product_name}."
+                if session.get("role") == Config.ROLE_STAFF
+                else f"Your warranty claim {claim.claim_id} for '{product.product_name}' was successfully registered into the adjudication queue."
+            ),
             related_claim_id=claim.claim_id,
             related_product_id=product.product_id
         )
-        db.session.add(notif)
+        db.session.add(sub_notif)
 
-        # Notify user regarding missing mandatory documents (Req 1.6.xxix)
+        # B. Status Change Notification (Req xxxix)
+        status_notif = Notification(
+            user_id=claim.user_id,
+            notification_type=Config.NOTIF_TYPE_STATUS_CHANGE,
+            title=f"Claim {claim.claim_id} Evaluated",
+            message=f"Your claim for '{product.product_name}' transitioned to '{claim.status}' status (Consensus: {final_rec}).",
+            related_claim_id=claim.claim_id,
+            related_product_id=product.product_id
+        )
+        db.session.add(status_notif)
+
+        # C. Missing Mandatory Documents Notification (Req 1.6.xxix & xxxix)
         if claim.missing_document_flag and missing_docs_check["has_missing"]:
             missing_names = missing_docs_check["missing_labels"]
             missing_notif = Notification(
@@ -331,16 +403,45 @@ def create_claim_wizard():
             )
             db.session.add(missing_notif)
 
-        if session.get("role") == Config.ROLE_STAFF:
-            staff_notif = Notification(
+        # D. Automated Review Outcome Notifications (Approval, Rejection, Review Completion)
+        if claim.status == Config.STATUS_APPROVED:
+            app_notif = Notification(
                 user_id=claim.user_id,
-                notification_type=Config.NOTIF_TYPE_CLAIM_SUBMISSION,
-                title=f"Service Center Claim Filed: {product.product_name}",
-                message=f"Authorized service center staff ({user.full_name}) registered warranty claim {claim.claim_id} for your {product.product_name}.",
+                notification_type=Config.NOTIF_TYPE_APPROVAL,
+                title=f"Claim Approved: {claim.claim_id}",
+                message=f"Automated evaluation approved claim {claim.claim_id} for '{product.product_name}' under active policy coverage.",
                 related_claim_id=claim.claim_id,
                 related_product_id=product.product_id
             )
-            db.session.add(staff_notif)
+            db.session.add(app_notif)
+            rev_done_notif = Notification(
+                user_id=claim.user_id,
+                notification_type=Config.NOTIF_TYPE_REVIEW_COMPLETE,
+                title=f"Review Completed: {claim.claim_id}",
+                message=f"Evaluation review completed with outcome: Approved.",
+                related_claim_id=claim.claim_id,
+                related_product_id=product.product_id
+            )
+            db.session.add(rev_done_notif)
+        elif claim.status == Config.STATUS_REJECTED:
+            rej_notif = Notification(
+                user_id=claim.user_id,
+                notification_type=Config.NOTIF_TYPE_REJECTION,
+                title=f"Claim Rejected: {claim.claim_id}",
+                message=f"Automated evaluation rejected claim {claim.claim_id} for '{product.product_name}'. Rationale: {claim.decision_reason}",
+                related_claim_id=claim.claim_id,
+                related_product_id=product.product_id
+            )
+            db.session.add(rej_notif)
+            rev_done_notif = Notification(
+                user_id=claim.user_id,
+                notification_type=Config.NOTIF_TYPE_REVIEW_COMPLETE,
+                title=f"Review Completed: {claim.claim_id}",
+                message=f"Evaluation review completed with outcome: Rejected.",
+                related_claim_id=claim.claim_id,
+                related_product_id=product.product_id
+            )
+            db.session.add(rev_done_notif)
 
         audit = AuditLog(
             user_id=user.id,
