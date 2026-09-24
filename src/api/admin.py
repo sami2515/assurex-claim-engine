@@ -4,9 +4,15 @@ from pathlib import Path
 from flask import Blueprint, request, session, redirect, url_for, flash, jsonify, render_template, Response
 from config.config import Config
 from database.db import db
-from src.models.entities import Claim, Product, User, WarrantyPolicy, ModelEvaluation, AuditLog
+from src.models.entities import Claim, Product, User, WarrantyPolicy, ModelEvaluation, AuditLog, ProductWarranty
 from src.api.auth import login_required, role_required, get_current_user
 from src.services.export_service import DataExportService
+from src.services.alert_service import (
+    get_alert_threshold_days,
+    set_alert_threshold_days,
+    scan_and_generate_warranty_alerts,
+    get_approaching_warranties
+)
 
 admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 
@@ -42,6 +48,10 @@ def dashboard():
     for p in Product.query.all():
         cat_counts[p.category] = cat_counts.get(p.category, 0) + 1
 
+    # Warranty Alert Metrics (Req 1.6.ix)
+    alert_threshold_days = get_alert_threshold_days()
+    approaching_warranties = get_approaching_warranties(threshold_days=alert_threshold_days)
+
     return render_template(
         "admin/dashboard.html",
         total_claims=total_claims,
@@ -55,7 +65,9 @@ def dashboard():
         disagreement_rate=round(disagreement_rate, 2),
         avg_conf_diff=round(avg_conf_diff, 4),
         recent_audits=recent_audits,
-        category_breakdown=cat_counts
+        category_breakdown=cat_counts,
+        alert_threshold_days=alert_threshold_days,
+        approaching_warranties_count=len(approaching_warranties)
     )
 
 
@@ -94,7 +106,48 @@ def manage_policies():
         return redirect(url_for("admin.manage_policies"))
 
     policies = WarrantyPolicy.query.all()
-    return render_template("admin/policies.html", policies=policies)
+    alert_threshold_days = get_alert_threshold_days()
+    approaching_warranties = get_approaching_warranties(threshold_days=alert_threshold_days)
+
+    return render_template(
+        "admin/policies.html",
+        policies=policies,
+        alert_threshold_days=alert_threshold_days,
+        approaching_warranties_count=len(approaching_warranties)
+    )
+
+
+@admin_bp.route("/settings/warranty-alerts", methods=["POST"])
+@login_required
+@role_required(Config.ROLE_ADMIN)
+def configure_warranty_alerts():
+    """Req 1.6.ix: Configure the number of days before expiry when an alert should be generated."""
+    user = get_current_user()
+    alert_days = request.form.get("alert_days", "30").strip()
+    try:
+        days = int(alert_days)
+        if days < 1 or days > 365:
+            flash("Alert window must be between 1 and 365 days.", "warning")
+            return redirect(url_for("admin.manage_policies"))
+    except ValueError:
+        flash("Invalid alert window entered.", "danger")
+        return redirect(url_for("admin.manage_policies"))
+
+    set_alert_threshold_days(days, actor_user=user)
+    generated = scan_and_generate_warranty_alerts()
+    flash(f"Warranty expiry alert window configured to {days} days! {len(generated)} new notification(s) generated.", "success")
+    return redirect(url_for("admin.manage_policies"))
+
+
+@admin_bp.route("/alerts/dispatch", methods=["POST"])
+@login_required
+@role_required(Config.ROLE_ADMIN)
+def dispatch_warranty_alerts():
+    """Req 1.6.ix: Manually trigger a fleet-wide scan and dispatch warranty expiry alerts."""
+    generated = scan_and_generate_warranty_alerts()
+    flash(f"Fleet-wide scan complete: {len(generated)} warranty expiry alert notification(s) dispatched to affected users.", "info")
+    return redirect(url_for("admin.manage_policies"))
+
 
 
 @admin_bp.route("/audit-logs", methods=["GET"])

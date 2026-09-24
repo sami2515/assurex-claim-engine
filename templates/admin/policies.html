@@ -15,6 +15,58 @@
     </div>
 </div>
 
+<!-- Warranty Expiry Alerts Configuration (Req 1.6.ix) -->
+<div class="card border-0 shadow-sm rounded-4 bg-white mb-4 border-start border-4 border-warning">
+    <div class="card-header-styled bg-white d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-warning-subtle text-warning-emphasis p-2 rounded-circle fs-6">
+                <i class="bi bi-bell-fill"></i>
+            </span>
+            <div>
+                <span class="fw-bold text-slate-900 fs-6">Warranty Expiry Alerts Configuration (Req 1.6.ix)</span>
+                <span class="badge bg-light text-secondary border font-mono ms-2">Admin Controlled</span>
+            </div>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-3 py-2">
+                <i class="bi bi-clock-history me-1"></i>Active Alert Window: <strong>{{ alert_threshold_days }} Days</strong>
+            </span>
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2">
+                <i class="bi bi-shield-exclamation me-1"></i><strong>{{ approaching_warranties_count }}</strong> Products Nearing Expiry
+            </span>
+        </div>
+    </div>
+    <div class="card-body p-4">
+        <p class="text-muted small mb-3">
+            The application automatically monitors warranty expiration dates and generates alerts for users when coverage is nearing its end. As an Administrator, configure how many days prior to expiry alerts should be generated across the equipment fleet:
+        </p>
+        <div class="row g-3 align-items-end">
+            <div class="col-md-7">
+                <form method="POST" action="{{ url_for('admin.configure_warranty_alerts') }}" class="d-flex flex-wrap align-items-end gap-2">
+                    <div class="flex-grow-1" style="min-width: 220px;">
+                        <label class="form-label fw-semibold small text-slate-700">Days Before Expiry (Alert Generation Threshold)</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light"><i class="bi bi-calendar-event"></i></span>
+                            <input type="number" class="form-control" name="alert_days" value="{{ alert_threshold_days }}" min="1" max="365" required>
+                            <span class="input-group-text bg-light">Days</span>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-warning text-dark fw-bold px-3 py-2 d-inline-flex align-items-center gap-1 shadow-xs">
+                        <i class="bi bi-check2-circle fs-6"></i> Update Alert Window
+                    </button>
+                </form>
+            </div>
+            <div class="col-md-5 d-flex justify-content-md-end align-items-center gap-2 pt-2 pt-md-0">
+                <form method="POST" action="{{ url_for('admin.dispatch_warranty_alerts') }}">
+                    <button type="submit" class="btn btn-outline-primary fw-semibold px-3 py-2 d-inline-flex align-items-center gap-1 shadow-xs" title="Scan and dispatch notifications immediately to all eligible customers">
+                        <i class="bi bi-broadcast"></i> Dispatch Fleet Alerts Now
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="row g-4">
     {% for policy in policies %}
         <div class="col-12">

@@ -14,6 +14,7 @@ from src.api.auth import login_required, get_current_user
 from src.ocr.document_processor import get_document_processor
 from src.core.decision_engine import get_decision_engine
 from src.core.card_generator import render_claim_summary_card
+from src.services.alert_service import scan_and_generate_warranty_alerts
 
 claim_bp = Blueprint("claims", __name__, url_prefix="/claims")
 
@@ -21,8 +22,13 @@ claim_bp = Blueprint("claims", __name__, url_prefix="/claims")
 @claim_bp.route("/", methods=["GET"])
 @login_required
 def customer_dashboard():
-    """Req xl: Customer dashboard with registered products, warranties, and claims."""
+    """Req xl & 1.6.ix: Customer dashboard with registered products, warranties, alerts, and claims."""
     user = get_current_user()
+    
+    # Automatically scan & dispatch expiry alerts for the current customer (Req 1.6.ix)
+    if session.get("role") == Config.ROLE_CUSTOMER:
+        scan_and_generate_warranty_alerts(user_id=user.id)
+
     if session.get("role") in [Config.ROLE_ADMIN, Config.ROLE_STAFF, Config.ROLE_REVIEWER]:
         claims = Claim.query.order_by(Claim.created_at.desc()).all()
         products = Product.query.order_by(Product.created_at.desc()).all()
@@ -53,8 +59,8 @@ def list_my_claims():
 @login_required
 def create_claim_wizard():
     """
-    5-Step Interactive Claim Intake Wizard:
-    Step 1: Product & Warranty selection
+    5-Step Interactive Claim Intake Wizard (Req 1.6.x):
+    Step 1: Product & Warranty selection (Users or Service-Center Staff)
     Step 2: Fault declaration & details
     Step 3: Document intake & OCR extraction
     Step 4: Claim preparation assistance & pre-submission check (Req xxxiii)
@@ -86,9 +92,14 @@ def create_claim_wizard():
         except Exception:
             fault_date = date.today()
 
+        # Determine Claim Owner User (Req 1.6.x):
+        # Customers file claims for their own assets.
+        # Service-center staff or admin filing on customer's behalf link claim directly to the product owner!
+        claim_user_id = product.user_id if session.get("role") in [Config.ROLE_STAFF, Config.ROLE_ADMIN] else user.id
+
         # 1. Create Initial Claim in 'Submitted' status
         claim = Claim(
-            user_id=user.id,
+            user_id=claim_user_id,
             product_id=product.id,
             warranty_id=product.warranty.id,
             fault_occurrence_date=fault_date,
@@ -102,12 +113,17 @@ def create_claim_wizard():
         db.session.flush()
 
         # Record Initial Status History
+        sub_reason = (
+            f"Claim dossier registered by authorized service center staff ({user.full_name}) on behalf of customer."
+            if session.get("role") == Config.ROLE_STAFF
+            else "Claim dossier submitted by claimant."
+        )
         status_log = ClaimStatusHistory(
             claim_id=claim.id,
             previous_status=Config.STATUS_DRAFT,
             new_status=Config.STATUS_SUBMITTED,
             changed_by_user_id=user.id,
-            reason_comment="Claim dossier submitted by claimant."
+            reason_comment=sub_reason
         )
         db.session.add(status_log)
 
@@ -286,13 +302,25 @@ def create_claim_wizard():
 
         # 8. User Notification & Audit Log
         notif = Notification(
-            user_id=user.id,
+            user_id=claim.user_id,
             notification_type=Config.NOTIF_TYPE_STATUS_CHANGE,
             title=f"Claim {claim.claim_id} Evaluated",
-            message=f"Your claim is currently in '{claim.status}' status ({final_rec}).",
-            related_claim_id=claim.claim_id
+            message=f"Your claim for '{product.product_name}' is currently in '{claim.status}' status ({final_rec}).",
+            related_claim_id=claim.claim_id,
+            related_product_id=product.product_id
         )
         db.session.add(notif)
+
+        if session.get("role") == Config.ROLE_STAFF:
+            staff_notif = Notification(
+                user_id=claim.user_id,
+                notification_type=Config.NOTIF_TYPE_CLAIM_SUBMISSION,
+                title=f"Service Center Claim Filed: {product.product_name}",
+                message=f"Authorized service center staff ({user.full_name}) registered warranty claim {claim.claim_id} for your {product.product_name}.",
+                related_claim_id=claim.claim_id,
+                related_product_id=product.product_id
+            )
+            db.session.add(staff_notif)
 
         audit = AuditLog(
             user_id=user.id,

@@ -51,6 +51,16 @@
                 </div>
                 <p class="text-muted mb-4 small">Select the hardware unit experiencing malfunction from your active registered assets.</p>
 
+                {% if current_user.role == app_config.ROLE_STAFF %}
+                <div class="alert alert-success d-flex align-items-center gap-3 py-2 mb-4 border border-success-subtle bg-success-subtle text-success-emphasis rounded-3 extra-small">
+                    <i class="bi bi-tools fs-5"></i>
+                    <div>
+                        <strong>Authorized Service Center Claim Registration Mode (Req 1.6.x):</strong>
+                        You are initiating a warranty claim on behalf of a customer. The intake dossier will be assigned a unique Claim ID and permanently linked to the customer, product equipment, warranty, and supporting documents.
+                    </div>
+                </div>
+                {% endif %}
+
                 <div class="mb-4">
                     <label for="product_id" class="form-label fw-semibold small text-slate-700">Select Equipment <span class="text-danger">*</span></label>
                     <select class="form-select form-select-lg bg-light" id="product_id" name="product_id" required onchange="handleProductSelected(this)">
@@ -73,7 +83,11 @@
                                 data-extended-months="{{ w.extended_months if w else 0 }}"
                                 data-provider="{{ w.warranty_provider if w else 'N/A' }}"
                                 data-center="{{ w.service_center_name if w else 'N/A' }}">
-                                {{ p.product_name }} (Serial: {{ p.serial_number }}) - [{{ p.category }}] - {{ w.status if w else 'No Policy' }}
+                                {% if current_user.role in [app_config.ROLE_STAFF, app_config.ROLE_ADMIN] %}
+                                    {{ p.product_name }} (Serial: {{ p.serial_number }}) &mdash; Customer: {{ p.owner.full_name }} [{{ p.owner.user_id }}] &mdash; [{{ p.category }}] &mdash; {{ w.status if w else 'No Policy' }}
+                                {% else %}
+                                    {{ p.product_name }} (Serial: {{ p.serial_number }}) - [{{ p.category }}] - {{ w.status if w else 'No Policy' }}
+                                {% endif %}
                             </option>
                         {% endfor %}
                     </select>

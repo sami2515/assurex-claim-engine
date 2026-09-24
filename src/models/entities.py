@@ -170,8 +170,13 @@ class ProductWarranty(db.Model):
         delta = (self.expiry_date - target).days
         return max(0, delta)
 
-    def is_approaching_expiry(self, threshold_days=30, on_date=None) -> bool:
-        """Req iv: Identifies warranties approaching expiration within the threshold window."""
+    def is_approaching_expiry(self, threshold_days=None, on_date=None) -> bool:
+        """Req iv & ix: Identifies warranties approaching expiration within the threshold window."""
+        if threshold_days is None:
+            try:
+                threshold_days = SystemSetting.get_int("warranty_expiry_alert_days", 30)
+            except Exception:
+                threshold_days = 30
         rem = self.remaining_days(on_date=on_date)
         return 0 < rem <= threshold_days
 
@@ -535,3 +540,43 @@ class AuditLog(db.Model):
             "role": self.user_role,
             "timestamp": self.timestamp.strftime("%Y-%m-%d %H:%M:%S")
         }
+
+
+class SystemSetting(db.Model):
+    """System-wide configuration settings managed by administrators (Req 1.6.ix)."""
+    __tablename__ = "system_settings"
+
+    id = db.Column(db.Integer, primary_key=True)
+    setting_key = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    setting_value = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.String(255), nullable=True)
+    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+    @classmethod
+    def get_val(cls, key: str, default: str = None) -> str:
+        try:
+            s = cls.query.filter_by(setting_key=key).first()
+            return s.setting_value if s else default
+        except Exception:
+            return default
+
+    @classmethod
+    def get_int(cls, key: str, default: int = 30) -> int:
+        val = cls.get_val(key, str(default))
+        try:
+            return int(val)
+        except (ValueError, TypeError):
+            return default
+
+    @classmethod
+    def set_val(cls, key: str, value: str, description: str = None):
+        s = cls.query.filter_by(setting_key=key).first()
+        if not s:
+            s = cls(setting_key=key, setting_value=str(value), description=description)
+            db.session.add(s)
+        else:
+            s.setting_value = str(value)
+            if description:
+                s.description = description
+        db.session.commit()
+        return s

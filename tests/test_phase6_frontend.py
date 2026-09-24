@@ -3,7 +3,10 @@ import io
 import unittest
 from src.app import create_app
 from database.db import db
-from src.models.entities import User, Product, WarrantyPolicy, ProductWarranty, Claim, ModelEvaluation, ClaimDocument
+from src.models.entities import (
+    User, Product, WarrantyPolicy, ProductWarranty, Claim, ModelEvaluation,
+    ClaimDocument, ClaimStatusHistory, Notification, AuditLog, SystemSetting
+)
 from config.config import Config
 
 
@@ -465,7 +468,110 @@ class TestPhase6Frontend(unittest.TestCase):
                     db.session.delete(test_claim)
                     db.session.commit()
 
+    def test_req_1_6_ix_warranty_expiry_alerts_and_admin_config(self):
+        """Req 1.6.ix: Verify admin can configure alert threshold and users receive warranty expiry alerts."""
+        with self.app.app_context():
+            from src.services.alert_service import get_alert_threshold_days, set_alert_threshold_days, scan_and_generate_warranty_alerts
+            from src.models.entities import Notification, SystemSetting, AuditLog
+            admin = User.query.filter_by(role=Config.ROLE_ADMIN).first()
+            customer = User.query.filter_by(role=Config.ROLE_CUSTOMER).first()
+            admin_id = admin.id
+            cust_id = customer.id
+
+        # 1. Admin configures alert threshold via POST
+        with self.client.session_transaction() as sess:
+            sess["user_id"] = admin_id
+            sess["role"] = Config.ROLE_ADMIN
+            sess["email"] = "admin@assurex.local"
+            sess["user_name"] = "Administrator"
+
+        res = self.client.post("/admin/settings/warranty-alerts", data={"alert_days": "45"}, follow_redirects=True)
+        self.assertEqual(res.status_code, 200)
+        self.assertIn(b"Warranty expiry alert window configured to 45 days", res.data)
+
+        with self.app.app_context():
+            self.assertEqual(SystemSetting.get_int("warranty_expiry_alert_days"), 45)
+            log = AuditLog.query.filter_by(action="WARRANTY_ALERT_THRESHOLD_UPDATED").first()
+            self.assertIsNotNone(log)
+
+        # 2. Customer visits dashboard and receives alert if product warranty approaches expiry
+        with self.client.session_transaction() as sess:
+            sess["user_id"] = cust_id
+            sess["role"] = Config.ROLE_CUSTOMER
+            sess["email"] = "customer@assurex.local"
+            sess["user_name"] = "Customer User"
+
+        res_cust = self.client.get("/claims/", follow_redirects=True)
+        self.assertEqual(res_cust.status_code, 200)
+        # Verify notifications section is rendered
+        self.assertIn(b"Recent System Alerts", res_cust.data)
+
+        # Reset threshold back to 30 days
+        with self.app.app_context():
+            set_alert_threshold_days(30)
+
+    def test_req_1_6_x_claim_registration_by_staff_and_user(self):
+        """Req 1.6.x: Verify service-center staff can register claim assigned unique ID linked to user, product, warranty."""
+        with self.app.app_context():
+            staff = User.query.filter_by(role=Config.ROLE_STAFF).first()
+            customer = User.query.filter_by(role=Config.ROLE_CUSTOMER).first()
+            self.assertIsNotNone(staff)
+            self.assertIsNotNone(customer)
+            product = Product.query.filter_by(user_id=customer.id).first()
+            self.assertIsNotNone(product)
+            staff_id = staff.id
+            prod_id = product.id
+            cust_id = customer.id
+            warr_id = product.warranty.id
+
+        with self.client.session_transaction() as sess:
+            sess["user_id"] = staff_id
+            sess["role"] = Config.ROLE_STAFF
+            sess["email"] = "staff@assurex.local"
+            sess["user_name"] = "Service Center Staff"
+
+        # Check intake wizard GET shows service center mode
+        get_res = self.client.get("/claims/new")
+        self.assertEqual(get_res.status_code, 200)
+        self.assertIn(b"Authorized Service Center Claim Registration Mode", get_res.data)
+
+        post_data = {
+            "product_id": str(prod_id),
+            "fault_occurrence_date": "2026-09-21",
+            "fault_category": "Mainboard Failure",
+            "damage_type": "Electrical Surge",
+            "fault_description": "Device failed diagnostic bench test during service inspection.",
+            "claim_amount": "250.00"
+        }
+
+        try:
+            res = self.client.post("/claims/new", data=post_data, follow_redirects=True)
+            self.assertEqual(res.status_code, 200)
+
+            with self.app.app_context():
+                created_claim = Claim.query.filter_by(fault_description=post_data["fault_description"]).first()
+                self.assertIsNotNone(created_claim)
+                # Verify unique Claim ID format
+                self.assertTrue(created_claim.claim_id.startswith("CLM-"))
+                # Verify linked to customer user
+                self.assertEqual(created_claim.user_id, cust_id)
+                # Verify linked to product
+                self.assertEqual(created_claim.product_id, prod_id)
+                # Verify linked to warranty
+                self.assertEqual(created_claim.warranty_id, warr_id)
+                # Verify staff status history log
+                history = ClaimStatusHistory.query.filter_by(claim_id=created_claim.id).first()
+                self.assertIsNotNone(history)
+                self.assertEqual(history.changed_by_user_id, staff_id)
+        finally:
+            with self.app.app_context():
+                test_claim = Claim.query.filter_by(fault_description=post_data["fault_description"]).first()
+                if test_claim:
+                    db.session.delete(test_claim)
+                    db.session.commit()
+
 
 if __name__ == "__main__":
     unittest.main()
+
 

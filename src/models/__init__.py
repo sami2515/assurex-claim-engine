@@ -12,6 +12,7 @@ from src.models.entities import (
     RuleValidationLog,
     ReviewerAction,
     AuditLog,
+    SystemSetting,
     generate_uuid
 )
 
@@ -29,5 +30,6 @@ __all__ = [
     "RuleValidationLog",
     "ReviewerAction",
     "AuditLog",
+    "SystemSetting",
     "generate_uuid"
 ]

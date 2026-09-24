@@ -117,6 +117,33 @@
     </div>
 </div>
 
+<!-- Warranty Expiry Alerts Telemetry (Req 1.6.ix) -->
+<div class="card border-0 shadow-sm rounded-4 bg-white mb-4 border-start border-4 border-warning">
+    <div class="card-body p-3 d-flex flex-wrap align-items-center justify-content-between gap-3">
+        <div class="d-flex align-items-center gap-3">
+            <div class="bg-warning-subtle text-warning-emphasis p-2 rounded-circle fs-5 d-flex align-items-center justify-content-center" style="width: 44px; height: 44px;">
+                <i class="bi bi-bell-fill"></i>
+            </div>
+            <div>
+                <div class="fw-bold text-slate-900 small">Warranty Expiry Alerts Telemetry (Req 1.6.ix)</div>
+                <div class="text-muted extra-small">
+                    Active Alert Window: <strong class="text-dark">{{ alert_threshold_days }} Days</strong> &bull; Fleet Warranties Nearing Expiry: <strong class="text-warning-emphasis">{{ approaching_warranties_count }} Units</strong>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <a href="{{ url_for('admin.manage_policies') }}" class="btn btn-sm btn-outline-warning text-dark fw-semibold">
+                <i class="bi bi-sliders me-1"></i> Configure Alert Threshold
+            </a>
+            <form method="POST" action="{{ url_for('admin.dispatch_warranty_alerts') }}" class="d-inline">
+                <button type="submit" class="btn btn-sm btn-primary fw-semibold">
+                    <i class="bi bi-broadcast me-1"></i> Dispatch Fleet Alerts
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
 <!-- Interactive Chart.js Visualizations -->
 <div class="row g-4 mb-4">
     <!-- Claims by Status Doughnut -->
