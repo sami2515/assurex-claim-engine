@@ -97,6 +97,9 @@ def create_claim_wizard():
         # Service-center staff or admin filing on customer's behalf link claim directly to the product owner!
         claim_user_id = product.user_id if session.get("role") in [Config.ROLE_STAFF, Config.ROLE_ADMIN] else user.id
 
+        # Collect claim details (Req 1.6.xi)
+        previous_replacement = request.form.get("previous_replacement_details", "").strip()
+
         # 1. Create Initial Claim in 'Submitted' status
         claim = Claim(
             user_id=claim_user_id,
@@ -106,6 +109,7 @@ def create_claim_wizard():
             fault_description=fault_description,
             fault_category=fault_category,
             damage_type=damage_type,
+            previous_replacement_details=previous_replacement or None,
             claim_submission_date=date.today(),
             status=Config.STATUS_SUBMITTED
         )
@@ -127,18 +131,25 @@ def create_claim_wizard():
         )
         db.session.add(status_log)
 
-        # 2. Process Uploaded Documents
+        # 2. Process Uploaded Documents & Multi-Media Evidence (Req 1.6.v, xii)
         doc_processor = get_document_processor()
         has_receipt = False
         has_warranty_card = False
         has_damage_photo = False
         has_serial_photo = False
+        has_fault_video = False
+        has_diagnostic_report = False
         ocr_extracted_data = {}
 
         upload_folder = Path(Config.UPLOAD_DIR)
         upload_folder.mkdir(parents=True, exist_ok=True)
 
-        for doc_key in ["receipt", "warranty_card", "damage_photo", "serial_photo"]:
+        evidence_types = [
+            "receipt", "warranty_card", "damage_photo", "product_photo",
+            "fault_video", "serial_photo", "diagnostic_report", "other_evidence"
+        ]
+
+        for doc_key in evidence_types:
             uploaded_file = request.files.get(doc_key)
             if not uploaded_file and doc_key == "receipt":
                 uploaded_file = request.files.get("invoice_document")
@@ -147,7 +158,7 @@ def create_claim_wizard():
                 save_dest = upload_folder / sec_filename
                 uploaded_file.save(save_dest)
 
-                # Process via OCR engine
+                # Process via OCR engine (extracts text from invoices/reports)
                 doc_info = doc_processor.process_document(save_dest, document_type=doc_key)
 
                 claim_doc = ClaimDocument(
@@ -164,7 +175,7 @@ def create_claim_wizard():
                 )
                 db.session.add(claim_doc)
 
-                if doc_key == "receipt":
+                if doc_key in ["receipt", "invoice_document"]:
                     has_receipt = True
                     ocr_extracted_data = doc_info["entities"]
                 elif doc_key == "warranty_card":
@@ -173,6 +184,10 @@ def create_claim_wizard():
                     has_damage_photo = True
                 elif doc_key == "serial_photo":
                     has_serial_photo = True
+                elif doc_key == "fault_video":
+                    has_fault_video = True
+                elif doc_key == "diagnostic_report":
+                    has_diagnostic_report = True
 
         # Calculate document counts
         missing_count = sum([not has_receipt, not has_warranty_card, not has_damage_photo, not has_serial_photo])

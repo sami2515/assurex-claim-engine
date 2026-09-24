@@ -5,7 +5,7 @@ from src.app import create_app
 from database.db import db
 from src.models.entities import (
     User, Product, WarrantyPolicy, ProductWarranty, Claim, ModelEvaluation,
-    ClaimDocument, ClaimStatusHistory, Notification, AuditLog, SystemSetting
+    ClaimDocument, ClaimStatusHistory, Notification, AuditLog, SystemSetting, RepairHistory
 )
 from config.config import Config
 
@@ -569,6 +569,112 @@ class TestPhase6Frontend(unittest.TestCase):
                 if test_claim:
                     db.session.delete(test_claim)
                     db.session.commit()
+
+    def test_req_1_6_xi_and_xii_claim_info_collection_and_evidence_upload(self):
+        """Req 1.6.xi & xii: Test collection of claim metadata (previous replacements, damage type) and multi-media evidence upload."""
+        with self.app.app_context():
+            customer = User.query.filter_by(role=Config.ROLE_CUSTOMER).first()
+            product = Product.query.filter_by(user_id=customer.id).first()
+            cust_id = customer.id
+            prod_id = product.id
+
+        with self.client.session_transaction() as sess:
+            sess["user_id"] = cust_id
+            sess["role"] = Config.ROLE_CUSTOMER
+            sess["email"] = "customer@assurex.local"
+            sess["user_name"] = "Customer User"
+
+        post_data = {
+            "product_id": str(prod_id),
+            "fault_occurrence_date": "2026-09-15",
+            "fault_category": "Cooling System Failure",
+            "damage_type": "Normal Wear and Tear",
+            "fault_description": "Exhaust fan rattling violently during gaming load with thermal shutdown.",
+            "previous_replacement_details": "Thermal heatpipe assembly replaced under warranty in April 2025",
+            "claim_amount": "175.00",
+            # Multi-media evidence files (Req 1.6.xii)
+            "damage_photo": (io.BytesIO(b"FAKE_DAMAGE_IMAGE_PNG"), "crack_defect.png"),
+            "fault_video": (io.BytesIO(b"FAKE_MP4_FAULT_FOOTAGE"), "flicker_recording.mp4"),
+            "diagnostic_report": (io.BytesIO(b"DIAGNOSTIC REPORT: FAN FAILURE"), "bench_report.pdf"),
+            "serial_photo": (io.BytesIO(b"SERIAL BARCODE IMAGE"), "serial_tag.jpg")
+        }
+
+        try:
+            res = self.client.post("/claims/new", data=post_data, content_type="multipart/form-data", follow_redirects=True)
+            self.assertEqual(res.status_code, 200)
+
+            with self.app.app_context():
+                created_claim = Claim.query.filter_by(fault_description=post_data["fault_description"]).first()
+                self.assertIsNotNone(created_claim)
+                # Verify Req 1.6.xi: Previous replacement details collected
+                self.assertEqual(created_claim.previous_replacement_details, "Thermal heatpipe assembly replaced under warranty in April 2025")
+                self.assertEqual(created_claim.damage_type, "Normal Wear and Tear")
+                self.assertEqual(created_claim.fault_occurrence_date.strftime("%Y-%m-%d"), "2026-09-15")
+
+                # Verify Req 1.6.xii: Attached multi-media evidence documents
+                docs = ClaimDocument.query.filter_by(claim_id=created_claim.id).all()
+                doc_types = [d.document_type for d in docs]
+                self.assertIn("damage_photo", doc_types)
+                self.assertIn("fault_video", doc_types)
+                self.assertIn("diagnostic_report", doc_types)
+                self.assertIn("serial_photo", doc_types)
+
+                # Verify claim detail view renders evidence and claim information
+                res_detail = self.client.get(f"/claims/{created_claim.claim_id}")
+                self.assertEqual(res_detail.status_code, 200)
+                self.assertIn(b"Product Age at Incident", res_detail.data)
+                self.assertIn(b"Previous Replacement Details", res_detail.data)
+                self.assertIn(b"crack_defect.png", res_detail.data)
+                self.assertIn(b"flicker_recording.mp4", res_detail.data)
+        finally:
+            with self.app.app_context():
+                test_claim = Claim.query.filter_by(fault_description=post_data["fault_description"]).first()
+                if test_claim:
+                    db.session.delete(test_claim)
+                    db.session.commit()
+
+    def test_req_1_6_xiii_repair_history_management(self):
+        """Req 1.6.xiii: Verify recording repair dates, service center, replaced parts, outcomes, costs, and authorization."""
+        with self.app.app_context():
+            staff = User.query.filter_by(role=Config.ROLE_STAFF).first()
+            product = Product.query.first()
+            staff_id = staff.id
+            prod_code = product.product_id
+
+        with self.client.session_transaction() as sess:
+            sess["user_id"] = staff_id
+            sess["role"] = Config.ROLE_STAFF
+            sess["email"] = "staff@assurex.local"
+            sess["user_name"] = "Staff Member"
+
+        repair_post = {
+            "repair_date": "2026-09-10",
+            "repair_center": "AssureX Certified Tech Lab #12",
+            "replaced_parts": "Lithium Battery Cell Pack & BMS Ribbon",
+            "outcome": "Repaired",
+            "repair_cost": "89.50",
+            "is_authorized_center": "true",
+            "notes": "Battery health recalibrated to 100% after genuine pack replacement."
+        }
+
+        res = self.client.post(f"/products/{prod_code}/repairs/new", data=repair_post, follow_redirects=True)
+        self.assertEqual(res.status_code, 200)
+        self.assertIn(b"recorded successfully", res.data)
+
+        with self.app.app_context():
+            rep = RepairHistory.query.filter_by(repair_center=repair_post["repair_center"]).order_by(RepairHistory.id.desc()).first()
+            self.assertIsNotNone(rep)
+            self.assertEqual(rep.replaced_parts, "Lithium Battery Cell Pack & BMS Ribbon")
+            self.assertEqual(rep.outcome, "Repaired")
+            self.assertEqual(rep.repair_cost, 89.50)
+            self.assertTrue(rep.is_authorized_center)
+            # Verify AuditLog logged
+            audit = AuditLog.query.filter_by(action="REPAIR_RECORDED", entity_id=prod_code).first()
+            self.assertIsNotNone(audit)
+
+            # Cleanup
+            db.session.delete(rep)
+            db.session.commit()
 
 
 if __name__ == "__main__":

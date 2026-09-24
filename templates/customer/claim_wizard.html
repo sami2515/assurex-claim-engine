@@ -210,7 +210,13 @@
 
                     <div class="col-12">
                         <label for="fault_description" class="form-label fw-semibold small text-slate-700">Detailed Defect Description <span class="text-danger">*</span></label>
-                        <textarea class="form-control bg-light" id="fault_description" name="fault_description" rows="4" required minlength="10" placeholder="Describe symptoms, operational conditions when failure happened, and error codes displayed..."></textarea>
+                        <textarea class="form-control bg-light" id="fault_description" name="fault_description" rows="3" required minlength="10" placeholder="Describe symptoms, operational conditions when failure happened, and error codes displayed..."></textarea>
+                    </div>
+
+                    <div class="col-12">
+                        <label for="previous_replacement_details" class="form-label fw-semibold small text-slate-700">Previous Replacement / Repair History (Req 1.6.xi)</label>
+                        <input type="text" class="form-control bg-light" id="previous_replacement_details" name="previous_replacement_details" placeholder="e.g. Battery and charging port replaced under warranty in June 2025 (or 'None / Original factory condition')">
+                        <div class="form-text extra-small">Specify whether any parts, components, or entire units were previously replaced or repaired.</div>
                     </div>
 
                     <div class="col-md-6">
@@ -237,35 +243,35 @@
                         <i class="bi bi-arrow-left"></i> Back
                     </button>
                     <button type="button" class="btn btn-primary px-4 py-2 fw-semibold shadow-sm d-inline-flex align-items-center gap-2" onclick="goToWizardStep(3)">
-                        Next: Upload Documents <i class="bi bi-arrow-right"></i>
+                        Next: Upload Documents &amp; Evidence <i class="bi bi-arrow-right"></i>
                     </button>
                 </div>
             </div>
         </div>
 
         <!-- ===================================================================
-             STEP 3: Document Intake & Extracted Data Verification (Req 1.6.vii)
+             STEP 3: Document Intake & Evidence Upload (Req 1.6.vii & xii)
              =================================================================== -->
         <div class="wizard-step-pane" id="step-3">
             <div class="card border-0 shadow-sm rounded-4 bg-white p-4 p-md-5">
                 <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h4 class="fw-bold text-slate-900 mb-0">Step 3: Document Intake & Extracted Data Verification</h4>
-                    <span class="badge bg-light text-secondary border font-mono">Req 1.6.v, vi, vii</span>
+                    <h4 class="fw-bold text-slate-900 mb-0">Step 3: Document Intake &amp; Evidence Upload</h4>
+                    <span class="badge bg-light text-secondary border font-mono">Req 1.6.v, vi, vii, xii</span>
                 </div>
-                <p class="text-muted mb-4 small">Upload proof of purchase. AssureX scans invoices via OCR and allows you to review and verify extracted values (Req vi & vii).</p>
+                <p class="text-muted mb-4 small">Upload proof of purchase, hardware photographs, damage footage, and diagnostic evidence (Req xii).</p>
 
-                <!-- Drag & Drop Dropzone -->
+                <!-- Drag & Drop Dropzone for Receipt/Invoice -->
                 <div class="upload-dropzone mb-3" id="receipt-dropzone">
                     <i class="bi bi-cloud-arrow-up fs-1 text-primary mb-2 d-block"></i>
                     <h5 class="fw-bold text-slate-800 mb-1">Click to Upload or Drag & Drop Invoice / Receipt</h5>
-                    <p class="text-muted extra-small mb-0">Supported formats: PDF, PNG, JPG, JPEG (Max file size: 16 MB)</p>
+                    <p class="text-muted extra-small mb-0">Supported formats: PDF, PNG, JPG, JPEG (Max file size: 16 MB) &bull; Intelligent OCR Extraction</p>
                     <input type="file" class="d-none" id="invoice_document" name="invoice_document" accept=".pdf,.png,.jpg,.jpeg">
                 </div>
 
                 <div id="file-preview-info"></div>
 
                 <!-- Live OCR Verification Preview Card & Review Form (Req 1.6.vii) -->
-                <div class="card bg-light border-0 rounded-4 p-4 mt-4" id="ocr-results-panel">
+                <div class="card bg-light border-0 rounded-4 p-4 mt-3" id="ocr-results-panel">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <span class="fw-bold small text-slate-800"><i class="bi bi-cpu text-primary me-2"></i>Optical Character Recognition (OCR) Engine</span>
                         <span class="badge bg-secondary extra-small">Automated Verification Ready</span>
@@ -273,6 +279,78 @@
                     <p class="extra-small text-muted mb-0">
                         Upon document upload, our intelligent OCR extractor parses invoice credentials, purchase dates, serial numbers, and totals. You will be able to review and verify the extracted values below before saving or submitting your claim (Req 1.6.vii).
                     </p>
+                </div>
+
+                <!-- Fault and Damage Evidence Upload (Req 1.6.xii) -->
+                <div class="card border-0 shadow-sm rounded-4 bg-light p-4 mt-4">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="badge bg-primary text-white p-2 rounded-circle fs-6">
+                                <i class="bi bi-camera-fill"></i>
+                            </span>
+                            <div>
+                                <h6 class="fw-bold text-slate-900 mb-0">Fault &amp; Damage Evidence Upload (Req 1.6.xii)</h6>
+                                <div class="extra-small text-muted">Upload damage images, product photos, fault video, diagnostic reports, and serial proofs</div>
+                            </div>
+                        </div>
+                        <span class="badge bg-white text-secondary border font-mono">Multi-Media Evidence</span>
+                    </div>
+
+                    <div class="row g-3">
+                        <!-- 1. Damage Images -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold extra-small text-slate-700">
+                                <i class="bi bi-image text-danger me-1"></i>Hardware Damage / Defect Image
+                            </label>
+                            <input type="file" class="form-control form-control-sm bg-white" name="damage_photo" accept=".png,.jpg,.jpeg">
+                            <div class="extra-small text-muted mt-1">Close-up photo of physical breakage, burns, or screen malfunction.</div>
+                        </div>
+
+                        <!-- 2. Product Photograph -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold extra-small text-slate-700">
+                                <i class="bi bi-box-seam text-primary me-1"></i>Overall Product Asset Photograph
+                            </label>
+                            <input type="file" class="form-control form-control-sm bg-white" name="product_photo" accept=".png,.jpg,.jpeg">
+                            <div class="extra-small text-muted mt-1">Wide-angle photo of complete hardware unit showing condition.</div>
+                        </div>
+
+                        <!-- 3. Fault Video Footage -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold extra-small text-slate-700">
+                                <i class="bi bi-camera-video text-warning me-1"></i>Fault Video Footage (Intermittent / Audio / Motion)
+                            </label>
+                            <input type="file" class="form-control form-control-sm bg-white" name="fault_video" accept=".mp4,.webm,.mov">
+                            <div class="extra-small text-muted mt-1">Video demonstrating dynamic failure (screen flicker, motor noise, shutdown).</div>
+                        </div>
+
+                        <!-- 4. Serial Number Barcode Photo -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold extra-small text-slate-700">
+                                <i class="bi bi-upc-scan text-info me-1"></i>Hardware Serial Number Label Photo
+                            </label>
+                            <input type="file" class="form-control form-control-sm bg-white" name="serial_photo" accept=".png,.jpg,.jpeg">
+                            <div class="extra-small text-muted mt-1">Photo of physical manufacturer serial tag or barcode sticker.</div>
+                        </div>
+
+                        <!-- 5. Diagnostic / Bench Test Report -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold extra-small text-slate-700">
+                                <i class="bi bi-file-earmark-medical text-success me-1"></i>Diagnostic / Service Center Report
+                            </label>
+                            <input type="file" class="form-control form-control-sm bg-white" name="diagnostic_report" accept=".pdf,.png,.jpg,.jpeg">
+                            <div class="extra-small text-muted mt-1">Official diagnostic log, error printout, or technician bench test sheet.</div>
+                        </div>
+
+                        <!-- 6. Other Supporting Evidence -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold extra-small text-slate-700">
+                                <i class="bi bi-paperclip text-secondary me-1"></i>Other Supporting Evidence / Warranty Card
+                            </label>
+                            <input type="file" class="form-control form-control-sm bg-white" name="warranty_card" accept=".pdf,.png,.jpg,.jpeg">
+                            <div class="extra-small text-muted mt-1">Physical warranty booklet stamp, repair order, or supplemental proof.</div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="d-flex justify-content-between mt-4">

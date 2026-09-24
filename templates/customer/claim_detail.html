@@ -51,19 +51,39 @@
                         <div class="fw-bold font-mono text-primary">{{ claim.product.serial_number }}</div>
                     </div>
                     <div class="col-6">
-                        <div class="text-muted extra-small">Purchase Date</div>
-                        <div class="fw-semibold">{{ claim.product.purchase_date.strftime('%Y-%m-%d') }}</div>
+                        <div class="text-muted extra-small">Product Age at Incident (Req 1.6.xi)</div>
+                        <div class="fw-semibold text-slate-900">{{ (claim.fault_occurrence_date - claim.product.purchase_date).days }} Days</div>
                     </div>
                     <div class="col-6">
-                        <div class="text-muted extra-small">Fault Date</div>
-                        <div class="fw-semibold">{{ claim.fault_occurrence_date.strftime('%Y-%m-%d') }}</div>
+                        <div class="text-muted extra-small">Purchase Details (Req 1.6.xi)</div>
+                        <div class="fw-semibold small">{{ claim.product.purchase_date.strftime('%Y-%m-%d') }} &bull; ${{ "%.2f"|format(claim.product.purchase_price) }} ({{ claim.product.retailer }})</div>
                     </div>
                     <div class="col-6">
-                        <div class="text-muted extra-small">Submission Date</div>
+                        <div class="text-muted extra-small">Fault Occurrence Date (Req 1.6.xi)</div>
+                        <div class="fw-semibold text-danger">{{ claim.fault_occurrence_date.strftime('%Y-%m-%d') }}</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-muted extra-small">Suspected Damage Nature (Req 1.6.xi)</div>
+                        <div class="fw-semibold">{{ claim.damage_type or 'Normal Wear and Tear' }}</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-muted extra-small">Claim Submission Date (Req 1.6.xi)</div>
                         <div class="fw-semibold">{{ claim.claim_submission_date.strftime('%Y-%m-%d') }}</div>
                     </div>
+                    <div class="col-6">
+                        <div class="text-muted extra-small">Warranty Conditions (Req 1.6.xi)</div>
+                        <div class="fw-semibold small">{{ claim.warranty.warranty_provider }} (Expires: {{ claim.warranty.expiry_date.strftime('%Y-%m-%d') }})</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-muted extra-small">Service History (Req 1.6.xi)</div>
+                        <div class="fw-semibold small"><a href="{{ url_for('products.view_product', product_id=claim.product.product_id) }}" class="text-primary text-decoration-none"><i class="bi bi-tools"></i> {{ claim.product.repair_records|length }} Service Events</a></div>
+                    </div>
                     <div class="col-12">
-                        <div class="text-muted extra-small">Defect Description</div>
+                        <div class="text-muted extra-small">Previous Replacement Details (Req 1.6.xi)</div>
+                        <div class="fw-semibold small text-slate-800">{{ claim.previous_replacement_details or 'None / Original factory condition' }}</div>
+                    </div>
+                    <div class="col-12">
+                        <div class="text-muted extra-small">Detailed Defect Description (Req 1.6.xi)</div>
                         <div class="bg-light p-3 rounded-3 border small mt-1">{{ claim.fault_description }}</div>
                     </div>
                 </div>
@@ -179,42 +199,69 @@
     </div>
 {% endif %}
 
-<!-- Attached Evidence Documents & OCR Extraction -->
+<!-- Attached Evidence Documents & Multi-Media Proof (Req 1.6.v & xii) -->
 <div class="card border-0 shadow-sm rounded-4 bg-white">
-    <div class="card-header-styled">
-        <i class="bi bi-paperclip text-primary me-2"></i>Attached Evidence Documents & OCR Extraction
+    <div class="card-header-styled d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-paperclip text-primary me-2"></i>Attached Evidence Documents &amp; Multi-Media Proof (Req 1.6.xii)</span>
+        <span class="badge bg-light text-secondary border">{{ claim.documents|length }} Files Attached</span>
     </div>
     <div class="table-responsive">
         <table class="table table-custom align-middle mb-0">
             <thead>
                 <tr>
-                    <th>Document Name</th>
-                    <th>Type</th>
+                    <th>Evidence File</th>
+                    <th>Classification</th>
+                    <th>File Size</th>
                     <th>SHA-256 Checksum Hash</th>
                     <th>Upload Date</th>
-                    <th>OCR Verification</th>
+                    <th>OCR Status</th>
+                    <th class="text-end">Action</th>
                 </tr>
             </thead>
             <tbody>
                 {% if claim.documents %}
                     {% for doc in claim.documents %}
                         <tr>
-                            <td class="fw-semibold">{{ doc.document_name }}</td>
-                            <td><span class="badge bg-light text-secondary border">{{ doc.document_type }}</span></td>
-                            <td class="font-mono extra-small text-muted">{{ doc.sha256_hash or 'N/A' }}</td>
-                            <td class="small">{{ doc.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td class="fw-semibold text-slate-800">
+                                {% if doc.document_type == 'fault_video' %}
+                                    <i class="bi bi-camera-video text-warning fs-6 me-2"></i>
+                                {% elif 'photo' in doc.document_type or 'image' in doc.document_type %}
+                                    <i class="bi bi-image text-primary fs-6 me-2"></i>
+                                {% elif 'report' in doc.document_type %}
+                                    <i class="bi bi-file-earmark-medical text-success fs-6 me-2"></i>
+                                {% else %}
+                                    <i class="bi bi-file-earmark-text text-secondary fs-6 me-2"></i>
+                                {% endif %}
+                                {{ doc.original_filename }}
+                            </td>
+                            <td>
+                                <span class="badge bg-light text-secondary border font-mono">{{ doc.document_type|replace('_', ' ')|title }}</span>
+                            </td>
+                            <td class="small text-muted">{{ (doc.file_size_bytes / 1024)|round(1) }} KB</td>
+                            <td>
+                                <span class="badge bg-light text-muted font-mono border extra-small" title="{{ doc.file_hash_sha256 }}">
+                                    <i class="bi bi-shield-lock text-success me-1"></i>{{ doc.file_hash_sha256[:16] }}...
+                                </span>
+                            </td>
+                            <td class="small text-muted">{{ doc.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
                             <td>
                                 {% if doc.ocr_extracted_text %}
-                                    <span class="badge bg-success-subtle text-success"><i class="bi bi-check-circle"></i> Extracted</span>
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle"><i class="bi bi-check-circle"></i> OCR Verified</span>
                                 {% else %}
-                                    <span class="badge bg-secondary-subtle text-secondary">No Text</span>
+                                    <span class="badge bg-light text-secondary border">Binary / Media</span>
                                 {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <a href="{{ url_for('products.download_document', document_id=doc.document_id) }}" target="_blank" class="btn btn-sm btn-outline-primary py-1 px-2">
+                                    <i class="bi bi-download"></i> View
+                                </a>
                             </td>
                         </tr>
                     {% endfor %}
                 {% else %}
                     <tr>
-                        <td colspan="5" class="text-center py-4 text-muted">
+                        <td colspan="7" class="text-center py-4 text-muted">
+                            <i class="bi bi-file-earmark-x fs-2 d-block mb-2 text-secondary"></i>
                             No external evidence documents attached to this claim.
                         </td>
                     </tr>

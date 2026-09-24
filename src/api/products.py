@@ -280,3 +280,70 @@ def view_product(product_id):
     product = Product.query.filter_by(product_id=product_id).first_or_404()
     policy_rules = product.warranty.policy.get_rules() if product.warranty and product.warranty.policy else {}
     return render_template("customer/product_detail.html", product=product, policy_rules=policy_rules)
+
+
+@product_bp.route("/<string:product_id>/repairs/new", methods=["POST"])
+@login_required
+def add_repair_record(product_id):
+    """
+    Req 1.6.xiii: Repair History Management
+    Records previous repair dates, repair-center details, replaced parts, repair outcomes,
+    repair costs, and whether each repair was completed by an authorized or unauthorized service center.
+    """
+    user = get_current_user()
+    product = Product.query.filter_by(product_id=product_id).first_or_404()
+
+    # Permission check: owner, service center staff, or administrator
+    if session.get("role") not in [Config.ROLE_ADMIN, Config.ROLE_STAFF] and product.user_id != user.id:
+        flash("You do not have authorization to log repairs for this equipment asset.", "danger")
+        return redirect(url_for("products.view_product", product_id=product.product_id))
+
+    repair_date_str = request.form.get("repair_date")
+    repair_center = request.form.get("repair_center", "").strip()
+    replaced_parts = request.form.get("replaced_parts", "").strip()
+    outcome = request.form.get("outcome", "Repaired").strip()
+    repair_cost_str = request.form.get("repair_cost", "0.0")
+    is_authorized = request.form.get("is_authorized_center") in ["true", "1", "on", "yes", True]
+    notes = request.form.get("notes", "").strip()
+
+    try:
+        repair_date = datetime.strptime(repair_date_str, "%Y-%m-%d").date()
+    except Exception:
+        repair_date = date.today()
+
+    try:
+        repair_cost = float(repair_cost_str)
+    except ValueError:
+        repair_cost = 0.0
+
+    repair = RepairHistory(
+        product_id=product.id,
+        repair_date=repair_date,
+        repair_center=repair_center or "Authorized Service Center",
+        replaced_parts=replaced_parts or "None / Inspection Only",
+        outcome=outcome,
+        repair_cost=repair_cost,
+        is_authorized_center=is_authorized,
+        notes=notes
+    )
+    db.session.add(repair)
+
+    AuditLog.log_event(
+        action="REPAIR_RECORDED",
+        user_id=user.id,
+        user_role=session.get("role"),
+        entity_type="Product",
+        entity_id=product.product_id,
+        details={
+            "repair_id": repair.repair_id,
+            "repair_center": repair_center,
+            "is_authorized": is_authorized,
+            "outcome": outcome,
+            "cost": repair_cost
+        }
+    )
+    db.session.commit()
+
+    flash(f"Service and maintenance record {repair.repair_id} recorded successfully (Req 1.6.xiii).", "success")
+    return redirect(url_for("products.view_product", product_id=product.product_id))
+
