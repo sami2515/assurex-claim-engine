@@ -597,4 +597,59 @@ code, pre, .font-mono {
     text-decoration: underline;
 }
 
+/* ==========================================================================
+   Dual-Tier Navigation: Secondary Portal Workspace Bar
+   ========================================================================== */
+.portal-subnav {
+    background-color: #0f172a !important; /* Slate-900 */
+    border-bottom: 1px solid #1e293b !important;
+    font-size: 0.84rem;
+}
+
+.portal-subnav .subnav-link {
+    color: #cbd5e1 !important;
+    transition: all 0.15s ease-in-out;
+}
+
+.portal-subnav .subnav-link:hover {
+    color: #ffffff !important;
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+.portal-subnav .subnav-link.active {
+    color: #38bdf8 !important;
+    background-color: rgba(56, 189, 248, 0.12);
+}
+
+/* Role Selector Cards (Req 1.6.i) */
+.role-select-card {
+    transition: all 0.18s ease;
+    border: 1px solid #e2e8f0;
+}
+
+.role-select-card:hover {
+    border-color: #3b82f6;
+    background-color: #f8fafc !important;
+    transform: translateY(-1px);
+}
+
+.role-select-card:has(input:checked) {
+    border-color: #2563eb !important;
+    background-color: #eff6ff !important;
+    box-shadow: 0 0 0 1px #2563eb, 0 4px 6px -1px rgba(37, 99, 235, 0.12) !important;
+}
+
+/* Profile Elements (Req 1.6.ii) */
+.shadow-xs {
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.avatar-circle-lg {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    font-size: 1.5rem;
+}
+
+
 

@@ -80,7 +80,11 @@ def login():
 
 @auth_bp.route("/register", methods=["GET", "POST"])
 def register():
-    """Customer account self-registration endpoint."""
+    """
+    Req 1.6.i: User Registration and Authentication.
+    Supports registration for Customers, Service-Center Staff, Claim Reviewers, and Administrators.
+    Maintains a unique User ID and enforces role-based access.
+    """
     if request.method == "POST":
         email = request.form.get("email", "").strip().lower()
         full_name = request.form.get("full_name", "").strip()
@@ -88,6 +92,17 @@ def register():
         phone = request.form.get("phone", "").strip()
         address = request.form.get("address", "").strip()
         confirm_password = request.form.get("confirm_password", "")
+        role_input = request.form.get("role", "").strip().lower()
+        role_map = {
+            "customer": Config.ROLE_CUSTOMER,
+            "staff": Config.ROLE_STAFF,
+            "service_center_staff": Config.ROLE_STAFF,
+            "reviewer": Config.ROLE_REVIEWER,
+            "claim_reviewer": Config.ROLE_REVIEWER,
+            "admin": Config.ROLE_ADMIN,
+            "administrator": Config.ROLE_ADMIN
+        }
+        role = role_map.get(role_input, Config.ROLE_CUSTOMER)
 
         if not email or not password or not full_name:
             flash("Name, email, and password are required fields.", "warning")
@@ -104,18 +119,118 @@ def register():
         user = User(
             email=email,
             full_name=full_name,
-            role=Config.ROLE_CUSTOMER,
+            role=role,
             phone_number=phone,
             address=address
         )
         user.set_password(password)
         db.session.add(user)
+        db.session.flush()
+
+        audit = AuditLog(
+            user_id=user.id,
+            user_role=user.role,
+            action="USER_REGISTRATION",
+            entity_type="USER",
+            entity_id=user.user_id,
+            ip_address=request.remote_addr
+        )
+        db.session.add(audit)
         db.session.commit()
 
-        flash("Account created successfully! You may now sign in.", "success")
+        role_display = {
+            Config.ROLE_CUSTOMER: "Customer",
+            Config.ROLE_STAFF: "Service Staff",
+            Config.ROLE_REVIEWER: "Claim Reviewer",
+            Config.ROLE_ADMIN: "Administrator"
+        }.get(role, role)
+
+        flash(f"Account created successfully as {role_display}! You may now sign in.", "success")
         return redirect(url_for("auth.login"))
 
     return render_template("auth/register.html")
+
+
+@auth_bp.route("/profile", methods=["GET", "POST"])
+@login_required
+def profile():
+    """
+    Req 1.6.ii: User Profile Management.
+    Enables viewing unique User ID, role credentials, account details, and updating contact info & security credentials.
+    """
+    user = get_current_user()
+    if not user:
+        flash("User session not found.", "warning")
+        return redirect(url_for("auth.login"))
+
+    if request.method == "POST":
+        action = request.form.get("action", "update_info")
+        if action == "update_info":
+            full_name = request.form.get("full_name", "").strip()
+            phone = request.form.get("phone", "").strip()
+            address = request.form.get("address", "").strip()
+
+            if not full_name:
+                flash("Full name cannot be blank.", "warning")
+                return redirect(url_for("auth.profile"))
+
+            user.full_name = full_name
+            user.phone_number = phone
+            user.address = address
+            session["user_name"] = full_name
+
+            audit = AuditLog(
+                user_id=user.id,
+                user_role=user.role,
+                action="USER_PROFILE_UPDATED",
+                entity_type="USER",
+                entity_id=user.user_id,
+                ip_address=request.remote_addr
+            )
+            db.session.add(audit)
+            db.session.commit()
+            flash("Your profile details have been updated successfully.", "success")
+            return redirect(url_for("auth.profile"))
+
+        elif action == "change_password":
+            current_password = request.form.get("current_password", "")
+            new_password = request.form.get("new_password", "")
+            confirm_new_password = request.form.get("confirm_new_password", "")
+
+            if not user.check_password(current_password):
+                flash("Current password is incorrect.", "danger")
+                return redirect(url_for("auth.profile"))
+
+            if len(new_password) < 8:
+                flash("New password must be at least 8 characters long.", "warning")
+                return redirect(url_for("auth.profile"))
+
+            if new_password != confirm_new_password:
+                flash("New passwords do not match.", "warning")
+                return redirect(url_for("auth.profile"))
+
+            user.set_password(new_password)
+            audit = AuditLog(
+                user_id=user.id,
+                user_role=user.role,
+                action="USER_PASSWORD_CHANGED",
+                entity_type="USER",
+                entity_id=user.user_id,
+                ip_address=request.remote_addr
+            )
+            db.session.add(audit)
+            db.session.commit()
+            flash("Your password has been changed successfully.", "success")
+            return redirect(url_for("auth.profile"))
+
+    # Compute contextual stats for profile summary widgets
+    stats = {
+        "products_count": len(user.products) if hasattr(user, "products") else 0,
+        "claims_count": len(user.claims) if hasattr(user, "claims") else 0,
+        "audit_logs_count": AuditLog.query.filter_by(user_id=user.id).count()
+    }
+
+    return render_template("auth/profile.html", user=user, stats=stats)
 
 
 @auth_bp.route("/logout")

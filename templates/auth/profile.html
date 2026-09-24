@@ -1,0 +1,257 @@
+{% extends "components/base.html" %}
+
+{% block title %}User Profile & Account Management{% endblock %}
+
+{% block content %}
+<div class="row g-4 py-3">
+    <!-- Header Banner -->
+    <div class="col-12">
+        <div class="card border-0 shadow-sm rounded-4 bg-white p-4">
+            <div class="d-flex flex-column flex-md-row align-items-start align-items-md-center justify-content-between gap-3">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="avatar-circle-lg bg-primary text-white d-flex align-items-center justify-content-center fw-bold fs-3 shadow-sm rounded-circle" style="width: 64px; height: 64px;">
+                        {{ user.full_name[0]|upper }}
+                    </div>
+                    <div>
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <h4 class="fw-bold mb-0 text-slate-900">{{ user.full_name }}</h4>
+                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1">
+                                <i class="bi bi-shield-check me-1"></i>
+                                {% if user.role == app_config.ROLE_CUSTOMER %}Customer
+                                {% elif user.role == app_config.ROLE_REVIEWER %}Claim Reviewer
+                                {% elif user.role == app_config.ROLE_ADMIN %}Administrator
+                                {% elif user.role == app_config.ROLE_STAFF %}Service Center Staff
+                                {% else %}{{ user.role|title }}{% endif %}
+                            </span>
+                            <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                                <i class="bi bi-check-circle-fill me-1"></i>Active Account
+                            </span>
+                        </div>
+                        <p class="text-muted small mb-0 mt-1">
+                            <i class="bi bi-envelope me-1"></i>{{ user.email }} &bull; 
+                            Member since {{ user.created_at.strftime('%B %d, %Y') if user.created_at else 'N/A' }}
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Unique User ID Box (Req 1.6.ii) -->
+                <div class="text-md-end bg-light p-3 rounded-3 border">
+                    <div class="text-muted extra-small text-uppercase fw-semibold mb-1">
+                        <i class="bi bi-fingerprint text-primary me-1"></i>Unique System User ID (Req 1.6.ii)
+                    </div>
+                    <div class="d-inline-flex align-items-center gap-2">
+                        <span class="font-mono fw-bold text-primary fs-6 bg-white px-3 py-1 border rounded shadow-xs" id="userUniqueId">
+                            {{ user.user_id }}
+                        </span>
+                        <button class="btn btn-sm btn-outline-secondary py-1 px-2" type="button" onclick="navigator.clipboard.writeText('{{ user.user_id }}'); this.innerHTML='<i class=\'bi bi-check2\'></i> Copied'; setTimeout(() => this.innerHTML='<i class=\'bi bi-clipboard\'></i>', 2000);" title="Copy User ID">
+                            <i class="bi bi-clipboard"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Profile Edit Form -->
+    <div class="col-lg-7">
+        <!-- Contact & Profile Details Card -->
+        <div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
+            <div class="card-header-styled bg-white d-flex align-items-center justify-content-between">
+                <span class="fw-bold text-slate-800">
+                    <i class="bi bi-person-lines-fill text-primary me-2"></i>Contact Information & Details
+                </span>
+                <span class="badge bg-light text-muted border extra-small">Editable</span>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST" action="{{ url_for('auth.profile') }}">
+                    <input type="hidden" name="action" value="update_info">
+                    
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label for="full_name" class="form-label fw-semibold small text-slate-700">Full Legal Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="full_name" name="full_name" value="{{ user.full_name }}" required placeholder="e.g. Sarah Jenkins">
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="email" class="form-label fw-semibold small text-slate-700">Email Address (Login Identity)</label>
+                            <input type="email" class="form-control bg-light text-muted" id="email" value="{{ user.email }}" readonly disabled>
+                            <div class="form-text extra-small">Primary identity authenticated across AssureX portals.</div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label for="phone" class="form-label fw-semibold small text-slate-700">Phone Number</label>
+                            <input type="tel" class="form-control" id="phone" name="phone" value="{{ user.phone_number or '' }}" placeholder="+1-800-555-0100">
+                        </div>
+
+                        <div class="col-12">
+                            <label for="address" class="form-label fw-semibold small text-slate-700">Mailing / Service Location Address</label>
+                            <textarea class="form-control" id="address" name="address" rows="2" placeholder="Street address, city, state, zip code">{{ user.address or '' }}</textarea>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 pt-3 border-top d-flex justify-content-end">
+                        <button type="submit" class="btn btn-primary px-4 fw-semibold shadow-sm d-inline-flex align-items-center gap-2">
+                            <i class="bi bi-check2-circle"></i> Save Profile Details
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Security & Password Change Card -->
+        <div class="card border-0 shadow-sm rounded-4 bg-white">
+            <div class="card-header-styled bg-white d-flex align-items-center justify-content-between">
+                <span class="fw-bold text-slate-800">
+                    <i class="bi bi-shield-lock-fill text-danger me-2"></i>Account Security & Password
+                </span>
+                <span class="badge bg-danger-subtle text-danger border border-danger-subtle extra-small">Encrypted</span>
+            </div>
+            <div class="card-body p-4">
+                <form method="POST" action="{{ url_for('auth.profile') }}">
+                    <input type="hidden" name="action" value="change_password">
+
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label for="current_password" class="form-label fw-semibold small text-slate-700">Current Password <span class="text-danger">*</span></label>
+                            <input type="password" class="form-control" id="current_password" name="current_password" required placeholder="Enter current password">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="new_password" class="form-label fw-semibold small text-slate-700">New Password <span class="text-danger">*</span></label>
+                            <input type="password" class="form-control" id="new_password" name="new_password" required minlength="8" placeholder="Minimum 8 characters">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="confirm_new_password" class="form-label fw-semibold small text-slate-700">Confirm New Password <span class="text-danger">*</span></label>
+                            <input type="password" class="form-control" id="confirm_new_password" name="confirm_new_password" required minlength="8" placeholder="Re-enter new password">
+                        </div>
+                    </div>
+
+                    <div class="mt-4 pt-3 border-top d-flex justify-content-end">
+                        <button type="submit" class="btn btn-outline-danger px-4 fw-semibold d-inline-flex align-items-center gap-2">
+                            <i class="bi bi-key-fill"></i> Update Password
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Role Privileges & Overview -->
+    <div class="col-lg-5">
+        <!-- Role Privileges (Req 1.6.i) -->
+        <div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
+            <div class="card-header-styled bg-white">
+                <span class="fw-bold text-slate-800">
+                    <i class="bi bi-award-fill text-primary me-2"></i>Role-Based Permissions (Req 1.6.i)
+                </span>
+            </div>
+            <div class="card-body p-4">
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <span class="badge bg-primary px-3 py-2 fs-6 fw-semibold">
+                        {% if user.role == app_config.ROLE_CUSTOMER %}Customer Access Privileges
+                        {% elif user.role == app_config.ROLE_REVIEWER %}Claim Reviewer Privileges
+                        {% elif user.role == app_config.ROLE_ADMIN %}Administrator Privileges
+                        {% elif user.role == app_config.ROLE_STAFF %}Service Center Staff Privileges
+                        {% else %}{{ user.role|title }} Privileges{% endif %}
+                    </span>
+                </div>
+
+                {% if user.role == app_config.ROLE_CUSTOMER %}
+                    <p class="small text-muted mb-3">
+                        As a registered <b>Customer</b>, you have complete visibility over your fleet of consumer hardware, registered warranties, and warranty claim applications.
+                    </p>
+                    <ul class="list-unstyled small text-slate-700 mb-4">
+                        <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i>Register hardware products & activate warranties</li>
+                        <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i>5-Step claim submission wizard with OCR ingestion</li>
+                        <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i>Real-time 8-stage lifecycle tracking</li>
+                        <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i>Download official PDF evaluation certificates</li>
+                    </ul>
+                {% elif user.role == app_config.ROLE_REVIEWER %}
+                    <p class="small text-muted mb-3">
+                        As a certified <b>Claim Reviewer</b>, you are empowered to audit flagged warranty claims, examine dual-model AI discrepancies, inspect OCR proof, and submit binding adjudication overrides.
+                    </p>
+                    <ul class="list-unstyled small text-slate-700 mb-4">
+                        <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i>Access triage queue with risk & status filters</li>
+                        <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i>Side-by-side OCR invoice & serial inspection</li>
+                        <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i>Dual-model AI confidence reconciliation</li>
+                        <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i>Human override controls with mandatory audit justifications</li>
+                    </ul>
+                {% elif user.role == app_config.ROLE_ADMIN %}
+                    <p class="small text-muted mb-3">
+                        As a <b>System Administrator</b>, you have unrestricted governance privileges across executive analytics, warranty policy authoring, model performance metrics, and immutable audit trails.
+                    </p>
+                    <ul class="list-unstyled small text-slate-700 mb-4">
+                        <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i>Real-time executive metrics & ML model telemetry</li>
+                        <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i>Cross-category warranty policy authoring engine</li>
+                        <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i>Access all reviewer triage and operational queues</li>
+                        <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i>Cryptographically tracked system audit log</li>
+                    </ul>
+                {% elif user.role == app_config.ROLE_STAFF %}
+                    <p class="small text-muted mb-3">
+                        As an <b>Authorized Service Center Employee</b>, you are authorized to verify physical hardware diagnostics, log certified repairs, and report part replacements.
+                    </p>
+                    <ul class="list-unstyled small text-slate-700 mb-4">
+                        <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i>Authorized service center repair intake</li>
+                        <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i>Service history logging & part replacement tracking</li>
+                        <li class="mb-2"><i class="bi bi-check2 text-success me-2"></i>Warranty eligibility verification</li>
+                    </ul>
+                {% endif %}
+
+                <a href="{{ url_for('auth.portal_redirect') }}" class="btn btn-outline-primary w-100 fw-semibold d-inline-flex align-items-center justify-content-center gap-2">
+                    <i class="bi bi-box-arrow-up-right"></i> Open {{ user.role }} Workspace
+                </a>
+            </div>
+        </div>
+
+        <!-- Activity Overview Card -->
+        <div class="card border-0 shadow-sm rounded-4 bg-white">
+            <div class="card-header-styled bg-white">
+                <span class="fw-bold text-slate-800">
+                    <i class="bi bi-activity text-primary me-2"></i>Account Activity Summary
+                </span>
+            </div>
+            <div class="card-body p-4">
+                <div class="row g-3 text-center">
+                    {% if user.role == app_config.ROLE_CUSTOMER %}
+                        <div class="col-6">
+                            <div class="p-3 bg-light rounded-3 border">
+                                <div class="fs-4 fw-bold text-primary font-mono">{{ stats.products_count }}</div>
+                                <div class="extra-small text-muted text-uppercase fw-semibold">Products</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-3 bg-light rounded-3 border">
+                                <div class="fs-4 fw-bold text-success font-mono">{{ stats.claims_count }}</div>
+                                <div class="extra-small text-muted text-uppercase fw-semibold">Claims Filed</div>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="col-6">
+                            <div class="p-3 bg-light rounded-3 border">
+                                <div class="fs-4 fw-bold text-primary font-mono">{{ user.role }}</div>
+                                <div class="extra-small text-muted text-uppercase fw-semibold">Assigned Role</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-3 bg-light rounded-3 border">
+                                <div class="fs-4 fw-bold text-success font-mono">{{ stats.audit_logs_count }}</div>
+                                <div class="extra-small text-muted text-uppercase fw-semibold">Audit Actions</div>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div class="mt-3 pt-3 border-top">
+                    <div class="d-flex justify-content-between text-muted extra-small">
+                        <span>Account Status:</span>
+                        <span class="text-success fw-bold">Active &bull; Verified</span>
+                    </div>
+                    <div class="d-flex justify-content-between text-muted extra-small mt-1">
+                        <span>Security Level:</span>
+                        <span class="text-dark fw-semibold">SHA-256 / Werkzeug</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

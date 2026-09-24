@@ -27,6 +27,77 @@ class TestPhase6Frontend(unittest.TestCase):
         self.assertEqual(res_reg.status_code, 200)
         self.assertIn(b"Create Customer Account", res_reg.data)
 
+    def test_user_profile_management(self):
+        """Req 1.6.ii: Verify User Profile management renders unique User ID and updates details."""
+        with self.client.session_transaction() as sess:
+            with self.app.app_context():
+                user = User.query.filter_by(role=Config.ROLE_CUSTOMER).first()
+                sess["user_id"] = user.id
+                sess["user_code"] = user.user_id
+                sess["role"] = user.role
+                sess["user_name"] = user.full_name
+                sess["email"] = user.email
+                user_id_str = user.user_id
+
+        # 1. GET /profile renders successfully with unique user ID and role
+        res_get = self.client.get("/profile")
+        self.assertEqual(res_get.status_code, 200)
+        self.assertIn(b"User Profile & Account Management", res_get.data)
+        self.assertIn(user_id_str.encode(), res_get.data)
+        self.assertIn(b"Contact Information", res_get.data)
+
+        # 2. POST /profile updates contact info and records audit log
+        res_post = self.client.post("/profile", data={
+            "action": "update_info",
+            "full_name": "David Miller Updated",
+            "phone": "+1-555-0999",
+            "address": "Updated Suite 200, Tech Plaza"
+        }, follow_redirects=True)
+        self.assertEqual(res_post.status_code, 200)
+        self.assertIn(b"updated successfully", res_post.data)
+        self.assertIn(b"David Miller Updated", res_post.data)
+
+        # Revert back to original name
+        with self.app.app_context():
+            u = User.query.filter_by(email="customer@assurex.local").first()
+            if u:
+                u.full_name = "David Miller"
+                db.session.commit()
+
+    def test_multi_role_registration(self):
+        """Req 1.6.i: Verify registration supports multiple roles and generates unique User ID."""
+        test_email = "new_reviewer_test@assurex.local"
+        with self.app.app_context():
+            old = User.query.filter_by(email=test_email).first()
+            if old:
+                db.session.delete(old)
+                db.session.commit()
+
+        try:
+            res = self.client.post("/register", data={
+                "email": test_email,
+                "full_name": "Test Reviewer Officer",
+                "role": "Reviewer",
+                "phone": "+1-800-555-9988",
+                "address": "Audit Dept #5",
+                "password": "ReviewerPass123!",
+                "confirm_password": "ReviewerPass123!"
+            }, follow_redirects=True)
+            self.assertEqual(res.status_code, 200)
+            self.assertIn(b"Account created successfully as Claim Reviewer", res.data)
+
+            with self.app.app_context():
+                created = User.query.filter_by(email=test_email).first()
+                self.assertIsNotNone(created)
+                self.assertEqual(created.role, Config.ROLE_REVIEWER)
+                self.assertTrue(created.user_id.startswith("USR-"))
+        finally:
+            with self.app.app_context():
+                cleanup = User.query.filter_by(email=test_email).first()
+                if cleanup:
+                    db.session.delete(cleanup)
+                    db.session.commit()
+
     def test_customer_portal_authenticated(self):
         """Verify customer dashboard, products, and claim wizard render with session."""
         with self.client.session_transaction() as sess:
