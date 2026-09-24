@@ -153,15 +153,41 @@
     </div>
 </div>
 
-<!-- Dual-Model AI Comparison Details -->
+<!-- Dual-Model AI Comparison Details (Req xviii, xxi, xxii) -->
 {% if claim.model_evaluation %}
     {% set eval = claim.model_evaluation %}
     <div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
-        <div class="card-header-styled d-flex justify-content-between align-items-center">
-            <span><i class="bi bi-diagram-2 text-primary me-2"></i>Dual-Model AI Consensus Details</span>
-            <span class="badge bg-light text-secondary border font-mono">Confidence Diff: {{ "%.4f"|format(eval.top_confidence_difference) }}</span>
+        <div class="card-header-styled d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <span><i class="bi bi-diagram-2 text-primary me-2"></i>Model Prediction Comparison (Req 1.6.xxii)</span>
+            <div class="d-flex align-items-center gap-2">
+                {% if eval.is_class_match %}
+                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1"><i class="bi bi-check-circle-fill me-1"></i>Class Match: Concordant</span>
+                {% else %}
+                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1"><i class="bi bi-exclamation-triangle-fill me-1"></i>Class Match: Disagreement</span>
+                {% endif %}
+                <span class="badge bg-light text-secondary border font-mono">Confidence Diff: {{ "%.4f"|format(eval.top_confidence_difference) }}</span>
+            </div>
         </div>
         <div class="card-body p-4">
+            <!-- Model Prediction Comparison Alert -->
+            <div class="alert {% if eval.is_class_match %}alert-success border-success-subtle{% else %}alert-warning border-warning-subtle{% endif %} rounded-3 p-3 mb-4 d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
+                <div>
+                    <div class="fw-bold"><i class="bi {% if eval.is_class_match %}bi-patch-check-fill text-success{% else %}bi-exclamation-diamond-fill text-warning{% endif %} me-2"></i>Consensus Status: {{ eval.model_consistency_status }}</div>
+                    <div class="small text-muted mt-1">
+                        Python model predicted <strong>{{ eval.python_predicted_class }}</strong> | Teachable Machine predicted <strong>{{ eval.gtm_predicted_class }}</strong>.
+                        {% if eval.is_class_match %}
+                            Both independent classification models agree on the claim category.
+                        {% else %}
+                            Predictions differ between tabular features and visual summary card evaluation.
+                        {% endif %}
+                    </div>
+                </div>
+                <div>
+                    <a href="{{ url_for('claims.view_summary_card', claim_id=claim.claim_id) }}" target="_blank" class="btn btn-sm btn-outline-secondary text-nowrap">
+                        <i class="bi bi-card-image me-1"></i>View Summary Card (Req xx)
+                    </a>
+                </div>
+            </div>
             <div class="row g-4">
                 <div class="col-md-6">
                     <div class="border rounded-3 p-3 bg-light">

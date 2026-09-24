@@ -822,6 +822,69 @@ class TestPhase6Frontend(unittest.TestCase):
             self.assertGreaterEqual(cleaned["product_age_days"], 0)
 
 
+    def test_req_xx_xxi_xxii_summary_card_and_model_comparison(self):
+        """Req 1.6.xx, xxi, xxii: Verify visual Claim Summary Card generation, GTM classification, and model comparison."""
+        from src.core.card_generator import render_claim_summary_card
+        from src.core.teachable_machine_classifier import get_gtm_classifier
+        from src.core.model_comparator import get_model_comparator
+        from PIL import Image
+
+        with self.app.app_context():
+            claim = Claim.query.first()
+            self.assertIsNotNone(claim)
+
+            # Req 1.6.xx: Generate Claim Summary Card
+            from src.core.preprocessor import ClaimDataPreprocessor
+            payload = ClaimDataPreprocessor.clean_and_prepare(
+                {
+                    "claim_id": claim.claim_id,
+                    "fault_category": claim.fault_category,
+                    "damage_type": claim.damage_type,
+                    "fault_occurrence_date": claim.fault_occurrence_date,
+                    "claim_submission_date": claim.claim_submission_date
+                },
+                product=claim.product,
+                documents=claim.documents
+            )
+            card_img = render_claim_summary_card(payload)
+            self.assertIsInstance(card_img, Image.Image)
+            self.assertEqual(card_img.size, (640, 420))
+
+            # Req 1.6.xxi: Google Teachable Machine Evaluation
+            gtm_res = get_gtm_classifier().predict_card(card_img)
+            self.assertIn("predicted_class", gtm_res)
+            self.assertIn(gtm_res["predicted_class"], ["Valid Claim", "Invalid Claim", "Manual Review"])
+            self.assertIn("confidence_scores", gtm_res)
+            for cls_name in ["Valid Claim", "Invalid Claim", "Manual Review"]:
+                self.assertIn(cls_name, gtm_res["confidence_scores"])
+                self.assertGreaterEqual(gtm_res["confidence_scores"][cls_name], 0.0)
+                self.assertLessEqual(gtm_res["confidence_scores"][cls_name], 1.0)
+
+            # Req 1.6.xxii: Model Prediction Comparison
+            py_res = {
+                "predicted_class": "Valid Claim",
+                "top_confidence": 0.88,
+                "confidence_scores": {"Valid Claim": 0.88, "Invalid Claim": 0.05, "Manual Review": 0.07}
+            }
+            from src.core.model_comparator import get_model_comparator
+            comparison = get_model_comparator().evaluate_consensus(py_res, gtm_res)
+            self.assertIn("is_class_match", comparison)
+            self.assertIsInstance(comparison["is_class_match"], bool)
+            self.assertIn("model_consistency_status", comparison)
+            self.assertIn("top_confidence_difference", comparison)
+
+            # Also verify summary-card endpoint responds with image/png
+            with self.client.session_transaction() as sess:
+                user = User.query.filter_by(role=Config.ROLE_CUSTOMER).first()
+                sess["user_id"] = user.user_id
+                sess["role"] = user.role
+                sess["email"] = user.email
+
+            res = self.client.get(f"/claims/{claim.claim_id}/summary-card")
+            self.assertEqual(res.status_code, 200)
+            self.assertEqual(res.mimetype, "image/png")
+
+
 if __name__ == "__main__":
     unittest.main()
 

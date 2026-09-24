@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 from datetime import datetime, date
 from werkzeug.utils import secure_filename
-from flask import Blueprint, request, session, redirect, url_for, flash, jsonify, render_template, current_app
+from flask import Blueprint, request, session, redirect, url_for, flash, jsonify, render_template, current_app, send_file
 from config.config import Config
 from database.db import db
 from src.models.entities import (
@@ -397,3 +397,35 @@ def view_claim(claim_id):
     """Full claim dossier inspection view with dual-model charts and documents."""
     claim = Claim.query.filter_by(claim_id=claim_id).first_or_404()
     return render_template("customer/claim_detail.html", claim=claim)
+
+
+@claim_bp.route("/<string:claim_id>/summary-card", methods=["GET"])
+@login_required
+def view_summary_card(claim_id):
+    """
+    Req 1.6.xx: Serves the standardized visual Claim Summary Card image.
+    Strictly contains raw claim evidence (product age, warranty status, fault type,
+    repair history, document availability, serial-number status) without AI predictions.
+    """
+    claim = Claim.query.filter_by(claim_id=claim_id).first_or_404()
+    upload_folder = Path(Config.UPLOAD_DIR)
+    card_path = upload_folder / f"{claim.claim_id}_card.png"
+
+    if not card_path.exists():
+        payload = ClaimDataPreprocessor.clean_and_prepare(
+            {
+                "claim_id": claim.claim_id,
+                "fault_category": claim.fault_category,
+                "damage_type": claim.damage_type,
+                "fault_occurrence_date": claim.fault_occurrence_date,
+                "claim_submission_date": claim.claim_submission_date
+            },
+            product=claim.product,
+            documents=claim.documents
+        )
+        card_img = render_claim_summary_card(payload, variation=1)
+        upload_folder.mkdir(parents=True, exist_ok=True)
+        card_img.save(card_path)
+
+    return send_file(card_path, mimetype="image/png")
+
