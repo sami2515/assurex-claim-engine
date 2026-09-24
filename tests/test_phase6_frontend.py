@@ -126,6 +126,104 @@ class TestPhase6Frontend(unittest.TestCase):
         self.assertEqual(res_wizard.status_code, 200)
         self.assertIn(b"Warranty Claim Intake Wizard", res_wizard.data)
 
+    def test_req_1_6_iii_and_iv_product_and_warranty_management(self):
+        """
+        SRS 1.6.iii: Product registration with all specified attributes + unique Product ID.
+        SRS 1.6.iv: Warranty record management (standard/extended, provider, dates, coverage,
+                    exclusions, service center) + common interface status filtering.
+        """
+        with self.client.session_transaction() as sess:
+            with self.app.app_context():
+                user = User.query.filter_by(role=Config.ROLE_CUSTOMER).first()
+                sess["user_id"] = user.id
+                sess["user_code"] = user.user_id
+                sess["role"] = user.role
+                sess["user_name"] = user.full_name
+                sess["email"] = user.email
+
+        test_serial = "SN-TEST-REG-101"
+        with self.app.app_context():
+            old = Product.query.filter_by(serial_number=test_serial).first()
+            if old:
+                if old.warranty:
+                    db.session.delete(old.warranty)
+                db.session.delete(old)
+                db.session.commit()
+
+        try:
+            # 1. Test POST /products/register (Req 1.6.iii & 1.6.iv)
+            post_data = {
+                "product_name": "Spectra Quantum OLED TV 65",
+                "category": "Consumer Electronics",
+                "brand": "SpectraVision",
+                "model_number": "SV-QLED-65X",
+                "serial_number": test_serial,
+                "purchase_date": "2026-05-15",
+                "purchase_price": "1499.99",
+                "retailer": "Best Buy Electronics",
+                "invoice_number": "INV-BB-2026-9901",
+                "warranty_duration": "36",
+                "warranty_type": "extended",
+                "warranty_provider": "SpectraShield Platinum Care",
+                "service_center_name": "Metro Authorized Tech Hub #4"
+            }
+            res_reg = self.client.post("/products/register", data=post_data, follow_redirects=True)
+            self.assertEqual(res_reg.status_code, 200)
+            self.assertIn(b"registered successfully", res_reg.data)
+            self.assertIn(b"Assigned Unique Product ID", res_reg.data)
+
+            with self.app.app_context():
+                prod = Product.query.filter_by(serial_number=test_serial).first()
+                self.assertIsNotNone(prod)
+                self.assertTrue(prod.product_id.startswith("PRD-"))
+                self.assertEqual(prod.product_name, "Spectra Quantum OLED TV 65")
+                self.assertEqual(prod.category, "Consumer Electronics")
+                self.assertEqual(prod.brand, "SpectraVision")
+                self.assertEqual(prod.model_number, "SV-QLED-65X")
+                self.assertEqual(prod.purchase_price, 1499.99)
+                self.assertEqual(prod.retailer, "Best Buy Electronics")
+
+                # Verify Warranty Record (Req 1.6.iv)
+                w = prod.warranty
+                self.assertIsNotNone(w)
+                self.assertTrue(w.warranty_id.startswith("WAR-"))
+                self.assertTrue(w.is_extended)
+                self.assertEqual(w.warranty_provider, "SpectraShield Platinum Care")
+                self.assertEqual(w.service_center_name, "Metro Authorized Tech Hub #4")
+                self.assertEqual(w.start_date.strftime("%Y-%m-%d"), "2026-05-15")
+
+                prod_unique_id = prod.product_id
+
+            # 2. Test Common Interface Filtering (Req 1.6.iv)
+            for status in ["all", "active", "approaching", "expired", "extended"]:
+                res_filter = self.client.get(f"/products/?status={status}")
+                self.assertEqual(res_filter.status_code, 200)
+                self.assertIn(b"Registered Products Fleet", res_filter.data)
+                self.assertIn(b"All Warranties", res_filter.data)
+                self.assertIn(b"Approaching Expiry", res_filter.data)
+                self.assertIn(b"Extended Plans", res_filter.data)
+
+            # 3. Test Product Detail Page: Hardware Specs, Policy Rules, Exclusions (Req 1.6.iii & 1.6.iv)
+            res_detail = self.client.get(f"/products/{prod_unique_id}")
+            self.assertEqual(res_detail.status_code, 200)
+            self.assertIn(prod_unique_id.encode(), res_detail.data)
+            self.assertIn(b"Hardware Specification", res_detail.data)
+            self.assertIn(b"Warranty Record & Terms", res_detail.data)
+            self.assertIn(b"SpectraShield Platinum Care", res_detail.data)
+            self.assertIn(b"Metro Authorized Tech Hub #4", res_detail.data)
+            self.assertIn(b"Coverage Conditions & Policy Exclusions", res_detail.data)
+            self.assertIn(b"Covered Conditions & Fault Symptoms", res_detail.data)
+            self.assertIn(b"Policy Exclusions & Disqualifying Factors", res_detail.data)
+            self.assertIn(b"Authorized Maintenance & Repair History", res_detail.data)
+
+        finally:
+            with self.app.app_context():
+                cleanup = Product.query.filter_by(serial_number=test_serial).first()
+                if cleanup:
+                    ProductWarranty.query.filter_by(product_id=cleanup.id).delete()
+                    db.session.delete(cleanup)
+                    db.session.commit()
+
     def test_reviewer_portal_authenticated(self):
         """Verify reviewer queue and inspect views render for staff reviewers."""
         with self.client.session_transaction() as sess:

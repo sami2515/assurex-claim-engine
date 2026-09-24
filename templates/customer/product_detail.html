@@ -1,15 +1,32 @@
 {% extends "components/base.html" %}
 
-{% block title %}{{ product.product_name }}{% endblock %}
+{% block title %}{{ product.product_name }} - Hardware & Warranty Record{% endblock %}
 
 {% block content %}
 <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
     <div>
-        <div class="d-flex align-items-center gap-2 mb-1">
+        <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
             <h2 class="fw-bold text-slate-900 mb-0">{{ product.product_name }}</h2>
             <span class="badge bg-light text-secondary border">{{ product.category }}</span>
+            {% set w = product.warranty %}
+            {% if w and not w.is_active() %}
+                <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Expired</span>
+            {% elif w and w.is_approaching_expiry(30) %}
+                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle">Approaching Expiry</span>
+            {% elif w and w.is_active() %}
+                <span class="badge bg-success-subtle text-success border border-success-subtle">Active Warranty</span>
+            {% else %}
+                <span class="badge bg-secondary">No Warranty</span>
+            {% endif %}
         </div>
-        <p class="text-muted mb-0 font-mono small">Product ID: {{ product.product_id }} &bull; Serial: {{ product.serial_number }}</p>
+        <div class="d-flex align-items-center gap-2 text-muted font-mono small flex-wrap">
+            <span>Product ID: <strong class="text-primary">{{ product.product_id }}</strong></span>
+            <button class="btn btn-xs btn-outline-secondary py-0 px-2 rounded font-mono" style="font-size: 0.72rem;" onclick="navigator.clipboard.writeText('{{ product.product_id }}'); this.innerText='Copied!'; setTimeout(() => this.innerText='Copy', 1500)">
+                <i class="bi bi-clipboard me-1"></i>Copy
+            </button>
+            <span>&bull;</span>
+            <span>Serial: <strong>{{ product.serial_number }}</strong></span>
+        </div>
     </div>
     <div class="d-flex gap-2">
         <a href="{{ url_for('products.list_products') }}" class="btn btn-outline-secondary btn-sm">
@@ -22,24 +39,25 @@
 </div>
 
 <div class="row g-4 mb-4">
-    <!-- Hardware Specification Column -->
+    <!-- Hardware Specification Column (Req 1.6.iii) -->
     <div class="col-lg-6">
         <div class="card border-0 shadow-sm rounded-4 bg-white h-100">
-            <div class="card-header-styled">
-                <i class="bi bi-cpu text-primary me-2"></i>Hardware Specification
+            <div class="card-header-styled d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-cpu text-primary me-2"></i>Hardware Specification (Req 1.6.iii)</span>
+                <span class="badge bg-light text-secondary border font-mono">Unique ID: {{ product.product_id }}</span>
             </div>
             <div class="card-body p-4">
                 <div class="row g-3">
                     <div class="col-6">
                         <div class="text-muted extra-small">Manufacturer / Brand</div>
-                        <div class="fw-semibold">{{ product.brand }}</div>
+                        <div class="fw-semibold text-slate-900">{{ product.brand }}</div>
                     </div>
                     <div class="col-6">
                         <div class="text-muted extra-small">Model Designation</div>
                         <div class="fw-semibold font-mono">{{ product.model_number }}</div>
                     </div>
                     <div class="col-6">
-                        <div class="text-muted extra-small">Serial Number</div>
+                        <div class="text-muted extra-small">Hardware Serial Number</div>
                         <div class="fw-bold text-primary font-mono">{{ product.serial_number }}</div>
                     </div>
                     <div class="col-6">
@@ -63,25 +81,30 @@
         </div>
     </div>
 
-    <!-- Active Warranty Policy Column -->
+    <!-- Active Warranty Policy Record (Req 1.6.iv) -->
     <div class="col-lg-6">
         <div class="card border-0 shadow-sm rounded-4 bg-white h-100">
             <div class="card-header-styled d-flex justify-content-between align-items-center">
-                <span><i class="bi bi-shield-check text-primary me-2"></i>Warranty Policy Coverage</span>
-                {% set w = product.warranty %}
-                {% if w and w.is_active() %}
-                    <span class="badge bg-success-subtle text-success border border-success-subtle">Active</span>
-                {% elif w %}
-                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle">Expired</span>
+                <span><i class="bi bi-shield-check text-primary me-2"></i>Warranty Record & Terms (Req 1.6.iv)</span>
+                {% if w and w.is_extended %}
+                    <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle">
+                        <i class="bi bi-award-fill"></i> Extended (+{{ w.extended_months }}m)
+                    </span>
                 {% else %}
-                    <span class="badge bg-secondary">None</span>
+                    <span class="badge bg-light text-secondary border">Standard Tier</span>
                 {% endif %}
             </div>
             <div class="card-body p-4">
                 {% if w %}
-                    <div class="mb-3">
-                        <div class="text-muted extra-small">Warranty Certificate ID</div>
-                        <div class="fw-bold font-mono text-dark">{{ w.warranty_id }}</div>
+                    <div class="mb-3 d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="text-muted extra-small">Warranty Certificate ID</div>
+                            <div class="fw-bold font-mono text-dark">{{ w.warranty_id }}</div>
+                        </div>
+                        <div>
+                            <div class="text-muted extra-small text-end">Policy Name</div>
+                            <div class="small fw-semibold text-slate-800 text-end">{{ w.policy.policy_name if w.policy else 'Standard Warranty' }}</div>
+                        </div>
                     </div>
                     <div class="row g-3 mb-3">
                         <div class="col-6">
@@ -90,15 +113,17 @@
                         </div>
                         <div class="col-6">
                             <div class="text-muted extra-small">Expiration Date</div>
-                            <div class="fw-semibold">{{ w.expiry_date.strftime('%B %d, %Y') }}</div>
+                            <div class="fw-semibold {% if not w.is_active() %}text-danger{% elif w.is_approaching_expiry(30) %}text-warning-emphasis{% endif %}">
+                                {{ w.expiry_date.strftime('%B %d, %Y') }}
+                            </div>
                         </div>
                         <div class="col-6">
-                            <div class="text-muted extra-small">Service Provider</div>
+                            <div class="text-muted extra-small">Warranty Provider</div>
                             <div class="fw-semibold">{{ w.warranty_provider }}</div>
                         </div>
                         <div class="col-6">
-                            <div class="text-muted extra-small">Authorized Center</div>
-                            <div class="fw-semibold small">{{ w.service_center_name }}</div>
+                            <div class="text-muted extra-small">Authorized Service Center</div>
+                            <div class="fw-semibold small">{{ w.service_center_name or 'Authorized National Network' }}</div>
                         </div>
                     </div>
 
@@ -106,12 +131,18 @@
                     <div class="bg-light p-3 rounded-3 border">
                         <div class="d-flex justify-content-between align-items-center mb-1 small">
                             <span class="fw-semibold text-slate-700">Remaining Coverage Term</span>
-                            <span class="fw-bold text-primary">{{ w.remaining_days() }} Days</span>
+                            <span class="fw-bold {% if not w.is_active() %}text-danger{% elif w.is_approaching_expiry(30) %}text-warning-emphasis{% else %}text-primary{% endif %}">
+                                {% if not w.is_active() %}0 Days (Expired){% else %}{{ w.remaining_days() }} Days Left{% endif %}
+                            </span>
                         </div>
                         {% set total_days = (w.expiry_date - w.start_date).days %}
                         {% set pct = 0 if total_days <= 0 else [0, [(w.remaining_days() / total_days * 100)|round, 100]|min]|max %}
                         <div class="progress" style="height: 8px;">
-                            <div class="progress-bar {% if w.remaining_days() > 60 %}bg-success{% elif w.remaining_days() > 15 %}bg-warning{% else %}bg-danger{% endif %}" role="progressbar" style="width: {{ pct }}%;" aria-valuenow="{{ pct }}" aria-valuemin="0" aria-valuemax="100"></div>
+                            <div class="progress-bar {% if not w.is_active() %}bg-secondary{% elif w.remaining_days() > 60 %}bg-success{% elif w.remaining_days() > 15 %}bg-warning{% else %}bg-danger{% endif %}" role="progressbar" style="width: {{ pct }}%;" aria-valuenow="{{ pct }}" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                        <div class="d-flex justify-content-between extra-small text-muted mt-1">
+                            <span>Started: {{ w.start_date.strftime('%b %d, %Y') }}</span>
+                            <span>Expires: {{ w.expiry_date.strftime('%b %d, %Y') }}</span>
                         </div>
                     </div>
                 {% else %}
@@ -125,10 +156,97 @@
     </div>
 </div>
 
-<!-- Historical Service & Repair Records -->
+<!-- Warranty Coverage Conditions & Exclusions Panel (Req 1.6.iv) -->
+<div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
+    <div class="card-header-styled d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-file-earmark-medical text-primary me-2"></i>Coverage Conditions & Policy Exclusions (Req 1.6.iv)</span>
+        <span class="badge bg-light text-secondary border">Adjudication Engine Rules</span>
+    </div>
+    <div class="card-body p-4">
+        <div class="row g-4">
+            <!-- Covered Conditions -->
+            <div class="col-md-6 border-end-md">
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <span class="badge bg-success-subtle text-success border border-success-subtle p-1"><i class="bi bi-check-circle-fill"></i></span>
+                    <h6 class="fw-bold text-slate-800 mb-0">Covered Conditions & Fault Symptoms</h6>
+                </div>
+                <p class="text-muted extra-small mb-3">Claims filed for these hardware failure modes are eligible for full warranty repair or replacement:</p>
+                <div class="d-flex flex-wrap gap-2">
+                    {% if policy_rules.covered_faults %}
+                        {% for fault in policy_rules.covered_faults %}
+                            <div class="d-flex align-items-center gap-2 bg-light border rounded-pill px-3 py-1 small text-slate-800">
+                                <i class="bi bi-check2 text-success fw-bold"></i>
+                                <span>{{ fault }}</span>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-muted small">Standard manufacturer operational faults covered under terms.</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Exclusions -->
+            <div class="col-md-6">
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle p-1"><i class="bi bi-x-circle-fill"></i></span>
+                    <h6 class="fw-bold text-slate-800 mb-0">Policy Exclusions & Disqualifying Factors</h6>
+                </div>
+                <p class="text-muted extra-small mb-3">Damage or failure originating from these causes voids warranty eligibility:</p>
+                <div class="d-flex flex-wrap gap-2">
+                    {% if policy_rules.exclusions %}
+                        {% for exc in policy_rules.exclusions %}
+                            <div class="d-flex align-items-center gap-2 bg-light border border-danger-subtle rounded-pill px-3 py-1 small text-slate-800">
+                                <i class="bi bi-slash-circle text-danger fw-bold"></i>
+                                <span>{{ exc }}</span>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-muted small">Unauthorized modifications, liquid submersion, and accidental impact damage excluded.</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Additional Compliance Metadata -->
+            <div class="col-12 pt-3 border-top">
+                <div class="row g-3">
+                    <div class="col-sm-4">
+                        <div class="bg-light p-3 rounded-3 border">
+                            <div class="text-muted extra-small fw-semibold text-uppercase">Claim Reporting Window</div>
+                            <div class="fw-bold text-slate-900 mt-1">{{ w.policy.claim_reporting_period_days if w and w.policy else 30 }} Days</div>
+                            <small class="text-muted extra-small">Max days allowed between incident and claim intake</small>
+                        </div>
+                    </div>
+                    <div class="col-sm-4">
+                        <div class="bg-light p-3 rounded-3 border">
+                            <div class="text-muted extra-small fw-semibold text-uppercase">Post-Expiry Grace Period</div>
+                            <div class="fw-bold text-slate-900 mt-1">{{ w.policy.grace_period_days if w and w.policy else 7 }} Days</div>
+                            <small class="text-muted extra-small">Window for incident occurred before expiry</small>
+                        </div>
+                    </div>
+                    <div class="col-sm-4">
+                        <div class="bg-light p-3 rounded-3 border">
+                            <div class="text-muted extra-small fw-semibold text-uppercase">Mandatory Service Center</div>
+                            <div class="fw-bold text-slate-900 mt-1">
+                                {% if w and w.policy and w.policy.authorized_service_center_required %}
+                                    <span class="text-success"><i class="bi bi-shield-check"></i> Certified Facility Required</span>
+                                {% else %}
+                                    <span class="text-secondary">Flexible Service Center</span>
+                                {% endif %}
+                            </div>
+                            <small class="text-muted extra-small">Repairs must be performed by authorized engineers</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Historical Service & Repair Records (Req 1.6.iv) -->
 <div class="card border-0 shadow-sm rounded-4 bg-white">
-    <div class="card-header-styled">
-        <i class="bi bi-tools text-primary me-2"></i>Authorized Maintenance & Repair History
+    <div class="card-header-styled d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-tools text-primary me-2"></i>Authorized Maintenance & Repair History</span>
+        <span class="badge bg-light text-secondary border">{{ product.repair_records|length }} Service Events</span>
     </div>
     <div class="table-responsive">
         <table class="table table-custom align-middle mb-0">
@@ -136,33 +254,45 @@
                 <tr>
                     <th>Repair Date</th>
                     <th>Service Center</th>
-                    <th>Issue Description</th>
-                    <th>Action Performed</th>
+                    <th>Replaced Components</th>
+                    <th>Outcome</th>
                     <th>Cost Incurred</th>
-                    <th>Authorized Facility</th>
+                    <th>Facility Certification</th>
+                    <th>Technician Notes</th>
                 </tr>
             </thead>
             <tbody>
                 {% if product.repair_records %}
                     {% for r in product.repair_records %}
                         <tr>
-                            <td class="small">{{ r.repair_date.strftime('%Y-%m-%d') }}</td>
-                            <td class="fw-semibold">{{ r.service_center_name }}</td>
-                            <td class="small text-muted">{{ r.issue_description }}</td>
-                            <td class="small">{{ r.action_taken }}</td>
-                            <td class="small">${{ "%.2f"|format(r.cost) }}</td>
+                            <td class="small fw-semibold">{{ r.repair_date.strftime('%Y-%m-%d') }}</td>
+                            <td class="fw-semibold text-slate-900">{{ r.repair_center }}</td>
+                            <td class="small">{{ r.replaced_parts or 'None' }}</td>
+                            <td>
+                                {% if r.outcome == 'Repaired' %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle">Repaired</span>
+                                {% elif r.outcome == 'Replaced' %}
+                                    <span class="badge bg-info-subtle text-info border border-info-subtle">Replaced</span>
+                                {% else %}
+                                    <span class="badge bg-light text-dark border">{{ r.outcome }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="small fw-semibold">${{ "%.2f"|format(r.repair_cost) }}</td>
                             <td>
                                 {% if r.is_authorized_center %}
-                                    <span class="badge bg-success-subtle text-success"><i class="bi bi-check-circle"></i> Authorized</span>
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle"><i class="bi bi-check-circle"></i> Authorized</span>
                                 {% else %}
-                                    <span class="badge bg-danger-subtle text-danger"><i class="bi bi-x-circle"></i> Unauthorized</span>
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle"><i class="bi bi-x-circle"></i> Unauthorized</span>
                                 {% endif %}
+                            </td>
+                            <td class="small text-muted text-truncate" style="max-width: 200px;" title="{{ r.notes }}">
+                                {{ r.notes or 'No notes recorded' }}
                             </td>
                         </tr>
                     {% endfor %}
                 {% else %}
                     <tr>
-                        <td colspan="6" class="text-center py-4 text-muted">
+                        <td colspan="7" class="text-center py-4 text-muted">
                             <i class="bi bi-wrench-adjustable fs-2 d-block mb-2 text-secondary"></i>
                             No previous service or maintenance claims recorded for this equipment.
                         </td>

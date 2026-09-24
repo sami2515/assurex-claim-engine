@@ -169,6 +169,20 @@ class ProductWarranty(db.Model):
         delta = (self.expiry_date - target).days
         return max(0, delta)
 
+    def is_approaching_expiry(self, threshold_days=30, on_date=None) -> bool:
+        """Req iv: Identifies warranties approaching expiration within the threshold window."""
+        rem = self.remaining_days(on_date=on_date)
+        return 0 < rem <= threshold_days
+
+    @property
+    def status(self) -> str:
+        """Returns one of: 'Active', 'Approaching Expiry', 'Expired'."""
+        if not self.is_active():
+            return "Expired"
+        if self.is_approaching_expiry():
+            return "Approaching Expiry"
+        return "Active"
+
     def to_dict(self):
         return {
             "warranty_id": self.warranty_id,
@@ -177,7 +191,7 @@ class ProductWarranty(db.Model):
             "expiry_date": self.expiry_date.strftime("%Y-%m-%d"),
             "is_extended": self.is_extended,
             "remaining_days": self.remaining_days(),
-            "status": "Active" if self.is_active() else "Expired"
+            "status": self.status
         }
 
 

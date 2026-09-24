@@ -1,79 +1,157 @@
 {% extends "components/base.html" %}
 
-{% block title %}Register New Product{% endblock %}
+{% block title %}Register New Equipment & Activate Warranty{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center py-3">
-    <div class="col-lg-8">
+    <div class="col-lg-9">
         <div class="card border-0 shadow-sm rounded-4 bg-white overflow-hidden">
+            <!-- Header Banner -->
             <div class="card-header-styled bg-primary text-white p-4">
-                <h4 class="fw-bold mb-1"><i class="bi bi-box-seam me-2"></i>Register Equipment & Activate Warranty</h4>
-                <p class="mb-0 text-white-50 small">Provide hardware serial and invoice credentials to link your policy (Req iii & iv)</p>
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                    <div>
+                        <h4 class="fw-bold mb-1">
+                            <i class="bi bi-box-seam me-2"></i>Register Equipment & Activate Warranty
+                        </h4>
+                        <p class="mb-0 text-white-50 small">
+                            Fulfills SRS 1.6.iii & 1.6.iv: Enter hardware provenance, duration, and warranty coverage details.
+                        </p>
+                    </div>
+                    <span class="badge bg-white text-primary fw-bold font-mono px-3 py-2 shadow-xs">
+                        Req iii & iv
+                    </span>
+                </div>
             </div>
 
             <div class="card-body p-4 p-md-5">
                 <form method="POST" action="{{ url_for('products.register_product') }}">
+                    
+                    <!-- Section 1: Hardware Asset Provenance (Req 1.6.iii) -->
+                    <div class="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom">
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle">Step 1</span>
+                        <h6 class="fw-bold text-slate-800 mb-0">Hardware Asset & Identification Details (Req 1.6.iii)</h6>
+                    </div>
+
                     <div class="row g-3 mb-4">
                         <div class="col-md-8">
                             <label for="product_name" class="form-label fw-semibold small text-slate-700">Product Name / Title <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control bg-light" id="product_name" name="product_name" required placeholder="e.g. ProSmart OLED 65-inch 4K Television">
+                            <input type="text" class="form-control" id="product_name" name="product_name" required placeholder="e.g. ApexBook Pro 16 Laptop">
                         </div>
+
                         <div class="col-md-4">
-                            <label for="category" class="form-label fw-semibold small text-slate-700">Category <span class="text-danger">*</span></label>
-                            <select class="form-select bg-light" id="category" name="category" required>
+                            <label for="category" class="form-label fw-semibold small text-slate-700">Product Category <span class="text-danger">*</span></label>
+                            <select class="form-select" id="category" name="category" required onchange="updateWarrantyDefaults(this.value)">
                                 <option value="" disabled selected>Select Category</option>
                                 <option value="Consumer Electronics">Consumer Electronics</option>
                                 <option value="Home Appliances">Home Appliances</option>
-                                <option value="Industrial Tools">Industrial Tools</option>
+                                <option value="Industrial & Automotive Tools">Industrial & Automotive Tools</option>
                             </select>
                         </div>
+
                         <div class="col-md-6">
                             <label for="brand" class="form-label fw-semibold small text-slate-700">Brand / Manufacturer <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control bg-light" id="brand" name="brand" required placeholder="e.g. Sony, Bosch, DeWalt">
+                            <input type="text" class="form-control" id="brand" name="brand" required placeholder="e.g. ApexTech, FrostGuard, TitanPower">
                         </div>
+
                         <div class="col-md-6">
                             <label for="model_number" class="form-label fw-semibold small text-slate-700">Model Number <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control bg-light font-mono" id="model_number" name="model_number" required placeholder="e.g. BRAVIA-XR-65A80L">
+                            <input type="text" class="form-control font-mono" id="model_number" name="model_number" required placeholder="e.g. ABP-16-M3">
                         </div>
+
                         <div class="col-md-6">
                             <label for="serial_number" class="form-label fw-semibold small text-slate-700">Hardware Serial Number <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control bg-light font-mono" id="serial_number" name="serial_number" required placeholder="e.g. SN-88934-TX99">
-                            <div class="form-text extra-small">Unique alphanumeric identifier printed on the hardware chassis.</div>
+                            <input type="text" class="form-control font-mono" id="serial_number" name="serial_number" required placeholder="e.g. SN-APX-994821">
+                            <div class="form-text extra-small">Unique alphanumeric identifier stamped on device backplate.</div>
                         </div>
+
                         <div class="col-md-6">
                             <label for="purchase_date" class="form-label fw-semibold small text-slate-700">Purchase Date <span class="text-danger">*</span></label>
-                            <input type="date" class="form-control bg-light" id="purchase_date" name="purchase_date" required max="{{ current_date or '2026-12-31' }}">
+                            <input type="date" class="form-control" id="purchase_date" name="purchase_date" required max="{{ current_date or '2026-12-31' }}">
                         </div>
+
                         <div class="col-md-4">
                             <label for="purchase_price" class="form-label fw-semibold small text-slate-700">Purchase Price ($ USD) <span class="text-danger">*</span></label>
                             <div class="input-group">
                                 <span class="input-group-text bg-light text-muted">$</span>
-                                <input type="number" step="0.01" class="form-control bg-light" id="purchase_price" name="purchase_price" required placeholder="0.00">
+                                <input type="number" step="0.01" class="form-control" id="purchase_price" name="purchase_price" required placeholder="0.00">
                             </div>
                         </div>
+
                         <div class="col-md-4">
                             <label for="retailer" class="form-label fw-semibold small text-slate-700">Authorized Retailer <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control bg-light" id="retailer" name="retailer" required placeholder="e.g. Best Buy, Home Depot">
+                            <input type="text" class="form-control" id="retailer" name="retailer" required placeholder="e.g. Best Buy, Home Depot, Direct">
                         </div>
+
                         <div class="col-md-4">
-                            <label for="invoice_number" class="form-label fw-semibold small text-slate-700">Invoice / Receipt Number</label>
-                            <input type="text" class="form-control bg-light font-mono" id="invoice_number" name="invoice_number" placeholder="e.g. INV-2026-90812">
+                            <label for="invoice_number" class="form-label fw-semibold small text-slate-700">Invoice / Tax Receipt Number</label>
+                            <input type="text" class="form-control font-mono" id="invoice_number" name="invoice_number" placeholder="e.g. INV-2026-8812">
                         </div>
                     </div>
 
-                    <!-- Informational Warranty Coverage Card -->
-                    <div class="alert alert-info border-info-subtle d-flex align-items-start gap-3 mb-4 rounded-3">
-                        <i class="bi bi-shield-check fs-4 text-info mt-1"></i>
+                    <!-- Section 2: Warranty Record & Terms (Req 1.6.iv) -->
+                    <div class="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom">
+                        <span class="badge bg-success-subtle text-success border border-success-subtle">Step 2</span>
+                        <h6 class="fw-bold text-slate-800 mb-0">Warranty Coverage Terms & Policy Binding (Req 1.6.iv)</h6>
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <!-- Warranty Duration (Mandatory in Req 1.6.iii) -->
+                        <div class="col-md-4">
+                            <label for="warranty_duration" class="form-label fw-semibold small text-slate-700">
+                                Warranty Duration (Months) <span class="text-danger">*</span>
+                            </label>
+                            <select class="form-select" id="warranty_duration" name="warranty_duration" required>
+                                <option value="12" selected>12 Months (1 Year Standard)</option>
+                                <option value="24">24 Months (2 Years Standard)</option>
+                                <option value="36">36 Months (3 Years Extended)</option>
+                                <option value="48">48 Months (4 Years Extended)</option>
+                            </select>
+                            <div class="form-text extra-small">Coverage duration as specified on your invoice or purchase agreement.</div>
+                        </div>
+
+                        <!-- Standard vs Extended Warranty (Req 1.6.iv) -->
+                        <div class="col-md-4">
+                            <label for="warranty_type" class="form-label fw-semibold small text-slate-700">
+                                Warranty Tier / Type <span class="text-danger">*</span>
+                            </label>
+                            <select class="form-select" id="warranty_type" name="warranty_type" required>
+                                <option value="standard" selected>Standard Manufacturer Warranty</option>
+                                <option value="extended">Extended Protection Plan (Extended Coverage)</option>
+                            </select>
+                        </div>
+
+                        <!-- Warranty Provider (Req 1.6.iv) -->
+                        <div class="col-md-4">
+                            <label for="warranty_provider" class="form-label fw-semibold small text-slate-700">
+                                Warranty Provider Name
+                            </label>
+                            <input type="text" class="form-control" id="warranty_provider" name="warranty_provider" placeholder="e.g. AssureX Shield Direct Care">
+                        </div>
+
+                        <!-- Service Center Details (Req 1.6.iv) -->
+                        <div class="col-12">
+                            <label for="service_center_name" class="form-label fw-semibold small text-slate-700">
+                                Authorized Service Center Network / Facility
+                            </label>
+                            <input type="text" class="form-control" id="service_center_name" name="service_center_name" placeholder="e.g. Metro Authorized Care Center #12">
+                            <div class="form-text extra-small">Designated repair center authorized for physical inspections and certified parts replacement.</div>
+                        </div>
+                    </div>
+
+                    <!-- Informational Warranty Binding Banner -->
+                    <div class="alert alert-light border shadow-xs d-flex align-items-start gap-3 mb-4 rounded-3 p-3">
+                        <i class="bi bi-shield-check fs-3 text-primary mt-1"></i>
                         <div class="small">
-                            <div class="fw-bold">Automated Warranty Binding</div>
-                            Upon submission, AssureX dynamically binds an official warranty contract to this hardware based on the category's standard coverage term (12 to 24 months) and provisions authorized service network support.
+                            <div class="fw-bold text-slate-900 mb-1">Automated System Unique Product ID & Policy Contract Binding</div>
+                            Upon submission, AssureX assigns a permanent <b>Unique Product ID (PRD-XXXXXXXX)</b> to this hardware and binds an active warranty contract storing complete coverage rules, exclusions, and service-center specifications (SRS Section 1.6.iii & 1.6.iv).
                         </div>
                     </div>
 
+                    <!-- Action Controls -->
                     <div class="d-flex justify-content-end gap-2">
                         <a href="{{ url_for('products.list_products') }}" class="btn btn-outline-secondary px-4">Cancel</a>
                         <button type="submit" class="btn btn-primary px-4 fw-semibold shadow-sm d-inline-flex align-items-center gap-2">
-                            <i class="bi bi-check-circle-fill"></i> Save & Activate Coverage
+                            <i class="bi bi-check-circle-fill"></i> Complete Registration & Activate Warranty
                         </button>
                     </div>
                 </form>
@@ -81,4 +159,23 @@
         </div>
     </div>
 </div>
+
+<script>
+function updateWarrantyDefaults(category) {
+    const durationSelect = document.getElementById('warranty_duration');
+    const providerInput = document.getElementById('warranty_provider');
+    const brandInput = document.getElementById('brand').value || 'Manufacturer';
+
+    if (category === 'Consumer Electronics') {
+        durationSelect.value = '12';
+        providerInput.placeholder = brandInput + ' Official Care';
+    } else if (category === 'Home Appliances') {
+        durationSelect.value = '24';
+        providerInput.placeholder = brandInput + ' Comprehensive Appliance Warranty';
+    } else if (category.includes('Industrial')) {
+        durationSelect.value = '36';
+        providerInput.placeholder = brandInput + ' Heavy Duty Industrial Care';
+    }
+}
+</script>
 {% endblock %}
