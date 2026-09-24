@@ -279,6 +279,11 @@ class Claim(db.Model):
         from src.core.decision_engine import get_decision_engine
         return get_decision_engine().generate_claim_summary(self)
 
+    def get_decision_explanation(self) -> dict:
+        """Req 1.6.xxxv: Generates comprehensive Decision Explanation factors."""
+        from src.core.decision_engine import get_decision_engine
+        return get_decision_engine().generate_decision_explanation(self)
+
     def to_dict(self):
         return {
             "claim_id": self.claim_id,

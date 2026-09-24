@@ -427,6 +427,131 @@ class MasterDecisionEngine:
             "executive_brief": executive_narrative
         }
 
+    @staticmethod
+    def generate_decision_explanation(claim) -> dict:
+        """
+        Req 1.6.xxxv: Decision Explanation.
+        Explains:
+        1. Factors supporting the decision
+        2. Factors opposing the decision
+        3. Rules passed
+        4. Rules failed
+        5. Detected contradictions
+        6. Additional evidence required
+        """
+        supporting_factors = []
+        opposing_factors = []
+        rules_passed = []
+        rules_failed = []
+        contradictions = []
+        duplicate_flags = []
+        additional_evidence_required = []
+
+        # 1. Rule Validation Logs
+        if claim.rule_validation:
+            try:
+                rules_passed = claim.rule_validation.get_passed()
+                rules_failed = claim.rule_validation.get_failed()
+                contradictions = claim.rule_validation.get_contradictions()
+                if claim.rule_validation.duplicate_flags_json:
+                    duplicate_flags = json.loads(claim.rule_validation.duplicate_flags_json)
+            except Exception:
+                pass
+
+        # 2. Model Evaluation
+        eval_obj = claim.model_evaluation
+        if eval_obj:
+            py_class = eval_obj.python_predicted_class
+            py_top_conf = max(eval_obj.python_conf_valid, eval_obj.python_conf_invalid, eval_obj.python_conf_manual)
+            gtm_class = eval_obj.gtm_predicted_class
+            gtm_top_conf = max(eval_obj.gtm_conf_valid, eval_obj.gtm_conf_invalid, eval_obj.gtm_conf_manual)
+            consistency = eval_obj.model_consistency_status
+            diff = eval_obj.top_confidence_difference
+
+            if eval_obj.is_class_match:
+                if py_class == Config.CLAIM_CLASS_VALID:
+                    supporting_factors.append(f"Dual AI models unanimously approved claim as 'Valid Claim' (Python: {py_top_conf*100:.1f}%, GTM: {gtm_top_conf*100:.1f}%).")
+                    supporting_factors.append(f"Model consistency status verified as '{consistency}' with confidence delta of {diff:.4f}.")
+                elif py_class == Config.CLAIM_CLASS_INVALID:
+                    opposing_factors.append(f"Dual AI models unanimously rejected claim as 'Invalid Claim' (Python: {py_top_conf*100:.1f}%, GTM: {gtm_top_conf*100:.1f}%).")
+                else:
+                    opposing_factors.append("Both AI models recommended 'Manual Review' for specialized human inspection.")
+            else:
+                opposing_factors.append(f"Model disagreement: Python model predicted '{py_class}' ({py_top_conf*100:.1f}%) while Vision model predicted '{gtm_class}' ({gtm_top_conf*100:.1f}%).")
+
+            if consistency == Config.CONSISTENCY_UNCERTAIN:
+                opposing_factors.append("Model confidence is below operating minimum threshold.")
+
+        # 3. Rules & Hardware Policy Factors
+        product = claim.product
+        warranty = claim.warranty if claim.warranty else (product.warranty if product else None)
+
+        if warranty and warranty.is_active(claim.fault_occurrence_date):
+            supporting_factors.append(f"Active warranty coverage verified ({warranty.remaining_days()} days remaining until {warranty.expiry_date.strftime('%Y-%m-%d')}).")
+        elif warranty and not warranty.is_active(claim.fault_occurrence_date):
+            opposing_factors.append(f"Warranty coverage expired on {warranty.expiry_date.strftime('%Y-%m-%d')} before reported defect date.")
+
+        if rules_passed:
+            for r in rules_passed[:4]:
+                if not any(r.lower() in sf.lower() for sf in supporting_factors):
+                    supporting_factors.append(f"Policy Rule Passed: {r}")
+
+        if rules_failed:
+            for r in rules_failed:
+                opposing_factors.append(f"Policy Violation: {r}")
+
+        # 4. Contradictions & Integrity
+        if claim.contradiction_flag or len(contradictions) > 0:
+            for c in (contradictions or ["Inconsistent chronological dates or serial number mismatch"]):
+                opposing_factors.append(f"Contradiction Detected: {c}")
+
+        if claim.is_duplicate_flag or len(duplicate_flags) > 0:
+            for d in (duplicate_flags or ["Duplicate claim attributes or document hash detected"]):
+                opposing_factors.append(f"Duplicate Advisory: {d}")
+
+        if not claim.contradiction_flag and len(contradictions) == 0:
+            supporting_factors.append("Chronological timeline and hardware serial verification passed without conflicts.")
+
+        # 5. Additional Evidence Required (Missing Documents / Information)
+        docs = claim.documents if claim.documents else []
+        doc_types = [d.document_type for d in docs]
+        has_receipt = any(t in ["receipt", "invoice_document", "invoice"] for t in doc_types)
+        has_card = any(t in ["warranty_card"] for t in doc_types)
+        has_photo = any("photo" in t or "image" in t for t in doc_types)
+        has_diagnostic = any("report" in t or "diagnostic" in t for t in doc_types)
+
+        if not has_receipt:
+            additional_evidence_required.append("Purchase Receipt / Tax Invoice: Legible proof of purchase detailing transaction date, price, and authorized retailer.")
+        if not has_card:
+            additional_evidence_required.append("Warranty Card: Manufacturer or retailer warranty card verifying coverage terms.")
+        if not has_photo:
+            additional_evidence_required.append("Fault / Damage Photographs: Clear photos or video capturing the hardware defect or physical damage.")
+        if not any("serial" in t for t in doc_types):
+            additional_evidence_required.append("Serial-Number Photograph: Clear image of the serial-number barcode or hardware chassis stamp.")
+        if product and (product.has_unauthorized_repairs or (hasattr(product, "repair_records") and len(product.repair_records) > 0)) and not has_diagnostic:
+            additional_evidence_required.append("Service / Repair Report: Official workshop bench report documenting previous repairs or maintenance.")
+
+        if claim.missing_document_flag and not additional_evidence_required:
+            additional_evidence_required.append("Mandatory documentation pending verification by claimant.")
+
+        if not additional_evidence_required:
+            supporting_factors.append("All mandatory proof documents (receipt, warranty card, photos) successfully attached.")
+
+        return {
+            "claim_id": claim.claim_id,
+            "final_decision": claim.final_decision or "Pending Evaluation",
+            "decision_summary": claim.decision_reason or "Automated multi-factor evaluation completed.",
+            "risk_level": claim.risk_level or "Medium",
+            "supporting_factors": supporting_factors,
+            "opposing_factors": opposing_factors,
+            "rules_passed": rules_passed,
+            "rules_failed": rules_failed,
+            "contradictions": contradictions,
+            "duplicate_flags": duplicate_flags,
+            "additional_evidence_required": additional_evidence_required,
+            "has_missing_evidence": len(additional_evidence_required) > 0
+        }
+
 
 # Singleton master decision engine instance
 _decision_engine_instance = None
@@ -440,3 +565,7 @@ def get_decision_engine() -> MasterDecisionEngine:
 def generate_claim_summary(claim, adjudication_res: dict = None) -> dict:
     """Convenience helper to generate structured claim summary (Req xxxii)."""
     return get_decision_engine().generate_claim_summary(claim, adjudication_res=adjudication_res)
+
+def generate_decision_explanation(claim) -> dict:
+    """Convenience helper to generate comprehensive decision explanation factors (Req xxxv)."""
+    return get_decision_engine().generate_decision_explanation(claim)

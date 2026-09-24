@@ -1,12 +1,14 @@
 import os
 import io
+import json
 from pathlib import Path
 import unittest
 from src.app import create_app
 from database.db import db
 from src.models.entities import (
     User, Product, WarrantyPolicy, ProductWarranty, Claim, ModelEvaluation,
-    ClaimDocument, ClaimStatusHistory, Notification, AuditLog, SystemSetting, RepairHistory
+    ClaimDocument, ClaimStatusHistory, Notification, AuditLog, SystemSetting, RepairHistory,
+    ReviewerAction
 )
 from config.config import Config
 
@@ -1201,7 +1203,8 @@ class TestPhase6Frontend(unittest.TestCase):
             if not claim:
                 claim = Claim.query.first()
                 claim.missing_document_flag = True
-                db.session.commit()
+            claim.status = Config.STATUS_SUBMITTED
+            db.session.commit()
             claim_code = claim.claim_id
 
         with self.client.session_transaction() as sess:
@@ -1652,6 +1655,186 @@ class TestPhase6Frontend(unittest.TestCase):
         )
         self.assertIn(res_invalid_models["final_decision"], ALLOWED_DECISIONS)
         self.assertEqual(res_invalid_models["final_decision"], "Likely Invalid")
+
+    def test_req_xxxv_decision_explanation_breakdown(self):
+        """
+        Req 1.6.xxxv: Decision Explanation.
+        Explains:
+        1. Factors supporting the decision
+        2. Factors opposing the decision
+        3. Rules passed
+        4. Rules failed
+        5. Detected contradictions
+        6. Additional evidence required
+        """
+        from src.core.decision_engine import MasterDecisionEngine, generate_decision_explanation
+
+        with self.app.app_context():
+            claim = Claim.query.first()
+            self.assertIsNotNone(claim)
+
+            # Test programmatic explanation generation
+            engine = MasterDecisionEngine()
+            explanation = engine.generate_decision_explanation(claim)
+            self.assertIsInstance(explanation, dict)
+
+            # Verify all 6 required explanation dimensions
+            self.assertIn("supporting_factors", explanation)
+            self.assertIn("opposing_factors", explanation)
+            self.assertIn("rules_passed", explanation)
+            self.assertIn("rules_failed", explanation)
+            self.assertIn("contradictions", explanation)
+            self.assertIn("additional_evidence_required", explanation)
+            self.assertIsInstance(explanation["supporting_factors"], list)
+            self.assertIsInstance(explanation["opposing_factors"], list)
+            self.assertIsInstance(explanation["rules_passed"], list)
+            self.assertIsInstance(explanation["rules_failed"], list)
+            self.assertIsInstance(explanation["contradictions"], list)
+            self.assertIsInstance(explanation["additional_evidence_required"], list)
+
+            # Test model entity helper
+            entity_exp = claim.get_decision_explanation()
+            self.assertEqual(entity_exp["claim_id"], explanation["claim_id"])
+            claim_id_val = claim.claim_id
+
+        # Test customer claim detail renders Decision Explanation section
+        with self.client.session_transaction() as sess:
+            with self.app.app_context():
+                user = User.query.filter_by(role=Config.ROLE_CUSTOMER).first()
+                sess["user_id"] = user.id
+                sess["role"] = user.role
+                sess["user_code"] = user.user_id
+
+        res_cust = self.client.get(f"/claims/{claim_id_val}")
+        self.assertEqual(res_cust.status_code, 200)
+        self.assertIn(b"Decision Explanation &amp; Factor Analysis (Req 1.6.xxxv)", res_cust.data)
+        self.assertIn(b"Factors Supporting Decision", res_cust.data)
+        self.assertIn(b"Factors Opposing Decision", res_cust.data)
+
+        # Test reviewer inspection renders Comprehensive Decision Explanation section
+        with self.client.session_transaction() as sess:
+            with self.app.app_context():
+                rev = User.query.filter_by(role=Config.ROLE_REVIEWER).first()
+                sess["user_id"] = rev.id
+                sess["role"] = rev.role
+                sess["user_code"] = rev.user_id
+
+        res_rev = self.client.get(f"/reviewer/claim/{claim_id_val}")
+        self.assertEqual(res_rev.status_code, 200)
+        self.assertIn(b"Comprehensive Decision Explanation (Req 1.6.xxxv)", res_rev.data)
+        self.assertIn(b"Additional Evidence Required", res_rev.data)
+
+    def test_req_xxxvi_manual_review_workflow_triage_and_actions(self):
+        """
+        Req 1.6.xxxvi: Manual Review Workflow.
+        Claims with low confidence, conflicting models, missing evidence, duplicate indicators,
+        or rule violations are routed to manual review.
+        Authorized reviewers can approve, reject, or request additional information.
+        """
+        with self.app.app_context():
+            claim = Claim.query.first()
+            claim_id_val = claim.claim_id
+            reviewer = User.query.filter_by(role=Config.ROLE_REVIEWER).first()
+            customer = User.query.filter_by(role=Config.ROLE_CUSTOMER).first()
+
+        # 1. Unauthorized customer blocked from reviewer queue
+        with self.client.session_transaction() as sess:
+            sess["user_id"] = customer.id
+            sess["role"] = customer.role
+            sess["user_code"] = customer.user_id
+
+        res_unauth = self.client.get("/reviewer/queue")
+        self.assertIn(res_unauth.status_code, [302, 403])
+
+        # 2. Authorized reviewer access
+        with self.client.session_transaction() as sess:
+            sess["user_id"] = reviewer.id
+            sess["role"] = reviewer.role
+            sess["user_code"] = reviewer.user_id
+
+        res_queue = self.client.get("/reviewer/queue?status=ALL")
+        self.assertEqual(res_queue.status_code, 200)
+        self.assertIn(b"Claim Adjudication", res_queue.data)
+
+        # 3. Test REQUEST_INFO action transitions status to Additional Information Required
+        res_info = self.client.post(
+            f"/reviewer/claim/{claim_id_val}/adjudicate",
+            data={
+                "action": "REQUEST_INFO",
+                "comments": "Please provide an authorized service repair report and high-resolution defect photograph."
+            },
+            follow_redirects=True
+        )
+        self.assertEqual(res_info.status_code, 200)
+
+        with self.app.app_context():
+            updated_claim = Claim.query.filter_by(claim_id=claim_id_val).first()
+            self.assertEqual(updated_claim.status, Config.STATUS_ADDITIONAL_INFO)
+            self.assertIn("repair report", updated_claim.reviewer_notes)
+
+    def test_req_xxxvii_reviewer_comments_and_decision_override_audit(self):
+        """
+        Req 1.6.xxxvii: Reviewer Comments and Decision Override.
+        Authorized reviewers can add comments and override automated recommendations.
+        Original AI recommendation and override reason remain permanently preserved in audit history.
+        """
+        with self.app.app_context():
+            reviewer = User.query.filter_by(role=Config.ROLE_REVIEWER).first()
+            rev_id = reviewer.id
+            rev_role = reviewer.role
+            rev_code = reviewer.user_id
+            claim = Claim.query.first()
+            claim_id_val = claim.claim_id
+            # Set automated recommendation to Manual Review Required or Likely Invalid
+            claim.final_decision = "Manual Review Required"
+            db.session.commit()
+
+        with self.client.session_transaction() as sess:
+            sess["user_id"] = rev_id
+            sess["role"] = rev_role
+            sess["user_code"] = rev_code
+
+        # Submit an Override: Reviewer approves a claim that was flagged for Manual Review
+        post_data = {
+            "action": "APPROVE",
+            "override_reason": "Bench technician inspection verified genuine factory component failure.",
+            "comments": "Customer goodwill override authorized by senior triage reviewer after hardware bench diagnostic."
+        }
+        res_override = self.client.post(
+            f"/reviewer/claim/{claim_id_val}/adjudicate",
+            data=post_data,
+            follow_redirects=True
+        )
+        self.assertEqual(res_override.status_code, 200)
+        self.assertIn(b"adjudicated successfully", res_override.data)
+
+        with self.app.app_context():
+            adjudicated_claim = Claim.query.filter_by(claim_id=claim_id_val).first()
+            self.assertEqual(adjudicated_claim.status, Config.STATUS_APPROVED)
+
+            # Verify ReviewerAction recorded with original AI recommendation preserved
+            latest_action = ReviewerAction.query.filter_by(claim_id=adjudicated_claim.id).order_by(ReviewerAction.id.desc()).first()
+            self.assertIsNotNone(latest_action)
+            self.assertTrue(latest_action.is_override)
+            self.assertEqual(latest_action.previous_recommendation, "Manual Review Required")
+            self.assertEqual(latest_action.reviewer_decision, "Approved")
+            self.assertEqual(latest_action.override_reason, post_data["override_reason"])
+            self.assertEqual(latest_action.comments, post_data["comments"])
+
+            # Verify AuditLog logged
+            audit = AuditLog.query.filter_by(action="REVIEWER_ADJUDICATION", entity_id=claim_id_val).order_by(AuditLog.id.desc()).first()
+            self.assertIsNotNone(audit)
+            audit_details = json.loads(audit.details_json)
+            self.assertTrue(audit_details["is_override"])
+            self.assertEqual(audit_details["override_reason"], post_data["override_reason"])
+
+        # Verify inspection view renders the Reviewer Audit History & Override Trail table
+        res_inspect = self.client.get(f"/reviewer/claim/{claim_id_val}")
+        self.assertEqual(res_inspect.status_code, 200)
+        self.assertIn(b"Reviewer Audit History", res_inspect.data)
+        self.assertIn(b"Decision Override Trail", res_inspect.data)
+        self.assertIn(b"Override Applied", res_inspect.data)
+        self.assertIn(b"Bench technician inspection verified", res_inspect.data)
 
 
 if __name__ == "__main__":

@@ -456,16 +456,18 @@ def view_claim(claim_id):
         current_claim_internal_id=claim.id
     )
 
-    # Generate AI-Generated Claim Summary (Req 1.6.xxxii)
+    # Generate AI-Generated Claim Summary (Req 1.6.xxxii) & Decision Explanation (Req 1.6.xxxv)
     engine = get_decision_engine()
     ai_summary = engine.generate_claim_summary(claim)
+    decision_explanation = engine.generate_decision_explanation(claim)
 
     return render_template(
         "customer/claim_detail.html",
         claim=claim,
         missing_docs_info=missing_docs_info,
         dup_report=dup_report,
-        ai_summary=ai_summary
+        ai_summary=ai_summary,
+        decision_explanation=decision_explanation
     )
 
 

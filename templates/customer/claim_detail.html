@@ -309,6 +309,184 @@
     </div>
 </div>
 
+<!-- Decision Explanation Breakdown (Req 1.6.xxxv) -->
+{% if decision_explanation %}
+<div class="card border-0 shadow-sm rounded-4 bg-white mb-4 overflow-hidden">
+    <div class="card-header-styled d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <span class="fw-bold text-slate-900">
+            <i class="bi bi-diagram-3 text-primary me-2"></i>Decision Explanation &amp; Factor Analysis (Req 1.6.xxxv)
+        </span>
+        <span class="badge bg-light text-secondary border font-mono">
+            Adjudication: {{ decision_explanation.final_decision }}
+        </span>
+    </div>
+    <div class="card-body p-4">
+        <div class="row g-4">
+            <!-- 1. Factors Supporting Decision -->
+            <div class="col-lg-6">
+                <div class="border border-success-subtle bg-success-subtle bg-opacity-10 rounded-3 p-3 h-100">
+                    <div class="d-flex align-items-center gap-2 mb-2 text-success fw-bold small">
+                        <i class="bi bi-check-circle-fill"></i> Factors Supporting Decision ({{ decision_explanation.supporting_factors|length }})
+                    </div>
+                    {% if decision_explanation.supporting_factors %}
+                        <ul class="list-unstyled mb-0 small">
+                            {% for factor in decision_explanation.supporting_factors %}
+                                <li class="d-flex align-items-start gap-2 mb-2 text-slate-800">
+                                    <i class="bi bi-check2 text-success mt-1 flex-shrink-0"></i>
+                                    <span>{{ factor }}</span>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <div class="text-muted extra-small">No significant approval factors identified.</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- 2. Factors Opposing Decision -->
+            <div class="col-lg-6">
+                <div class="border border-danger-subtle bg-danger-subtle bg-opacity-10 rounded-3 p-3 h-100">
+                    <div class="d-flex align-items-center gap-2 mb-2 text-danger fw-bold small">
+                        <i class="bi bi-exclamation-triangle-fill"></i> Factors Opposing Decision ({{ decision_explanation.opposing_factors|length }})
+                    </div>
+                    {% if decision_explanation.opposing_factors %}
+                        <ul class="list-unstyled mb-0 small">
+                            {% for factor in decision_explanation.opposing_factors %}
+                                <li class="d-flex align-items-start gap-2 mb-2 text-slate-800">
+                                    <i class="bi bi-x-circle text-danger mt-1 flex-shrink-0"></i>
+                                    <span>{{ factor }}</span>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <div class="text-muted extra-small">No opposing or disqualifying factors detected.</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- 3. Policy Rules Summary & Contradictions -->
+            <div class="col-lg-6">
+                <div class="border rounded-3 p-3 h-100 bg-light">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <span class="fw-bold small text-slate-800"><i class="bi bi-shield-check text-primary me-1"></i>Policy Rules &amp; Contradictions</span>
+                        <span class="badge bg-light text-secondary border extra-small">Passed: {{ decision_explanation.rules_passed|length }} | Failed: {{ decision_explanation.rules_failed|length }}</span>
+                    </div>
+                    {% if decision_explanation.contradictions %}
+                        <div class="alert alert-warning border-warning-subtle p-2 mb-2 extra-small">
+                            <b>Detected Contradictions:</b>
+                            <ul class="mb-0 ps-3 mt-1">
+                                {% for c in decision_explanation.contradictions %}
+                                    <li>{{ c }}</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% else %}
+                        <div class="d-flex align-items-center gap-2 text-success extra-small mb-2">
+                            <i class="bi bi-patch-check"></i> Zero chronological or serial contradictions detected.
+                        </div>
+                    {% endif %}
+
+                    {% if decision_explanation.rules_failed %}
+                        <div class="text-danger extra-small fw-semibold mb-1">Failed Rules:</div>
+                        <ul class="list-unstyled mb-0 extra-small">
+                            {% for r in decision_explanation.rules_failed %}
+                                <li class="text-danger"><i class="bi bi-x-lg me-1"></i>{{ r }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <div class="text-success extra-small"><i class="bi bi-check2-all me-1"></i>All applicable warranty conditions passed verification.</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- 4. Additional Evidence Required -->
+            <div class="col-lg-6">
+                <div class="border rounded-3 p-3 h-100 bg-light">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <span class="fw-bold small text-slate-800"><i class="bi bi-file-earmark-medical text-primary me-1"></i>Additional Evidence Required</span>
+                        {% if decision_explanation.has_missing_evidence %}
+                            <span class="badge bg-warning text-dark extra-small">Action Required</span>
+                        {% else %}
+                            <span class="badge bg-success-subtle text-success extra-small">Dossier Complete</span>
+                        {% endif %}
+                    </div>
+                    {% if decision_explanation.additional_evidence_required %}
+                        <ul class="list-unstyled mb-0 extra-small">
+                            {% for item in decision_explanation.additional_evidence_required %}
+                                <li class="d-flex align-items-start gap-2 mb-2 text-slate-700">
+                                    <i class="bi bi-arrow-right-circle text-warning mt-1 flex-shrink-0"></i>
+                                    <span>{{ item }}</span>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="text-muted extra-small mb-0">
+                            No additional evidence required. All mandatory proof documents are complete.
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Reviewer Notes & Audit Trail (Req 1.6.xxxvii) -->
+{% if claim.reviewer_notes or claim.reviewer_actions %}
+<div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
+    <div class="card-header-styled d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-chat-left-dots text-primary me-2"></i>Reviewer Adjudication Notes &amp; Audit Trail (Req 1.6.xxxvii)</span>
+        {% if claim.assigned_reviewer %}
+            <span class="badge bg-light text-secondary border font-mono">Reviewer: {{ claim.assigned_reviewer.full_name }}</span>
+        {% endif %}
+    </div>
+    <div class="card-body p-4">
+        {% if claim.reviewer_notes %}
+            <div class="alert alert-light border rounded-3 p-3 mb-3">
+                <div class="fw-bold small text-slate-800 mb-1"><i class="bi bi-person-check text-primary me-1"></i>Official Reviewer Feedback:</div>
+                <p class="small text-slate-700 mb-0">{{ claim.reviewer_notes }}</p>
+            </div>
+        {% endif %}
+
+        {% if claim.reviewer_actions %}
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0 extra-small">
+                    <thead>
+                        <tr class="text-muted">
+                            <th>Timestamp</th>
+                            <th>Reviewer</th>
+                            <th>Decision</th>
+                            <th>Override Status</th>
+                            <th>Comments &amp; Override Rationale</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for act in claim.reviewer_actions %}
+                            <tr>
+                                <td class="font-mono text-muted">{{ act.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td class="fw-semibold">{{ act.reviewer.full_name }}</td>
+                                <td><span class="badge bg-light text-dark border">{{ act.reviewer_decision }}</span></td>
+                                <td>
+                                    {% if act.is_override %}
+                                        <span class="badge bg-warning text-dark">Override Applied</span>
+                                    {% else %}
+                                        <span class="badge bg-success-subtle text-success">Concordant</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if act.override_reason %}<span class="text-danger fw-semibold">Reason: {{ act.override_reason }} &bull; </span>{% endif %}
+                                    {{ act.comments }}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
 <!-- Dual-Model AI Comparison Details (Req xviii, xxi, xxii) -->
 {% if claim.model_evaluation %}
     {% set eval = claim.model_evaluation %}

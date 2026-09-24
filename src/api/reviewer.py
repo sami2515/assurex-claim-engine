@@ -50,7 +50,13 @@ def inspect_claim(claim_id):
     from src.core.decision_engine import get_decision_engine
     engine = get_decision_engine()
     ai_summary = engine.generate_claim_summary(claim)
-    return render_template("reviewer/claim_inspect.html", claim=claim, ai_summary=ai_summary)
+    decision_explanation = engine.generate_decision_explanation(claim)
+    return render_template(
+        "reviewer/claim_inspect.html",
+        claim=claim,
+        ai_summary=ai_summary,
+        decision_explanation=decision_explanation
+    )
 
 
 @reviewer_bp.route("/claim/<string:claim_id>/adjudicate", methods=["POST"])
@@ -115,7 +121,7 @@ def adjudicate(claim_id):
         previous_recommendation=automated_rec,
         reviewer_decision=new_decision,
         is_override=is_override,
-        override_reason=override_reason if is_override else None,
+        override_reason=(override_reason or comments) if is_override else None,
         comments=comments
     )
     db.session.add(action_log)
