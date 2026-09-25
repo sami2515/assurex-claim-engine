@@ -432,7 +432,7 @@ class TestPhase6Frontend(unittest.TestCase):
         res = self.client.get("/")
         self.assertEqual(res.status_code, 200)
         self.assertIn(b"AssureX Enterprise", res.data)
-        self.assertIn(b"dual-model intelligence", res.data)
+        self.assertIn(b"dual-model analysis", res.data)
         self.assertIn(b"Explore the 4 Role Portals", res.data)
         self.assertIn(b"5-Stage Adjudication Pipeline", res.data)
         self.assertIn(b"admin@assurex.local", res.data)
