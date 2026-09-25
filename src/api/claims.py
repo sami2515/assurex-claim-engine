@@ -1,5 +1,6 @@
 import os
 import json
+import functools
 from pathlib import Path
 from datetime import datetime, date, timedelta
 from werkzeug.utils import secure_filename
@@ -273,9 +274,24 @@ def search_records():
     )
 
 
-@claim_bp.route("/new", methods=["GET", "POST"])
+def _handle_wizard_exceptions(f):
+    @functools.wraps(f)
+    def decorated_function(*args, **kwargs):
+        try:
+            return f(*args, **kwargs)
+        except Exception as e:
+            db.session.rollback()
+            import logging
+            logging.exception("Claim intake error: %s", str(e))
+            flash(f"Claim submission encountered an error: {str(e)}", "danger")
+            return redirect(url_for("claims.intake_wizard"))
+    return decorated_function
+
+
 @claim_bp.route("/intake-wizard", methods=["GET", "POST"], endpoint="intake_wizard")
+@claim_bp.route("/new", methods=["GET", "POST"], endpoint="create_claim_wizard")
 @login_required
+@_handle_wizard_exceptions
 def create_claim_wizard():
     """
     5-Step Interactive Claim Intake Wizard (Req 1.6.x):
@@ -298,7 +314,7 @@ def create_claim_wizard():
                 flash(err, "danger")
             for warn in val_warnings:
                 flash(warn, "warning")
-            return redirect(url_for("claims.create_claim_wizard"))
+            return redirect(url_for("claims.intake_wizard"))
 
         for warn in val_warnings:
             flash(warn, "info")
@@ -315,6 +331,24 @@ def create_claim_wizard():
         # Customers file claims for their own assets.
         # Service-center staff or admin filing on customer's behalf link claim directly to the product owner!
         claim_user_id = product.user_id if session.get("role") in [Config.ROLE_STAFF, Config.ROLE_ADMIN] else user.id
+
+        # Safeguard: Ensure product has a valid warranty contract bound
+        if not product.warranty:
+            from datetime import timedelta
+            policy = WarrantyPolicy.query.filter_by(category=product.category).first() or WarrantyPolicy.query.first()
+            duration_months = policy.coverage_duration_months if policy else 12
+            new_warranty = ProductWarranty(
+                product_id=product.id,
+                policy_id=policy.id if policy else 1,
+                warranty_provider=f"{product.brand or 'Manufacturer'} Official Care",
+                start_date=product.purchase_date or date.today(),
+                expiry_date=(product.purchase_date or date.today()) + timedelta(days=duration_months * 30),
+                is_extended=False,
+                extended_months=0,
+                service_center_name="Authorized National Service Network"
+            )
+            db.session.add(new_warranty)
+            db.session.flush()
 
         # 1. Create Initial Claim in 'Submitted' status
         claim = Claim(
@@ -492,10 +526,14 @@ def create_claim_wizard():
         gtm_m = dual_eval["gtm_model"]
 
         # Render summary card and save path
-        summary_card_img = render_claim_summary_card(claim_feature_payload, variation=1)
-        card_filename = f"{claim.claim_id}_card.png"
-        card_save_path = upload_folder / card_filename
-        summary_card_img.save(card_save_path)
+        try:
+            summary_card_img = render_claim_summary_card(claim_feature_payload, variation=1)
+            card_filename = f"{claim.claim_id}_card.png"
+            card_save_path = upload_folder / card_filename
+            summary_card_img.save(card_save_path)
+            card_path_str = str(card_save_path)
+        except Exception:
+            card_path_str = ""
 
         model_eval_obj = ModelEvaluation(
             claim_id=claim.id,
@@ -512,7 +550,7 @@ def create_claim_wizard():
             is_class_match=dual_eval["is_class_match"],
             top_confidence_difference=dual_eval["top_confidence_difference"],
             model_consistency_status=dual_eval["model_consistency_status"],
-            summary_card_image_path=str(card_save_path)
+            summary_card_image_path=card_path_str
         )
         db.session.add(model_eval_obj)
 
@@ -520,7 +558,7 @@ def create_claim_wizard():
         rules_eval = adjudication_res["rule_evaluation"]
         rule_val_obj = RuleValidationLog(
             claim_id=claim.id,
-            policy_id=product.warranty.policy.policy_id if product.warranty.policy else "POL-DEFAULT",
+            policy_id=product.warranty.policy.policy_id if (product.warranty and product.warranty.policy) else "POL-DEFAULT",
             rules_passed_json=json.dumps(rules_eval["passed_rules"]),
             rules_failed_json=json.dumps(rules_eval["failed_rules"]),
             warnings_json=json.dumps(rules_eval["warnings"]),

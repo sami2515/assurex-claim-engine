@@ -70,8 +70,11 @@ def create_app(config_class=Config):
 
     @app.errorhandler(500)
     def internal_error(error):
-        db.session.rollback()
-        return render_template("components/error.html", error_code=500, message="An internal application anomaly occurred. Our engineers have been alerted."), 500
+        try:
+            db.session.rollback()
+            return render_template("components/error.html", error_code=500, message="An internal application anomaly occurred. Our engineers have been alerted."), 500
+        except Exception:
+            return "<html><body style='font-family:sans-serif;text-align:center;padding:50px;'><h2>500 Internal Application Anomaly</h2><p>Our engineers have been alerted. Please return to the <a href='/'>Home Page</a>.</p></body></html>", 500
 
     return app
 

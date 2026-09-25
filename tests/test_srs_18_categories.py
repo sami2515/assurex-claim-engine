@@ -63,11 +63,7 @@ class TestSRS18Categories(unittest.TestCase):
 
     def setUp(self):
         with self.app.app_context():
-            leftovers = Claim.query.filter(
-                Claim.claim_id.like("CLM-CAT-%") | 
-                Claim.claim_id.like("CLM-SEC-%") |
-                Claim.claim_id.like("CLM-FUNC-%")
-            ).all()
+            leftovers = Claim.query.filter(~Claim.claim_id.like("CLM-DEMO-%")).all()
             for c in leftovers:
                 db.session.delete(c)
             db.session.commit()
