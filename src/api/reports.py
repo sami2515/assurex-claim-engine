@@ -11,7 +11,7 @@ report_bp = Blueprint("reports", __name__, url_prefix="/reports")
 @login_required
 def download_claim_pdf(claim_id):
     """
-    Req xliv: Generates and streams official downloadable PDF claim evaluation certificate.
+    Generates and streams official downloadable PDF claim evaluation certificate.
     """
     claim = Claim.query.filter_by(claim_id=claim_id).first_or_404()
     curr_user = get_current_user()

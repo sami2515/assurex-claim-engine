@@ -39,7 +39,7 @@ def role_required(*allowed_roles):
                 return redirect(url_for("auth.login"))
             user_role = session.get("role")
             if user_role not in allowed_roles:
-                flash("Unauthorized access: You do not possess the required privileges.", "danger")
+                flash("Unauthorized access: You don't have the required permissions.", "danger")
                 return redirect(url_for("auth.portal_redirect"))
             return f(*args, **kwargs)
         return decorated_function
@@ -81,7 +81,7 @@ def login():
             return redirect(url_for("auth.portal_redirect"))
         else:
             fail_reason = "User not found" if not user else ("Invalid password" if not user.check_password(password) else "Account disabled")
-            # Req l: Monitor repeated login attempts via AuditLog
+            # Monitor repeated login attempts via AuditLog
             audit_fail = AuditLog(
                 user_id=user.id if user else None,
                 user_role=user.role if user else None,
@@ -107,7 +107,7 @@ def login():
 @auth_bp.route("/register", methods=["GET", "POST"])
 def register():
     """
-    Req 1.6.i: User Registration and Authentication.
+    User Registration and Authentication.
     Supports registration for Customers, Service-Center Staff, Claim Reviewers, and Administrators.
     Maintains a unique User ID and enforces role-based access.
     """
@@ -150,14 +150,14 @@ def register():
             flash("An account with this email address already exists.", "warning")
             return render_template("auth/register.html")
 
-        # Phone number format validation (Req ii)
+        # Phone number format validation
         if phone:
             digits_only = ''.join(c for c in phone if c.isdigit())
             if len(digits_only) < 7 or len(digits_only) > 15:
                 flash("Phone number must contain between 7 and 15 digits.", "warning")
                 return render_template("auth/register.html")
 
-        # Address length validation (Req ii)
+        # Address length validation
         if address and len(address) < 5:
             flash("Please enter a complete address (at least 5 characters).", "warning")
             return render_template("auth/register.html")
@@ -207,7 +207,7 @@ def register():
 @login_required
 def profile():
     """
-    Req 1.6.ii: User Profile Management.
+    User Profile Management.
     Enables viewing unique User ID, role credentials, account details, and updating contact info & security credentials.
     """
     user = get_current_user()

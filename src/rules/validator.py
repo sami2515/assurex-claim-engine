@@ -82,7 +82,7 @@ class ClaimValidator:
     @classmethod
     def identify_missing_documents(cls, documents_or_files, has_previous_repairs: bool = False) -> dict:
         """
-        Req 1.6.xxix: Missing Document Detection.
+        Missing Document Detection.
         Evaluates submitted documents or attached claim files against mandatory requirements:
         - Purchase receipt or invoice
         - Warranty card
@@ -288,7 +288,7 @@ class ClaimValidator:
             # Default to product purchase price if omitted
             cleaned["claim_amount"] = product.purchase_price if product else 0.0
 
-        # 5. Uploaded File Types & Size Validation & Missing Document Detection (Req 1.6.xxix)
+        # 5. Uploaded File Types & Size Validation & Missing Document Detection
         evidence_keys = [
             "invoice_document", "receipt", "warranty_card", "damage_photo",
             "product_photo", "fault_video", "serial_photo", "diagnostic_report", "other_evidence"
@@ -316,7 +316,7 @@ class ClaimValidator:
                     f"Missing Mandatory Document: '{m_doc['name']}' is required. {m_doc['description']}"
                 )
 
-        # 6. Duplicate Claim ID Check & Duplicate Claim Safeguard (Req 1.6.xxx)
+        # 6. Duplicate Claim ID Check & Duplicate Claim Safeguard
         # Verify generated / submitted Claim ID does not already exist
         custom_claim_id = form_data.get("custom_claim_id")
         if custom_claim_id:
@@ -352,7 +352,7 @@ class ClaimValidator:
     @classmethod
     def check_claim_preparation_readiness(cls, form_data: Dict[str, Any], files_dict: Dict[str, Any], product=None) -> Dict[str, Any]:
         """
-        Req 1.6.xxxiii: Claim Preparation Assistance.
+        Claim Preparation Assistance.
         Guides the user before final submission by analyzing:
         1. Missing information
         2. Missing documents

@@ -120,10 +120,10 @@ class DualModelComparator:
         except Exception:
             pass
 
-        # Confidence Difference: |Python Top Conf - GTM Top Conf| (Req 1.6.xxiii)
+        # Confidence Difference: |Python Top Conf - GTM Top Conf|
         confidence_diff = round(abs(py_top_conf - gtm_top_conf), 4)
 
-        # Evaluate Formal Consistency Status from Decision Matrix (Req 1.6.xxiv)
+        # Evaluate Formal Consistency Status from Decision Matrix
         if (py_top_conf < min_conf) or (gtm_top_conf < min_conf):
             consistency_status = Config.CONSISTENCY_UNCERTAIN
             explanation = (

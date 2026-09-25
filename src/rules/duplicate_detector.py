@@ -15,7 +15,7 @@ class DuplicateDetector:
     @staticmethod
     def check_document_duplicates(file_hash: str, exclude_claim_id: int = None, document_type: str = None) -> dict:
         """
-        Req xxxi: Checks if a document SHA-256 hash already exists in another claim record.
+        Checks if a document SHA-256 hash already exists in another claim record.
         Detects whether the same receipt, invoice, warranty card, or evidence file has already been used.
         """
         if not file_hash or not has_app_context():
@@ -73,7 +73,7 @@ class DuplicateDetector:
     @staticmethod
     def check_multiple_document_duplicates(file_hashes: list, exclude_claim_id: int = None) -> dict:
         """
-        Req xxxi: Batch verification of multiple document hashes.
+        Batch verification of multiple document hashes.
         """
         duplicates = []
         conflicting_claims = []
@@ -96,7 +96,7 @@ class DuplicateDetector:
         uploaded_file_hashes: list = None
     ) -> dict:
         """
-        Req xxx: Checks if the claim attributes match an existing active or closed claim
+        Checks if the claim attributes match an existing active or closed claim
         by comparing all 7 SRS parameters:
         1. Claim IDs (duplicate claim ID collision)
         2. Invoice numbers (cross-claim invoice reuse)
@@ -139,7 +139,7 @@ class DuplicateDetector:
                     factors_triggered.append("claim_id")
 
             # -------------------------------------------------------------
-            # Factor 6: Cryptographic Document Hashes (SHA-256) Check (Req xxxi)
+            # Factor 6: Cryptographic Document Hashes (SHA-256) Check
             # -------------------------------------------------------------
             hashes_to_check = list(uploaded_file_hashes or [])
             if not hashes_to_check and current_claim_internal_id:

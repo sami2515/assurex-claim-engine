@@ -101,7 +101,7 @@ class DocumentProcessor:
 
     def parse_entities_from_text(self, raw_text: str) -> dict:
         """
-        Parses all 8 required warranty entities (Req 1.6.vi) from extracted invoice/receipt text:
+        Parses all 8 required warranty entities from extracted invoice/receipt text:
         1. purchase_date
         2. invoice_number
         3. product_name
@@ -186,7 +186,7 @@ class DocumentProcessor:
             ret_match = re.search(r"(?:Retailer|Merchant|Store|Seller)\s*:\s*([^\n\r,]+)", raw_text, re.IGNORECASE)
             entities["retailer"] = ret_match.group(1).strip() if ret_match else None
 
-        # 6. Product Name pattern (Req 1.6.vi)
+        # 6. Product Name pattern
         prod_labeled = re.search(r"(?:Product(?:\s*Name)?|Item(?:\s*Description)?|Equipment|Device)\s*:\s*([^\n\r,;]+)", raw_text, re.IGNORECASE)
         if prod_labeled and len(prod_labeled.group(1).strip()) > 3:
             entities["product_name"] = prod_labeled.group(1).strip()
@@ -201,7 +201,7 @@ class DocumentProcessor:
                     entities["product_name"] = kp
                     break
 
-        # 7. Model Number pattern (Req 1.6.vi)
+        # 7. Model Number pattern
         model_labeled = re.search(r"(?:Model(?:\s*(?:No\.?|Num(?:ber)?|#))?)\s*[:#]\s*([A-Z0-9-]+)", raw_text, re.IGNORECASE)
         if model_labeled:
             entities["model_number"] = model_labeled.group(1).strip()
@@ -213,7 +213,7 @@ class DocumentProcessor:
             else:
                 entities["model_number"] = None
 
-        # 8. Warranty Duration pattern (Req 1.6.vi)
+        # 8. Warranty Duration pattern
         warr_month_match = re.search(r"(?:Warranty(?:\s*(?:Duration|Period|Coverage|Term))?)\s*:\s*(\d+)\s*(?:Months?|m\b)", raw_text, re.IGNORECASE)
         warr_year_match = re.search(r"(?:Warranty(?:\s*(?:Duration|Period|Coverage|Term))?)\s*:\s*(\d+)\s*(?:Years?|yr|yrs)", raw_text, re.IGNORECASE)
         generic_warr = re.search(r"(\d+)\s*[- ]?(?:Months?|m\b)\s*(?:Warranty|Coverage)", raw_text, re.IGNORECASE)
@@ -267,7 +267,7 @@ class DocumentProcessor:
         3. Extracts text via OCR / PDF engine
         4. Parses structured entities
         5. Validates whether extracted content is a genuine receipt/invoice
-        6. Formats verification payload for UI review (Req vii)
+        6. Formats verification payload for UI review
         """
         if not file_path.exists():
             raise FileNotFoundError(f"Uploaded file not found at: {file_path}")

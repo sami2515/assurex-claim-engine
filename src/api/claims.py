@@ -28,10 +28,10 @@ claim_bp = Blueprint("claims", __name__, url_prefix="/claims")
 @claim_bp.route("/", methods=["GET"])
 @login_required
 def customer_dashboard():
-    """Req xl & 1.6.ix: Customer dashboard displaying registered products, active warranties, expiring warranties, saved receipts, submitted claims, pending actions, and recent decisions."""
+    """Customer dashboard displaying registered products, active warranties, expiring warranties, saved receipts, submitted claims, pending actions, and recent decisions."""
     user = get_current_user()
     
-    # Automatically scan & dispatch expiry alerts for the current customer (Req 1.6.ix & xxxix)
+    # Automatically scan & dispatch expiry alerts for the current customer
     if session.get("role") == Config.ROLE_CUSTOMER:
         scan_and_generate_warranty_alerts(user_id=user.id)
 
@@ -42,12 +42,12 @@ def customer_dashboard():
         claims = Claim.query.filter_by(user_id=user.id).order_by(Claim.created_at.desc()).all()
         products = Product.query.filter_by(user_id=user.id).order_by(Product.created_at.desc()).all()
 
-    # Calculate exact metrics for Req xl dashboard
+    # Calculate exact metrics for dashboard
     active_warranties_count = sum(1 for p in products if p.warranty and p.warranty.is_active())
     expiring_warranties_count = sum(1 for p in products if p.warranty and p.warranty.is_approaching_expiry())
     pending_actions_count = sum(1 for c in claims if c.status == Config.STATUS_ADDITIONAL_INFO or c.missing_document_flag)
 
-    # Fetch Saved Purchase Receipts & Invoices (Req xl & xiv)
+    # Fetch Saved Purchase Receipts & Invoices
     prod_ids = [p.id for p in products]
     claim_ids = [c.id for c in claims]
     saved_receipts = []
@@ -79,7 +79,7 @@ def customer_dashboard():
 @claim_bp.route("/notifications/<int:notif_id>/read", methods=["POST"])
 @login_required
 def mark_notification_read(notif_id):
-    """Mark a specific user alert or notification as read (Req xxxix)."""
+    """Mark a specific user alert or notification as read."""
     user = get_current_user()
     notif = Notification.query.filter_by(id=notif_id, user_id=user.id).first_or_404()
     notif.is_read = True
@@ -91,7 +91,7 @@ def mark_notification_read(notif_id):
 @claim_bp.route("/notifications/mark-all-read", methods=["POST"])
 @login_required
 def mark_all_notifications_read():
-    """Mark all unread notifications as read (Req xxxix)."""
+    """Mark all unread notifications as read."""
     user = get_current_user()
     Notification.query.filter_by(user_id=user.id, is_read=False).update({"is_read": True})
     db.session.commit()
@@ -110,7 +110,7 @@ def list_my_claims():
 @login_required
 def search_records():
     """
-    Req xlii: Search and filter warranty and claim records across 10 dimensions:
+    Search and filter warranty and claim records across 10 dimensions:
     1. Claim ID
     2. Product ID
     3. Product Category
@@ -301,18 +301,18 @@ def _handle_wizard_exceptions(f):
 @_handle_wizard_exceptions
 def create_claim_wizard():
     """
-    5-Step Interactive Claim Intake Wizard (Req 1.6.x):
+    5-Step Interactive Claim Intake Wizard:
     Step 1: Product & Warranty selection (Users or Service-Center Staff)
     Step 2: Fault declaration & details
     Step 3: Document intake & OCR extraction
-    Step 4: Claim preparation assistance & pre-submission check (Req xxxiii)
+    Step 4: Claim preparation assistance & pre-submission check
     Step 5: Automated Dual-Model Adjudication & Lifecycle Routing
     """
     user = get_current_user()
     products = Product.query.filter_by(user_id=user.id).all() if session.get("role") == Config.ROLE_CUSTOMER else Product.query.all()
 
     if request.method == "POST":
-        # Req 1.6.xv: Data Validation - Check mandatory fields, dates, numbers, files, duplicate IDs
+        # Data Validation - Check mandatory fields, dates, numbers, files, duplicate IDs
         is_valid, val_errors, val_warnings, cleaned_data = ClaimValidator.validate_claim_submission(
             request.form, request.files, user_role=session.get("role")
         )
@@ -334,7 +334,7 @@ def create_claim_wizard():
         previous_replacement = cleaned_data.get("previous_replacement_details")
         claim_amount = cleaned_data.get("claim_amount", product.purchase_price)
 
-        # Determine Claim Owner User (Req 1.6.x):
+        # Determine Claim Owner User:
         # Customers file claims for their own assets.
         # Service-center staff or admin filing on customer's behalf link claim directly to the product owner!
         claim_user_id = product.user_id if session.get("role") in [Config.ROLE_STAFF, Config.ROLE_ADMIN] else user.id
@@ -378,7 +378,7 @@ def create_claim_wizard():
         )
         db.session.add(status_log)
 
-        # Transition into Under Evaluation (Req xxxviii: 8-stage progress tracker)
+        # Transition into Under Evaluation
         eval_init_log = ClaimStatusHistory(
             claim_id=claim.id,
             previous_status=Config.STATUS_SUBMITTED,
@@ -388,7 +388,7 @@ def create_claim_wizard():
         )
         db.session.add(eval_init_log)
 
-        # 2. Process Uploaded Documents & Multi-Media Evidence (Req 1.6.v, xii)
+        # 2. Process Uploaded Documents & Multi-Media Evidence
         doc_processor = get_document_processor()
         has_receipt = False
         has_warranty_card = False
@@ -432,7 +432,7 @@ def create_claim_wizard():
                         )
                         return redirect(url_for("claims.intake_wizard"))
 
-                # Apply user-verified OCR overrides from Step 3 (Req 1.6.vii)
+                # Apply user-verified OCR overrides from Step 3
                 if doc_key in ["receipt", "invoice_document"]:
                     entities = dict(doc_info.get("entities") or {})
                     if request.form.get("wizard_verified_invoice", "").strip():
@@ -478,7 +478,7 @@ def create_claim_wizard():
                 elif doc_key == "diagnostic_report":
                     has_diagnostic_report = True
 
-        # Calculate document counts & detect missing mandatory documents (Req 1.6.xxix)
+        # Calculate document counts & detect missing mandatory documents
         has_prior_repairs = bool(product and ((hasattr(product, "repair_records") and len(product.repair_records) > 0) or getattr(product, "has_prior_repairs", False)))
         missing_docs_check = ClaimValidator.identify_missing_documents(claim.documents, has_previous_repairs=has_prior_repairs)
         claim.missing_document_flag = missing_docs_check["has_missing"]
@@ -494,7 +494,7 @@ def create_claim_wizard():
         )
         db.session.add(eval_status_log)
 
-        # 4. Data Pre-Processing using Python (Req 1.6.xvi)
+        # 4. Data Pre-Processing using Python
         # Cleans, handles missing values, converts date formats, and computes derived fields:
         # product age, remaining warranty period, and missing-document count.
         claim_feature_payload = ClaimDataPreprocessor.clean_and_prepare(
@@ -598,7 +598,7 @@ def create_claim_wizard():
         db.session.add(rule_val_obj)
 
         # 8. User Notifications across all SRS 1.6.xxxix event types:
-        # A. Claim Submission Notification (Req xxxix)
+        # A. Claim Submission Notification
         sub_notif = Notification(
             user_id=claim.user_id,
             notification_type=Config.NOTIF_TYPE_CLAIM_SUBMISSION,
@@ -606,25 +606,25 @@ def create_claim_wizard():
             message=(
                 f"Authorized service center staff ({user.full_name}) registered warranty claim {claim.claim_id} for your {product.product_name}."
                 if session.get("role") == Config.ROLE_STAFF
-                else f"Your warranty claim {claim.claim_id} for '{product.product_name}' was successfully registered into the adjudication queue."
+                else f"Your warranty claim {claim.claim_id} for '{product.product_name}' has been submitted and is now being processed."
             ),
             related_claim_id=claim.claim_id,
             related_product_id=product.product_id
         )
         db.session.add(sub_notif)
 
-        # B. Status Change Notification (Req xxxix)
+        # B. Status Change Notification
         status_notif = Notification(
             user_id=claim.user_id,
             notification_type=Config.NOTIF_TYPE_STATUS_CHANGE,
             title=f"Claim {claim.claim_id} Evaluated",
-            message=f"Your claim for '{product.product_name}' transitioned to '{claim.status}' status (Consensus: {final_rec}).",
+            message=f"Your claim for '{product.product_name}' has been updated to '{claim.status}' ({final_rec}).",
             related_claim_id=claim.claim_id,
             related_product_id=product.product_id
         )
         db.session.add(status_notif)
 
-        # C. Missing Mandatory Documents Notification (Req 1.6.xxix & xxxix)
+        # C. Missing Mandatory Documents Notification
         if claim.missing_document_flag and missing_docs_check["has_missing"]:
             missing_names = missing_docs_check["missing_labels"]
             missing_notif = Notification(
@@ -680,7 +680,7 @@ def create_claim_wizard():
             )
             db.session.add(rev_done_notif)
 
-        # Req xlvii: 1. Claim Submission Audit
+        # 1. Claim Submission Audit
         audit_sub = AuditLog(
             user_id=user.id,
             user_role=session.get("role"),
@@ -696,7 +696,7 @@ def create_claim_wizard():
         )
         db.session.add(audit_sub)
 
-        # Req xlvii: 2. Model Prediction Audit
+        # 2. Model Prediction Audit
         audit_pred = AuditLog(
             user_id=user.id,
             user_role=session.get("role"),
@@ -713,7 +713,7 @@ def create_claim_wizard():
         )
         db.session.add(audit_pred)
 
-        # Req xlvii: 3. Final Decision Audit
+        # 3. Final Decision Audit
         audit_dec = AuditLog(
             user_id=user.id,
             user_role=session.get("role"),
@@ -740,7 +740,7 @@ def create_claim_wizard():
 @login_required
 def claim_preparation_check():
     """
-    Req 1.6.xxxiii: Claim Preparation Assistance.
+    Claim Preparation Assistance.
     Pre-submission API that analyzes intake form parameters and uploaded files,
     returning guidance on missing information, missing documents, approaching deadlines,
     possible contradictions, and recommended corrective actions.
@@ -766,7 +766,7 @@ def claim_preparation_check():
 @login_required
 def ocr_extract_preview():
     """
-    Req vi & vii: Document scanning and extracted data verification endpoint.
+    Document scanning and extracted data verification endpoint.
     Accepts an uploaded invoice/receipt and returns OCR parsed entities for user preview/editing.
     """
     if "document" not in request.files:
@@ -810,7 +810,7 @@ def ocr_extract_preview():
 @login_required
 def track_claim_status(claim_id):
     """
-    Req xxxviii: Real-time progress timeline across all 8 SRS stages.
+    Real-time progress timeline across all 8 SRS stages.
     """
     claim = Claim.query.filter_by(claim_id=claim_id).first_or_404()
     curr_user = get_current_user()
@@ -836,7 +836,7 @@ def view_claim(claim_id):
     has_repairs = bool(claim.product and ((hasattr(claim.product, "repair_records") and len(claim.product.repair_records) > 0) or getattr(claim.product, "has_prior_repairs", False)))
     missing_docs_info = ClaimValidator.identify_missing_documents(claim.documents, has_previous_repairs=has_repairs)
     
-    # Check duplicate flags for dossier inspection (Req 1.6.xxx & xxxi)
+    # Check duplicate flags for dossier inspection
     dup_detector = get_duplicate_detector()
     dup_report = dup_detector.check_claim_duplicates(
         {
@@ -849,7 +849,7 @@ def view_claim(claim_id):
         current_claim_internal_id=claim.id
     )
 
-    # Generate AI-Generated Claim Summary (Req 1.6.xxxii) & Decision Explanation (Req 1.6.xxxv)
+    # Generate AI-Generated Claim Summary & Decision Explanation
     engine = get_decision_engine()
     ai_summary = engine.generate_claim_summary(claim)
     decision_explanation = engine.generate_decision_explanation(claim)
@@ -868,10 +868,10 @@ def view_claim(claim_id):
 @login_required
 def upload_claim_document(claim_id):
     """
-    Req 1.6.xxix & Req 1.6.xiv: Allows claimant or authorized staff to upload missing
+    Allows claimant or authorized staff to upload missing
     or supplementary mandatory evidence files (receipts, warranty cards, photos, diagnostic reports)
     to an existing claim dossier. Automatically computes SHA-256 hash, runs OCR if applicable,
-    checks for cross-claim duplicate documents (Req xxxi), and updates missing document status.
+    checks for cross-claim duplicate documents, and updates missing document status.
     """
     claim = Claim.query.filter_by(claim_id=claim_id).first_or_404()
     user = get_current_user()
@@ -896,7 +896,7 @@ def upload_claim_document(claim_id):
     # Validate file extension and size
     is_valid_file, file_err = ClaimValidator.validate_file(uploaded_file)
     if not is_valid_file:
-        # Req l: Monitor failed uploads for anomaly detection
+        # Monitor failed uploads for anomaly detection
         audit_fail = AuditLog(
             user_id=user.id,
             user_role=role,
@@ -935,7 +935,7 @@ def upload_claim_document(claim_id):
             )
             return redirect(url_for("claims.view_claim", claim_id=claim.claim_id))
 
-    # Check duplicate document hash (Req 1.6.xxxi)
+    # Check duplicate document hash
     dup_check = DuplicateDetector.check_document_duplicates(
         file_hash=doc_info["sha256_hash"],
         exclude_claim_id=claim.id
@@ -963,12 +963,12 @@ def upload_claim_document(claim_id):
     db.session.add(claim_doc)
     db.session.flush()
 
-    # Re-evaluate missing documents status (Req 1.6.xxix)
+    # Re-evaluate missing documents status
     has_repairs = bool(claim.product and ((hasattr(claim.product, "repair_records") and len(claim.product.repair_records) > 0) or getattr(claim.product, "has_prior_repairs", False)))
     missing_check = ClaimValidator.identify_missing_documents(claim.documents, has_previous_repairs=has_repairs)
     claim.missing_document_flag = missing_check["has_missing"]
 
-    # Log audit event (Req xlvii: Document Upload)
+    # Log audit event
     audit = AuditLog(
         user_id=user.id,
         user_role=role,
@@ -1002,7 +1002,7 @@ def upload_claim_document(claim_id):
 @login_required
 def correct_extracted_data(doc_id):
     """
-    Req xlvii: Extracted-data correction audit trail recording.
+    Extracted-data correction audit trail recording.
     Allows user/reviewer to correct OCR extracted details on an uploaded document.
     """
     user = get_current_user()
@@ -1043,7 +1043,7 @@ def correct_extracted_data(doc_id):
 @login_required
 def view_summary_card(claim_id):
     """
-    Req 1.6.xx: Serves the standardized visual Claim Summary Card image.
+    Serves the standardized visual Claim Summary Card image.
     Strictly contains raw claim evidence (product age, warranty status, fault type,
     repair history, document availability, serial-number status) without AI predictions.
     """

@@ -25,7 +25,7 @@ admin_bp = Blueprint("admin", __name__, url_prefix="/admin")
 @login_required
 @role_required(Config.ROLE_ADMIN)
 def dashboard():
-    """Req xli: Administrator dashboard with high-level analytics, disagreement metrics, duplicate alerts, and trends."""
+    """Administrator dashboard with high-level analytics, disagreement metrics, duplicate alerts, and trends."""
     total_claims = Claim.query.count()
     valid_claims = Claim.query.filter(Claim.status == Config.STATUS_APPROVED).count()
     invalid_claims = Claim.query.filter(Claim.status == Config.STATUS_REJECTED).count()
@@ -35,10 +35,10 @@ def dashboard():
     total_products = Product.query.count()
     total_users = User.query.count()
 
-    # Duplicate alerts count (Req xli)
+    # Duplicate alerts count
     duplicate_alerts = Claim.query.filter(Claim.is_duplicate_flag == True).count()
 
-    # Model evaluation metrics & average confidence scores (Req xli)
+    # Model evaluation metrics & average confidence scores
     evaluations = ModelEvaluation.query.all()
     disagreements = sum(1 for e in evaluations if not e.is_class_match)
     disagreement_rate = (disagreements / len(evaluations) * 100) if evaluations else 0.0
@@ -58,7 +58,7 @@ def dashboard():
         avg_gtm_conf = 0.0
         avg_confidence_score = 0.0
 
-    # Claim trends over time (Req xli)
+    # Claim trends over time
     trends_map = {}
     claims_chronological = Claim.query.order_by(Claim.claim_submission_date.asc(), Claim.created_at.asc()).all()
     for c in claims_chronological:
@@ -93,11 +93,11 @@ def dashboard():
     for p in Product.query.all():
         cat_counts[p.category] = cat_counts.get(p.category, 0) + 1
 
-    # Warranty Alert Metrics (Req 1.6.ix)
+    # Warranty Alert Metrics
     alert_threshold_days = get_alert_threshold_days()
     approaching_warranties = get_approaching_warranties(threshold_days=alert_threshold_days)
 
-    # ML Benchmark & Common Dataset Telemetry (Req 1.6.xvii, xviii, xix)
+    # ML Benchmark & Common Dataset Telemetry
     benchmark_path = Path(Config.BASE_DIR) / "model" / "python_model" / "benchmark_results.json"
     benchmark_data = {}
     if benchmark_path.exists():
@@ -114,7 +114,7 @@ def dashboard():
         except Exception:
             pass
 
-    # Anomaly Monitoring & Alerts Telemetry (Req 1.6.l)
+    # Anomaly Monitoring & Alerts Telemetry
     anomalies = get_system_anomalies()
 
     return render_template(
@@ -153,7 +153,7 @@ def dashboard():
 @login_required
 @role_required(Config.ROLE_ADMIN)
 def dispatch_anomaly_alerts():
-    """Req 1.6.l: Dispatches real-time anomaly alerts to administrators."""
+    """Dispatches real-time anomaly alerts to administrators."""
     created = scan_and_generate_anomaly_alerts()
     if created:
         flash(f"Successfully dispatched {len(created)} anomaly notification(s) to system administrators.", "success")
@@ -166,7 +166,7 @@ def dispatch_anomaly_alerts():
 @login_required
 @role_required(Config.ROLE_ADMIN)
 def analytics_dashboard():
-    """Req xliii: Comprehensive Data Analysis & Reporting on 8 core warranty dimensions."""
+    """Comprehensive Data Analysis & Reporting on 8 core warranty dimensions."""
     analytics = AnalyticsService.get_comprehensive_analytics()
     return render_template("admin/analytics.html", analytics=analytics)
 
@@ -175,7 +175,7 @@ def analytics_dashboard():
 @login_required
 @role_required(Config.ROLE_ADMIN)
 def export_analytics_json():
-    """Req xliii: Download JSON summary report of analytics."""
+    """Download JSON summary report of analytics."""
     analytics = AnalyticsService.get_comprehensive_analytics()
     return Response(
         json.dumps(analytics, indent=2),
@@ -188,7 +188,7 @@ def export_analytics_json():
 @login_required
 @role_required(Config.ROLE_ADMIN)
 def claims_search():
-    """Alias redirect for claims & warranty search and filtering (Req xlii)."""
+    """Alias redirect for claims & warranty search and filtering."""
     return redirect(url_for("claims.search_records", **request.args))
 
 
@@ -196,7 +196,7 @@ def claims_search():
 @login_required
 @role_required(Config.ROLE_ADMIN)
 def manage_policies():
-    """Req xxvi: Dynamic policy editor allowing live adjustments to rules and thresholds."""
+    """Dynamic policy editor allowing live adjustments to rules and thresholds."""
     if request.method == "POST":
         category = (request.form.get("category") or "").strip()
         policy_name = (request.form.get("policy_name") or "").strip()
@@ -239,7 +239,7 @@ def manage_policies():
     alert_threshold_days = get_alert_threshold_days()
     approaching_warranties = get_approaching_warranties(threshold_days=alert_threshold_days)
 
-    # Req 1.6.xxiv: Configurable model consistency thresholds
+    # Configurable model consistency thresholds
     try:
         min_conf_val = float(SystemSetting.get_val("min_confidence_threshold", str(Config.MIN_CONFIDENCE_THRESHOLD)))
         strong_diff_val = float(SystemSetting.get_val("strong_match_diff", str(Config.STRONG_MATCH_DIFF)))
@@ -264,7 +264,7 @@ def manage_policies():
 @login_required
 @role_required(Config.ROLE_ADMIN)
 def configure_model_thresholds():
-    """Req 1.6.xxiv: Configure confidence-difference and minimum-confidence thresholds for Model Consistency Status."""
+    """Configure confidence-difference and minimum-confidence thresholds for Model Consistency Status."""
     user = get_current_user()
     try:
         current_min_conf = SystemSetting.get_val("min_confidence_threshold", "0.60")
@@ -282,9 +282,9 @@ def configure_model_thresholds():
             flash("Strong match diff must be less than acceptable match diff (between 0.01 and 1.00).", "warning")
             return redirect(url_for("admin.manage_policies"))
 
-        SystemSetting.set_val("min_confidence_threshold", f"{min_conf:.2f}", description="Req xxiv: Minimum confidence threshold")
-        SystemSetting.set_val("strong_match_diff", f"{strong_diff:.2f}", description="Req xxiv: Strong match confidence difference threshold")
-        SystemSetting.set_val("acceptable_match_diff", f"{acceptable_diff:.2f}", description="Req xxiv: Acceptable match confidence difference threshold")
+        SystemSetting.set_val("min_confidence_threshold", f"{min_conf:.2f}", description="Minimum confidence threshold")
+        SystemSetting.set_val("strong_match_diff", f"{strong_diff:.2f}", description="Strong match confidence difference threshold")
+        SystemSetting.set_val("acceptable_match_diff", f"{acceptable_diff:.2f}", description="Acceptable match confidence difference threshold")
 
         AuditLog.log_event(
             action="UPDATE_MODEL_THRESHOLDS",
@@ -312,7 +312,7 @@ def configure_model_thresholds():
 @login_required
 @role_required(Config.ROLE_ADMIN)
 def configure_warranty_alerts():
-    """Req 1.6.ix: Configure the number of days before expiry when an alert should be generated."""
+    """Configure the number of days before expiry when an alert should be generated."""
     user = get_current_user()
     alert_days = request.form.get("alert_days", "30").strip()
     try:
@@ -334,7 +334,7 @@ def configure_warranty_alerts():
 @login_required
 @role_required(Config.ROLE_ADMIN)
 def dispatch_warranty_alerts():
-    """Req 1.6.ix: Manually trigger a fleet-wide scan and dispatch warranty expiry alerts."""
+    """Manually trigger a fleet-wide scan and dispatch warranty expiry alerts."""
     generated = scan_and_generate_warranty_alerts()
     flash(f"Fleet-wide scan complete: {len(generated)} warranty expiry alert notification(s) dispatched to affected users.", "info")
     return redirect(url_for("admin.manage_policies"))
@@ -345,7 +345,7 @@ def dispatch_warranty_alerts():
 @login_required
 @role_required(Config.ROLE_ADMIN)
 def audit_logs():
-    """Req xlvii: Immutable system audit logs viewer."""
+    """Immutable system audit logs viewer."""
     logs = AuditLog.query.order_by(AuditLog.timestamp.desc()).limit(100).all()
     return render_template("admin/audit_logs.html", logs=logs)
 
@@ -354,7 +354,7 @@ def audit_logs():
 @login_required
 @role_required(Config.ROLE_ADMIN)
 def export_data(export_type):
-    """Req xlv: CSV exporter for selected claims, products, warranties, analytics records, and audit logs."""
+    """CSV exporter for selected claims, products, warranties, analytics records, and audit logs."""
     service = DataExportService()
     timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
 
@@ -414,7 +414,7 @@ def export_claims():
 @login_required
 @role_required(Config.ROLE_ADMIN)
 def export_warranties():
-    """Alias for warranties CSV export (Req xlv)."""
+    """Alias for warranties CSV export."""
     return export_data("warranties")
 
 
@@ -422,5 +422,5 @@ def export_warranties():
 @login_required
 @role_required(Config.ROLE_ADMIN)
 def export_analytics():
-    """Alias for analytics CSV export (Req xlv)."""
+    """Alias for analytics CSV export."""
     return export_data("analytics")

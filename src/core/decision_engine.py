@@ -61,7 +61,7 @@ class MasterDecisionEngine:
         missing_documents: Any = False
     ) -> dict:
         """
-        Req 1.6.xxxiv: Synthesizes final decision considering all 7 factors:
+        Synthesizes final decision considering all 7 factors:
         1. Python model prediction
         2. Google Teachable Machine prediction
         3. Confidence-score difference
@@ -100,7 +100,7 @@ class MasterDecisionEngine:
         manual_triggers = rule_results.get("manual_review_triggers", [])
 
         # -------------------------------------------------------------
-        # Decision Synthesis Matrix (Req xxxiv)
+        # Decision Synthesis Matrix
         # -------------------------------------------------------------
         supporting_factors = []
         opposing_factors = []
@@ -187,7 +187,7 @@ class MasterDecisionEngine:
             corrective_actions.append("Reviewer triage required.")
             risk_level = "Medium"
 
-        # Construct comprehensive explanation factor report (Req xxxv)
+        # Construct comprehensive explanation factor report
         return {
             "final_decision": final_decision,
             "decision_summary": decision_summary,
@@ -215,7 +215,7 @@ class MasterDecisionEngine:
         **kwargs
     ) -> dict:
         """
-        Req 1.6.xxxiv: Executes multi-layer claim evaluation considering all 7 parameters:
+        Executes multi-layer claim evaluation considering all 7 parameters:
         1. Python model prediction
         2. Google Teachable Machine prediction
         3. Confidence-score difference
@@ -261,7 +261,7 @@ class MasterDecisionEngine:
         )
         duplicate_flags = duplicate_results.get("duplicate_flags", [])
 
-        # Factor 5: Missing Mandatory Documents Check (Req xxix & xxxiv)
+        # Factor 5: Missing Mandatory Documents Check
         # Use the full validator to check all mandatory doc types
         claim_docs = claim_data.get("documents", [])
         has_repairs = bool(claim_data.get("has_prior_repairs") or claim_data.get("repair_count", 0) > 0)
@@ -283,7 +283,7 @@ class MasterDecisionEngine:
     @staticmethod
     def generate_claim_summary(claim, adjudication_res: dict = None) -> dict:
         """
-        Req 1.6.xxxii: AI-Generated Claim Summary.
+        AI-Generated Claim Summary.
         Generates a clear, comprehensive summary of:
         - Product details
         - Warranty coverage
@@ -460,7 +460,7 @@ class MasterDecisionEngine:
     @staticmethod
     def generate_decision_explanation(claim) -> dict:
         """
-        Req 1.6.xxxv: Decision Explanation.
+        Decision Explanation.
         Explains:
         1. Factors supporting the decision
         2. Factors opposing the decision
@@ -593,9 +593,9 @@ def get_decision_engine() -> MasterDecisionEngine:
     return _decision_engine_instance
 
 def generate_claim_summary(claim, adjudication_res: dict = None) -> dict:
-    """Convenience helper to generate structured claim summary (Req xxxii)."""
+    """Convenience helper to generate structured claim summary."""
     return get_decision_engine().generate_claim_summary(claim, adjudication_res=adjudication_res)
 
 def generate_decision_explanation(claim) -> dict:
-    """Convenience helper to generate comprehensive decision explanation factors (Req xxxv)."""
+    """Convenience helper to generate comprehensive decision explanation factors."""
     return get_decision_engine().generate_decision_explanation(claim)

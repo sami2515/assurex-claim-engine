@@ -16,7 +16,7 @@ product_bp = Blueprint("products", __name__, url_prefix="/products")
 @login_required
 def list_products():
     """
-    Req iv: Displays registered products and warranty statuses from a common interface.
+    Displays registered products and warranty statuses from a common interface.
     Supports viewing all active, expired, approaching expiry, and extended warranties.
     """
     user = get_current_user()
@@ -29,7 +29,7 @@ def list_products():
 
     all_products = query.order_by(Product.created_at.desc()).all()
 
-    # Calculate status counts for the common interface dashboard (Req iv)
+    # Calculate status counts for the common interface dashboard
     counts = {
         "all": len(all_products),
         "active": 0,
@@ -72,7 +72,7 @@ def list_products():
 @login_required
 def register_product():
     """
-    Req iii: Product Registration - Allows users to register products with details:
+    Product Registration - Allows users to register products with details:
     product name, category, brand, model number, serial number, purchase date,
     purchase price, retailer, and warranty duration. Assigns unique Product ID.
     
@@ -104,7 +104,7 @@ def register_product():
         retailer = request.form.get("retailer", "").strip()
         invoice_number = request.form.get("invoice_number", "").strip()
 
-        # Warranty specifications (Req iii & iv)
+        # Warranty specifications
         warranty_duration_str = request.form.get("warranty_duration", "").strip()
         warranty_type = request.form.get("warranty_type", "standard").strip().lower()
         warranty_provider = request.form.get("warranty_provider", "").strip()
@@ -134,7 +134,7 @@ def register_product():
             policies = WarrantyPolicy.query.all()
             return render_template("customer/product_register.html", policies=policies)
 
-        # 1. Create Product Entity with System Unique Product ID (Req iii)
+        # 1. Create Product Entity with System Unique Product ID
         product = Product(
             user_id=user.id,
             product_name=product_name,
@@ -150,7 +150,7 @@ def register_product():
         db.session.add(product)
         db.session.flush()
 
-        # 2. Attach Warranty Record (Req iv)
+        # 2. Attach Warranty Record
         policy = WarrantyPolicy.query.filter_by(category=category).first()
         if not policy and "industrial" in category.lower():
             policy = WarrantyPolicy.query.filter_by(category="Industrial Tools").first()
@@ -185,7 +185,7 @@ def register_product():
         )
         db.session.add(warranty)
 
-        # 3. Securely Store Uploaded Receipt / Invoice Document (Req 1.6.v & vi)
+        # 3. Securely Store Uploaded Receipt / Invoice Document
         receipt_file = request.files.get("receipt_document") or request.files.get("receipt_file") or request.files.get("invoice_document")
         if receipt_file and receipt_file.filename:
             ext = receipt_file.filename.rsplit(".", 1)[-1].lower() if "." in receipt_file.filename else ""
@@ -224,7 +224,7 @@ def register_product():
                 )
                 db.session.add(claim_doc)
 
-        # Record Audit Log (Req xlvii)
+        # Record Audit Log
         audit = AuditLog(
             user_id=user.id,
             user_role=session.get("role"),
@@ -257,7 +257,7 @@ def register_product():
 @login_required
 def scan_receipt():
     """
-    Req vi & vii: Document scanning and extracted data verification endpoint for product registration.
+    Document scanning and extracted data verification endpoint for product registration.
     Extracts purchase date, invoice number, product name, model number, serial number,
     retailer, purchase amount, and warranty duration from PDF, JPG, JPEG, and PNG files.
     """
@@ -466,7 +466,7 @@ def _ensure_document_file_on_disk(doc: ClaimDocument, target_path: Path) -> bool
 @login_required
 def download_document(document_id):
     """
-    Req 1.6.v & xiv: Securely serves or downloads uploaded purchase receipts,
+    Securely serves or downloads uploaded purchase receipts,
     invoices, warranty cards, damage photos, and repair reports.
     Enforces user access rights before serving.
     """
@@ -477,7 +477,7 @@ def download_document(document_id):
     user_id = session.get("user_id")
     user_role = session.get("role")
 
-    # Access control verification (Req 1.6.xiv)
+    # Access control verification
     is_authorized = False
     if user_role in [Config.ROLE_ADMIN, Config.ROLE_REVIEWER, Config.ROLE_STAFF]:
         is_authorized = True
@@ -487,7 +487,7 @@ def download_document(document_id):
         is_authorized = True
 
     if not is_authorized:
-        flash("Access denied: You do not possess permissions to view or download this document.", "danger")
+        flash("Access denied: You don't have permission to view this document.", "danger")
         return redirect(request.referrer or url_for("auth.portal_redirect"))
 
     normalized_name = str(doc.file_path or doc.original_filename).replace("\\", "/").split("/")[-1]
@@ -521,7 +521,7 @@ def download_document(document_id):
 @login_required
 def replace_document(document_id):
     """
-    Req 1.6.xiv: Document Organization - Replace document.
+    Document Organization - Replace document.
     Allows authorized users (owner, staff, admin) to replace an existing document file
     with an updated version, recalculating checksum, file size, and re-running OCR extraction.
     """
@@ -543,7 +543,7 @@ def replace_document(document_id):
             return redirect(request.referrer or url_for("claims.view_claim", claim_id=doc.claim.claim_id))
 
     if not is_authorized:
-        flash("Access denied: You do not possess permissions to replace this document.", "danger")
+        flash("Access denied: You don't have permission to replace this document.", "danger")
         return redirect(request.referrer or url_for("auth.portal_redirect"))
 
     uploaded_file = request.files.get("replacement_file")
@@ -619,7 +619,7 @@ def replace_document(document_id):
 @login_required
 def delete_document(document_id):
     """
-    Req 1.6.xiv: Document Organization - Remove document.
+    Document Organization - Remove document.
     Allows authorized users (owner, staff, admin) to remove an uploaded document
     according to their access rights.
     """
@@ -641,7 +641,7 @@ def delete_document(document_id):
             return redirect(request.referrer or url_for("claims.view_claim", claim_id=doc.claim.claim_id))
 
     if not is_authorized:
-        flash("Access denied: You do not possess permissions to remove this document.", "danger")
+        flash("Access denied: You don't have permission to remove this document.", "danger")
         return redirect(request.referrer or url_for("auth.portal_redirect"))
 
     # Safely remove file on disk
@@ -678,7 +678,7 @@ def delete_document(document_id):
 def view_product(product_id):
     """
     Detailed product overview showing hardware specifications, warranty lifecycle countdown,
-    policy coverage conditions, exclusions, historical service records, and uploaded proof documents (Req iii, iv, v).
+    policy coverage conditions, exclusions, historical service records, and uploaded proof documents.
     """
     product = Product.query.filter_by(product_id=product_id).first_or_404()
     curr_user = get_current_user()
@@ -693,7 +693,7 @@ def view_product(product_id):
 @login_required
 def add_repair_record(product_id):
     """
-    Req 1.6.xiii: Repair History Management
+    Repair History Management
     Records previous repair dates, repair-center details, replaced parts, repair outcomes,
     repair costs, and whether each repair was completed by an authorized or unauthorized service center.
     """

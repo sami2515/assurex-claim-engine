@@ -2,7 +2,7 @@ from datetime import datetime, date
 
 
 class ContradictionDetector:
-    """Detects chronological, serial-number, and model-level inconsistencies (Req xxvii & xxviii)."""
+    """Detects chronological, serial-number, and model-level inconsistencies."""
 
     @staticmethod
     def parse_date(d_val):
@@ -20,7 +20,7 @@ class ContradictionDetector:
 
     def detect_contradictions(self, claim_data: dict, ocr_data: dict = None) -> dict:
         """
-        Req 1.6.xxvii & xxviii: Executes comprehensive coherence, serial verification, and contradiction checks:
+        Executes comprehensive coherence, serial verification, and contradiction checks:
         1. Claim submission date before purchase date
         2. Repair date before purchase date
         3. Fault occurrence date after claim submission date
@@ -37,7 +37,7 @@ class ContradictionDetector:
         submission_date = self.parse_date(claim_data.get("claim_submission_date")) or date.today()
 
         # -------------------------------------------------------------
-        # 1. Chronological Checks (Req 1.6.xxviii)
+        # 1. Chronological Checks
         # -------------------------------------------------------------
         # 1.a Claim date before purchase date
         if purchase_date and submission_date:
@@ -63,7 +63,7 @@ class ContradictionDetector:
                     f"is in the future relative to submission date ({submission_date})."
                 )
 
-        # 1.d Repair date before purchase date (Req 1.6.xxviii)
+        # 1.d Repair date before purchase date
         repairs_list = claim_data.get("repair_records") or claim_data.get("repairs") or []
         for rep in repairs_list:
             rep_date_val = rep.get("repair_date") if isinstance(rep, dict) else getattr(rep, "repair_date", None)
@@ -83,7 +83,7 @@ class ContradictionDetector:
                 )
 
         # -------------------------------------------------------------
-        # 2. Comprehensive Serial-Number Verification (Req 1.6.xxvii & xxviii)
+        # 2. Comprehensive Serial-Number Verification
         # Compares user/registered serial with:
         # - receipt,
         # - warranty card,
@@ -157,7 +157,7 @@ class ContradictionDetector:
                 warnings.append("Serial number discrepancy flagged in claim dossier.")
 
         # -------------------------------------------------------------
-        # 3. Model Consistency Check (Req 1.6.xxviii)
+        # 3. Model Consistency Check
         # -------------------------------------------------------------
         model_name = str(claim_data.get("product_model") or claim_data.get("model_number") or "").strip()
         ocr_models_to_check = []

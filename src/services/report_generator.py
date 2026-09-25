@@ -23,7 +23,7 @@ REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
 class ClaimReportPDFGenerator:
     """
-    Generates downloadable, executive-grade PDF Claim Evaluation Reports (SRS Req xliv).
+    Generates downloadable, executive-grade PDF Claim Evaluation Reports.
     Incorporates claim specs, dual-model comparison, warranty rules, anomalies, and reviewer stamps.
     """
 

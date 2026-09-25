@@ -32,7 +32,7 @@ class WarrantyPolicyEngine:
 
     def get_policy_for_category(self, category_name: str) -> dict:
         """
-        Req 1.6.xxvi: Retrieves category policy from database (WarrantyPolicy) or configurable JSON files.
+        Retrieves category policy from database (WarrantyPolicy) or configurable JSON files.
         Supports different warranty rules for different product categories.
         """
         # 1. Attempt lookup from persistent database
@@ -99,7 +99,7 @@ class WarrantyPolicyEngine:
         review_triggers = []
 
         # -------------------------------------------------------------
-        # 1. Warranty Expiry & Grace Period Check (Req 1.6.xxv.1)
+        # 1. Warranty Expiry & Grace Period Check
         # -------------------------------------------------------------
         remaining_days = claim_data.get("remaining_warranty_days")
         if remaining_days is None:
@@ -131,7 +131,7 @@ class WarrantyPolicyEngine:
                 )
 
         # -------------------------------------------------------------
-        # 2. Fault Coverage Schedule Check (Req 1.6.xxv.2)
+        # 2. Fault Coverage Schedule Check
         # -------------------------------------------------------------
         fault_cat = claim_data.get("fault_category", "")
         covered = policy.get("covered_faults", [])
@@ -142,7 +142,7 @@ class WarrantyPolicyEngine:
             review_triggers.append(f"Uncommon fault category '{fault_cat}': Manual technician inspection required.")
 
         # -------------------------------------------------------------
-        # 3. Claim Reporting Period Window (Req 1.6.xxv.3)
+        # 3. Claim Reporting Period Window
         # -------------------------------------------------------------
         max_reporting = policy.get("claim_reporting_period_days", 30)
         days_between = claim_data.get("days_between_fault_and_claim")
@@ -166,7 +166,7 @@ class WarrantyPolicyEngine:
             passed_rules.append("Claim reported within permissible reporting window.")
 
         # -------------------------------------------------------------
-        # 4. Proof of Purchase Verification (Req 1.6.xxv.4)
+        # 4. Proof of Purchase Verification
         # -------------------------------------------------------------
         has_receipt = claim_data.get("has_receipt", 1)
         if claim_data.get("mandatory_documents_present") == 0:
@@ -179,7 +179,7 @@ class WarrantyPolicyEngine:
             passed_rules.append("Proof of purchase verified: Valid sales invoice / receipt on record.")
 
         # -------------------------------------------------------------
-        # 5. Extended Warranty Validation (Req 1.6.xxv.5)
+        # 5. Extended Warranty Validation
         # -------------------------------------------------------------
         is_extended = bool(claim_data.get("is_extended_warranty") or claim_data.get("is_extended"))
         if is_extended:
@@ -188,7 +188,7 @@ class WarrantyPolicyEngine:
             passed_rules.append("Standard warranty terms applied (no supplementary extension active).")
 
         # -------------------------------------------------------------
-        # 6. Serial Number Cross-Check (Req 1.6.xxv.6)
+        # 6. Serial Number Cross-Check
         # -------------------------------------------------------------
         if claim_data.get("serial_number_match", 1) == 0:
             review_triggers.append("Serial Mismatch Trigger: Hardware serial number does not match purchase invoice documentation.")
@@ -197,7 +197,7 @@ class WarrantyPolicyEngine:
             passed_rules.append("Serial number verification passed: Exact match between device backplate and tax invoice.")
 
         # -------------------------------------------------------------
-        # 7. Previous Repairs History & Workshop Authorization (Req 1.6.xxv.7)
+        # 7. Previous Repairs History & Workshop Authorization
         # -------------------------------------------------------------
         prev_repairs = int(claim_data.get("previous_repairs_count", 0))
         unauth_flag = int(claim_data.get("unauthorized_repair_flag", 0))
@@ -211,7 +211,7 @@ class WarrantyPolicyEngine:
             passed_rules.append(f"Service center history verified: {prev_repairs} previous repair(s), no unauthorized workshop tampering detected.")
 
         # -------------------------------------------------------------
-        # 8. Product Replacement Eligibility & History (Req 1.6.xxv.8)
+        # 8. Product Replacement Eligibility & History
         # -------------------------------------------------------------
         prev_replacement = claim_data.get("previous_replacement_details")
         if prev_replacement and str(prev_replacement).strip() and str(prev_replacement).lower() not in ["none", "null", "no", "false", ""]:
@@ -221,7 +221,7 @@ class WarrantyPolicyEngine:
             passed_rules.append("Product replacement check: Original hardware unit verified with no conflicting replacement history.")
 
         # -------------------------------------------------------------
-        # 9. Excluded Damage & Policy Exclusions (Req 1.6.xxv.9)
+        # 9. Excluded Damage & Policy Exclusions
         # -------------------------------------------------------------
         damage_type = claim_data.get("damage_type", "")
         exclusions = policy.get("exclusions", [])
@@ -235,7 +235,7 @@ class WarrantyPolicyEngine:
             passed_rules.append(f"Excluded damage check: Reported damage '{damage_type}' contains no policy exclusions.")
 
         # -------------------------------------------------------------
-        # 10. Required Documents Dossier Completeness (Req 1.6.xxv.10)
+        # 10. Required Documents Dossier Completeness
         # -------------------------------------------------------------
         missing_count = int(claim_data.get("missing_document_count", 0))
         if claim_data.get("mandatory_documents_present") == 0:

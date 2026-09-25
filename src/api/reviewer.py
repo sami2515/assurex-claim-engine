@@ -13,7 +13,7 @@ reviewer_bp = Blueprint("reviewer", __name__, url_prefix="/reviewer")
 @login_required
 @role_required(Config.ROLE_REVIEWER, Config.ROLE_ADMIN)
 def queue():
-    """Req xxxvi: Dedicated manual review triage queue with multi-criteria filtering."""
+    """Dedicated manual review triage queue with multi-criteria filtering."""
     status_filter = request.args.get("status", Config.STATUS_MANUAL_REVIEW)
     risk_filter = request.args.get("risk", "ALL")
     category_filter = request.args.get("category", "ALL")
@@ -64,7 +64,7 @@ def inspect_claim(claim_id):
 @role_required(Config.ROLE_REVIEWER, Config.ROLE_ADMIN)
 def adjudicate(claim_id):
     """
-    Req xxxvii: Reviewer decision adjudication and override handler.
+    Reviewer decision adjudication and override handler.
     Preserves original AI results and logs override justification.
     """
     user = get_current_user()
@@ -107,7 +107,7 @@ def adjudicate(claim_id):
     claim.reviewer_notes = comments
     claim.assigned_reviewer_id = user.id
 
-    # Record ClaimStatusHistory (Req xxxviii: 8-stage lifecycle logging)
+    # Record ClaimStatusHistory
     status_log = ClaimStatusHistory(
         claim_id=claim.id,
         previous_status=old_status,
@@ -117,7 +117,7 @@ def adjudicate(claim_id):
     )
     db.session.add(status_log)
 
-    # Record ReviewerAction with override audit trail (Req xxxvii)
+    # Record ReviewerAction with override audit trail
     action_log = ReviewerAction(
         claim_id=claim.id,
         reviewer_id=user.id,
@@ -166,7 +166,7 @@ def adjudicate(claim_id):
         )
         db.session.add(primary_notif)
 
-    # 2. General Lifecycle Status Change Notification (Req xxxix)
+    # 2. General Lifecycle Status Change Notification
     status_notif = Notification(
         user_id=claim.user_id,
         notification_type=Config.NOTIF_TYPE_STATUS_CHANGE,
@@ -177,7 +177,7 @@ def adjudicate(claim_id):
     )
     db.session.add(status_notif)
 
-    # 3. Review Completion Notification (Req xxxix)
+    # 3. Review Completion Notification
     if action in ["APPROVE", "REJECT", "CLOSE"]:
         review_comp_notif = Notification(
             user_id=claim.user_id,
@@ -189,7 +189,7 @@ def adjudicate(claim_id):
         )
         db.session.add(review_comp_notif)
 
-    # System Audit (Req xlvii: Reviewer Action & Final Decision)
+    # System Audit
     audit = AuditLog(
         user_id=user.id,
         user_role=session.get("role"),
