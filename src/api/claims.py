@@ -332,23 +332,13 @@ def create_claim_wizard():
         # Service-center staff or admin filing on customer's behalf link claim directly to the product owner!
         claim_user_id = product.user_id if session.get("role") in [Config.ROLE_STAFF, Config.ROLE_ADMIN] else user.id
 
-        # Safeguard: Ensure product has a valid warranty contract bound
+        # Strict Warranty Verification: Block claim if product has no warranty attached
         if not product.warranty:
-            from datetime import timedelta
-            policy = WarrantyPolicy.query.filter_by(category=product.category).first() or WarrantyPolicy.query.first()
-            duration_months = policy.coverage_duration_months if policy else 12
-            new_warranty = ProductWarranty(
-                product_id=product.id,
-                policy_id=policy.id if policy else 1,
-                warranty_provider=f"{product.brand or 'Manufacturer'} Official Care",
-                start_date=product.purchase_date or date.today(),
-                expiry_date=(product.purchase_date or date.today()) + timedelta(days=duration_months * 30),
-                is_extended=False,
-                extended_months=0,
-                service_center_name="Authorized National Service Network"
+            flash(
+                f"The selected product '{product.product_name}' does not have an active warranty record attached. Please attach a warranty policy before submitting a claim.",
+                "danger"
             )
-            db.session.add(new_warranty)
-            db.session.flush()
+            return redirect(url_for("claims.intake_wizard"))
 
         # 1. Create Initial Claim in 'Submitted' status
         claim = Claim(

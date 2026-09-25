@@ -374,10 +374,34 @@ document.addEventListener("DOMContentLoaded", function () {
             })
             .then(res => res.json())
             .then(data => {
-                    const e = data.extracted_entities || {};
+                    if (!data.success) {
+                        if (fileInput) fileInput.value = "";
+                        filePreview.innerHTML = `
+                            <div class="alert alert-danger d-flex align-items-center gap-2 mt-3 mb-0">
+                                <i class="bi bi-exclamation-octagon-fill fs-4 text-danger"></i>
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold">Document Rejected: ${file.name}</div>
+                                    <small>${data.error || 'No valid receipt or invoice information was found in this image. Please upload a clear purchase invoice.'}</small>
+                                </div>
+                                <span class="badge bg-danger">Rejected</span>
+                            </div>
+                        `;
+                        ocrPanel.innerHTML = `
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="fw-bold small text-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>Document Extraction Failed</span>
+                                <span class="badge bg-danger extra-small">Not Accepted</span>
+                            </div>
+                            <p class="extra-small text-muted mb-0">
+                                The uploaded file does not contain recognizable invoice or receipt details and was not accepted. Please upload a valid purchase receipt or invoice document.
+                            </p>
+                        `;
+                        return;
+                    }
+
+                    const e = data.entities || data.extracted_entities || {};
                     ocrPanel.innerHTML = `
                         <div class="d-flex justify-content-between align-items-center mb-2 pb-1 border-bottom">
-                            <span class="fw-bold small text-slate-800"><i class="bi bi-cpu text-primary me-2"></i>Extracted Data Verification (Req 1.6.vii)</span>
+                            <span class="fw-bold small text-slate-800"><i class="bi bi-cpu text-primary me-2"></i>Extracted Data Verification</span>
                             <span class="badge bg-success-subtle text-success extra-small">Extracted &amp; Editable</span>
                         </div>
                         <p class="extra-small text-muted mb-3">
@@ -421,6 +445,7 @@ document.addEventListener("DOMContentLoaded", function () {
                     }
                 })
             .catch(err => {
+                if (fileInput) fileInput.value = "";
                 console.error("Live OCR extraction preview failed:", err);
             });
         }

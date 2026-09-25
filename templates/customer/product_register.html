@@ -73,12 +73,12 @@
                         </div>
                     </div>
 
-                    <!-- Scan Warning / Error Panel -->
-                    <div id="scan-error-panel" class="d-none mt-3 p-3 bg-warning-subtle rounded-3 border border-warning text-dark small d-flex align-items-center gap-3">
-                        <i class="bi bi-info-circle-fill fs-4 text-warning"></i>
+                    <!-- Scan Error Panel -->
+                    <div id="scan-error-panel" class="d-none mt-3 p-3 bg-danger-subtle rounded-3 border border-danger text-danger-emphasis small d-flex align-items-center gap-3">
+                        <i class="bi bi-exclamation-octagon-fill fs-4 text-danger"></i>
                         <div>
-                            <div class="fw-bold" id="scan-error-title">No Invoice Details Detected</div>
-                            <div class="extra-small text-muted" id="scan-error-msg">Could not extract readable invoice fields from this file. Please ensure the document is clear, or enter details manually below.</div>
+                            <div class="fw-bold" id="scan-error-title">Document Rejected — No Invoice Details Detected</div>
+                            <div class="extra-small" id="scan-error-msg">The uploaded image does not contain valid receipt or invoice information and was not accepted. Please upload a clear purchase invoice or enter the details manually below.</div>
                         </div>
                     </div>
                 </div>
@@ -365,19 +365,21 @@ function triggerOcrScan() {
                 </div>
             `;
         } else {
+            fileInput.value = '';
             verificationPanel.classList.add('d-none');
             if (errorPanel) {
                 errorPanel.classList.remove('d-none');
-                document.getElementById('scan-error-msg').innerText = data.error || 'No readable invoice text detected. Please enter details manually below.';
+                document.getElementById('scan-error-msg').innerText = 'The uploaded file does not contain valid receipt or invoice information and was not accepted. Please upload a clear purchase invoice or enter the details manually below.';
             }
         }
     })
     .catch(err => {
+        fileInput.value = '';
         spinner.classList.add('d-none');
         verificationPanel.classList.add('d-none');
         if (errorPanel) {
             errorPanel.classList.remove('d-none');
-            document.getElementById('scan-error-msg').innerText = 'Error communicating with document processor. Please enter details manually below.';
+            document.getElementById('scan-error-msg').innerText = 'Error processing the uploaded file. Please upload a valid invoice document or enter details manually below.';
         }
         console.error(err);
     });
