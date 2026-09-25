@@ -1,15 +1,15 @@
 # AssureX Claim Engine
 
-> **Enterprise AI-Powered Dual-Model Warranty Claim Adjudication & Fraud Detection Platform**  
-> *Built for NextWave AI & ML Evaluation — Aptech Limited*
+> **Dual-Model Warranty Claim Adjudication & Fraud Detection Platform**  
+> *NextWave AI & ML — Aptech Limited*
 
 ---
 
-## 📌 Project Overview
+## Project Overview
 
-**AssureX Claim Engine** is an enterprise-grade automated warranty claims processing system that combines **Python Tabular Machine Learning** (Random Forest / Gradient Boosting) with **Google Teachable Machine Vision Models** to adjudicate warranty claims in real time.
+**AssureX Claim Engine** is an automated warranty claims processing system that combines **Python Tabular Machine Learning** (Random Forest / Gradient Boosting) with **Google Teachable Machine Vision Models** to evaluate warranty claims in real time.
 
-The system enforces multi-layer fraud detection, OCR receipt extraction, cryptographic SHA-256 fingerprinting, configurable category warranty policies, and an 8-stage claims lifecycle tracking engine with human-in-the-loop review overrides.
+The system handles fraud detection, OCR receipt extraction, SHA-256 document hashing, configurable warranty policies, and an 8-stage claims lifecycle tracker with manual review support.
 
 ```
        +--------------------------------------------------------------+
@@ -47,42 +47,40 @@ The system enforces multi-layer fraud detection, OCR receipt extraction, cryptog
 
 ---
 
-## 🎯 Key Architectural Standards
+## Key Architectural Standards
 
-### Exactly 3 Claim Classes
-1. **`Valid Claim`** — Covered fault, active warranty, verified serial, unanimous AI consensus.
-2. **`Invalid Claim`** — Policy violation, excluded damage, expired warranty, or unanimous fraud detection.
-3. **`Manual Review`** — Borderline conditions, model disagreement, low confidence, or chronological discrepancies.
+### 3 Claim Classes
+1. **`Valid Claim`** — Covered fault, active warranty, verified serial, model consensus.
+2. **`Invalid Claim`** — Policy violation, excluded damage, expired warranty, or fraud flag.
+3. **`Manual Review`** — Borderline conditions, model disagreement, low confidence, or date discrepancy.
 
-### Exactly 5 Model-Consistency Statuses
+### 5 Model-Consistency Statuses
 1. **`Strong Match`** — Both models predict identical class with $|\Delta\text{conf}| \le 0.15$.
 2. **`Acceptable Match`** — Both models predict identical class with $0.15 < |\Delta\text{conf}| \le 0.30$.
 3. **`Weak Match`** — Both models predict identical class with $|\Delta\text{conf}| > 0.30$.
-4. **`Model Disagreement`** — Conflicting class predictions between models; automatically routes to Manual Review.
+4. **`Model Disagreement`** — Conflicting class predictions between models; routes to Manual Review.
 5. **`Uncertain Result`** — Either model confidence falls below configurable threshold ($0.60$).
 
-### Exactly 8 Claim Lifecycle Stages (Req xxxviii)
+### 8 Claim Lifecycle Stages
 `Draft` $\to$ `Submitted` $\to$ `Under Evaluation` $\to$ `Additional Information Required` $\to$ `Manual Review` $\to$ `Approved` $\to$ `Rejected` $\to$ `Closed`
 
 ---
 
-## 🔑 Evaluator Quick-Start Login Credentials
+## Quick-Start Login Credentials
 
 | Role | Email | Password | Access Scope |
 |:---|:---|:---|:---|
-| **System Administrator** | `admin@assurex.local` | `AdminPass123!` | Full Admin Portal, Policies Editor, Analytics, Audit Logs |
-| **Claims Reviewer** | `reviewer@assurex.local` | `ReviewerPass123!` | Reviewer Triage Queue, Adjudication Workbench, Overrides |
-| **Customer / Claimant** | `customer@assurex.local` | `CustomerPass123!` | Self-Service Portal, Product Fleet, 5-Step Intake Wizard |
+| **System Administrator** | `admin@assurex.local` | `AdminPass123!` | Admin Portal, Policies Editor, Analytics, Audit Logs |
+| **Claims Reviewer** | `reviewer@assurex.local` | `ReviewerPass123!` | Reviewer Queue, Adjudication Workbench, Overrides |
+| **Customer / Claimant** | `customer@assurex.local` | `CustomerPass123!` | Customer Portal, Product Fleet, Intake Wizard |
 | **Service Center Staff** | `staff@assurex.local` | `StaffPass123!` | Service Hub Maintenance Records, Repair Logging |
-
-*Tip: The login page at `http://127.0.0.1:5000/login` features 1-click quick-fill buttons to auto-populate any role.*
 
 ---
 
-## 🚀 Installation & Local Setup
+## Installation & Local Setup
 
 ### Prerequisites
-- Python 3.10+ (tested on Python 3.14)
+- Python 3.10+
 - Git
 
 ### Setup Steps
@@ -111,95 +109,77 @@ Open **`http://127.0.0.1:5000`** in your browser.
 
 ---
 
-## 🧪 Test Suite & Verification
-
-The application includes 42 automated test cases covering all 18 SRS test categories, 11 demonstration scenarios, and frontend integration workflows:
+## Test Suite
 
 ```bash
-# Run full automated test suite (42 tests)
-python -m unittest discover tests
+# Run full test suite
+python -m unittest discover -s tests
 
-# Run 18 SRS Test Categories specifically
+# Run SRS test categories
 python -m unittest tests/test_srs_18_categories.py
 
-# Run 11 Mandatory Demonstration Cases
+# Run demonstration cases
 python -m unittest tests/test_srs_demonstration_cases.py
 
-# Generate 21-column Model Comparison Report (36 unseen claims)
+# Generate model comparison report
 python reports/generate_comparison_report.py
 ```
 
 ---
 
-## 🌐 Live Deployed Application (Deliverable #12)
+## Live Deployment
 
-In accordance with SRS Page 33 (Section 1.10 Deliverable 12), the complete production platform is deployed and publicly accessible:
-
-- **Production Live URL:** [https://assurexai.pythonanywhere.com](https://assurexai.pythonanywhere.com)
-- **Deployment Platform:** PythonAnywhere (WSGI Linux Cloud Architecture)
-- **Evaluator Access:** All 4 role accounts pre-configured with 1-click credentials on the landing page.
+- **Live URL:** [https://assurexai.pythonanywhere.com](https://assurexai.pythonanywhere.com)
+- **Hosting:** PythonAnywhere
 
 ---
 
-## 📊 Dataset & Model Architecture
+## Dataset & Models
 
-- **Dataset:** 1,500 balanced claims generated across 3 hardware categories (`Consumer Electronics`, `Home Appliances`, `Industrial & Automotive Tools`).
+- **Dataset:** 1,500 claims across 3 product categories (`Consumer Electronics`, `Home Appliances`, `Industrial Tools`).
 - **Splits:** 70% Train (1,050) / 15% Val (225) / 15% Test (225).
-- **Claim Summary Cards:** Standardized $640 \times 420$ neutral-rendered claim cards for vision model training.
-- **Python ML Benchmark:** Random Forest Classifier (100.0% test accuracy on held-out test split).
-- **Google Teachable Machine:** Custom vision classifier trained on 2,100 augmented card images (100.0% test accuracy).
-- **Dual-Model Class Agreement:** 100.00% across held-out unseen claims ($|\Delta\text{conf}| = 0.0088$).
+- **Claim Summary Cards:** $640 \times 420$ claim cards for vision model training.
+- **Python Model:** Random Forest Classifier.
+- **Teachable Machine:** Vision classifier trained on summary card images.
 
 ---
 
-## 📁 Repository Structure
+## Repository Structure
 
 ```
 assurex-claim-engine/
-├── config/                  # Global threshold and environment configurations
-├── data/                    # Structured CSV datasets, splits, and mapping tables
-│   ├── raw/                 # Complete 1,500-record dataset
-│   ├── splits/              # Train (70%), Val (15%), Test (15%)
-│   └── summary_cards/       # Standardized 640x420 Claim Summary Cards
+├── config/                  # Configuration settings
+├── data/                    # CSV datasets, splits, and summary cards
 ├── database/                # SQLite database and seed scripts
-├── documentation/           # System design, test matrix, evidence dossiers
-│   ├── TEST_CASES.md        # 18-Category formal verification matrix
-│   ├── PYTHON_MODEL_EVIDENCE.md
-│   ├── GTM_EVIDENCE.md
-│   └── PROJECT_REPORT.md    # Comprehensive system design specification
-├── model/                   # Serialized ML models (joblib, model.json, weights.bin)
-├── policies/                # Configurable JSON warranty policies per category
-├── reports/                 # 21-column model comparison report & project report PDF
-├── sample_claims/           # 11 Mandatory SRS Demonstration Case JSON files & docs
-├── screenshots/             # Interface walkthroughs & system architecture diagram
-├── src/                     # Core application source code
-│   ├── api/                 # Flask Blueprints (auth, products, claims, reviewer, admin, reports)
-│   ├── core/                # Preprocessor, Python ML, GTM Vision, Comparator, Decision Engine
-│   ├── models/              # SQLAlchemy 13 entity domain models
-│   ├── ocr/                 # Document processor, SHA-256 hasher, entity extractor
-│   ├── rules/               # Policy engine, fraud detector, contradiction detector
-│   └── services/            # PDF report certificate generator, CSV exporter
-├── static/                  # CSS stylesheets, JavaScript client engine, images
-├── templates/               # Jinja2 templates (Customer, Reviewer, Admin portals)
-├── tests/                   # Automated unit and integration test suites (42 tests)
-├── AI_USAGE.md              # Section 1.8 AI tool compliance declaration
-├── LICENSE                  # Open-source MIT License (Deliverable #2)
+├── documentation/           # Project documentation and test cases
+├── model/                   # Trained ML models (python_model, teachable_machine)
+├── policies/                # JSON warranty policies per category
+├── reports/                 # Model comparison and project reports
+├── sample_claims/           # Sample claim JSON files
+├── screenshots/             # UI screenshots and diagrams
+├── src/                     # Application source code
+│   ├── api/                 # Flask routes (auth, products, claims, reviewer, admin, reports)
+│   ├── core/                # Preprocessor, classifiers, comparator, decision engine
+│   ├── models/              # SQLAlchemy database models
+│   ├── ocr/                 # OCR document processor and SHA-256 hashing
+│   ├── rules/               # Policy engine, duplicate and contradiction checks
+│   └── services/            # PDF generator, alerts, analytics, CSV export
+├── static/                  # CSS, JS, and images
+├── templates/               # HTML templates
+├── tests/                   # Unit and integration tests
+├── LICENSE                  # MIT License
 └── README.md                # Project documentation
 ```
 
 ---
 
-## 📝 Technical Blog & Publication (Deliverable #14)
+## Technical Blog
 
-In accordance with SRS Page 35–36 (Section 1.10 Deliverable 14), a comprehensive 3,790+ word technical blog addressing **all 23 mandatory SRS discussion topics** has been authored and published:
-
-- **Published Live on Medium:** [https://medium.com/@samikhan031027/building-assurex-a-dual-model-warranty-claim-evaluation-system-8a30d3684111](https://medium.com/@samikhan031027/building-assurex-a-dual-model-warranty-claim-evaluation-system-8a30d3684111)
-- **Source Technical Article:** [`documentation/TECHNICAL_BLOG.md`](file:///c:/Users/sami/Desktop/techwiz%207/documentation/TECHNICAL_BLOG.md)
-- **Official Publication Record:** [`documentation/BLOG_PUBLICATION.md`](file:///c:/Users/sami/Desktop/techwiz%207/documentation/BLOG_PUBLICATION.md)
-- **In-App Interactive Reader:** `http://127.0.0.1:5000/blog`
+- **Medium Link:** [https://medium.com/@samikhan031027/building-assurex-a-dual-model-warranty-claim-evaluation-system-8a30d3684111](https://medium.com/@samikhan031027/building-assurex-a-dual-model-warranty-claim-evaluation-system-8a30d3684111)
+- **Local Copy:** [`documentation/TECHNICAL_BLOG.md`](file:///c:/Users/sami/Desktop/techwiz%207/documentation/TECHNICAL_BLOG.md)
 
 ---
 
-## 📄 License & Academic Compliance
+## License
 
-This project is developed for the **NextWave AI and ML Competition / Examination** administered by **Aptech Limited**. All source code, dataset generation scripts, and machine learning models strictly follow the project Software Requirements Specification (SRS).
+Developed for the **NextWave AI and ML** project evaluation at **Aptech Limited**.

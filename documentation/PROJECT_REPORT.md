@@ -837,7 +837,7 @@ Across $36$ completely unseen test claims representing all three categories and 
 3. **Monolithic Process Execution**: ML inference runs in-process with Flask; high-throughput workloads would benefit from asynchronous Celery worker pools.
 
 ### 6.2 Recommended Future Enhancements
-- **LLM-Powered Multi-Modal Policy Analysis**: Integrate Gemini Pro Vision to extract unstructured terms from non-standard warranty contracts.
+- **Multi-Language OCR Support**: Extend Tesseract language packs to process regional and multilingual retail invoices and non-standard warranty contracts.
 - **Automated Payout Gateway Integration**: Connect approved claims directly to banking APIs (Stripe, Razorpay) for instant automated disbursement.
 - **Decentralized Warranty Blockchain Ledger**: Store cryptographic claim receipts on a permissioned enterprise ledger to eliminate multi-insurer fraud.
 

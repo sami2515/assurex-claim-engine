@@ -23,3 +23,15 @@ data/summary_cards/val/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Local reference & scratch files
+antigravity_assets/
+ANTIGRAVITY_MASTER_PROMPT.txt
+ASSUREX_SRS_EXACT_PAGE_BY_PAGE.md
+AssureX Claim Engine-NextWave AI and ML_SRS.pdf
+AI_USAGE.md
+generate_project_report_pdf.py
+reports/generate_project_report_pdf.py
+page-05-architecture-diagram.jpg
+static/img/page-05-architecture-diagram.jpg
+static/img/logo2 - Copy.png
