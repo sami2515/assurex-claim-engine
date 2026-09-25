@@ -85,7 +85,7 @@
 
                 <form method="POST" action="{{ url_for('products.register_product') }}" enctype="multipart/form-data" id="product-registration-form">
                     
-                    <!-- Hidden or Explicit File Input (Req 1.6.v) -->
+                    <!-- Hidden or Explicit File Input -->
                     <div class="mb-4">
                         <label for="receipt_document" class="form-label fw-semibold small text-slate-700">
                             Proof-of-Purchase Document File <span class="text-muted fw-normal">(Optional for manual entry, mandatory for OCR scan)</span>
@@ -184,7 +184,7 @@
                             <div class="form-text extra-small">Extracted from invoice or selected per warranty plan.</div>
                         </div>
 
-                        <!-- Standard vs Extended Warranty (Req 1.6.iv) -->
+                        <!-- Standard vs Extended Warranty -->
                         <div class="col-md-4">
                             <label for="warranty_type" class="form-label fw-semibold small text-slate-700">
                                 Warranty Tier / Type <span class="text-danger">*</span>
@@ -195,7 +195,7 @@
                             </select>
                         </div>
 
-                        <!-- Warranty Provider (Req 1.6.iv) -->
+                        <!-- Warranty Provider -->
                         <div class="col-md-4">
                             <label for="warranty_provider" class="form-label fw-semibold small text-slate-700">
                                 Warranty Provider Name
@@ -203,7 +203,7 @@
                             <input type="text" class="form-control" id="warranty_provider" name="warranty_provider" placeholder="e.g. AssureX Shield Direct Care">
                         </div>
 
-                        <!-- Service Center Details (Req 1.6.iv) -->
+                        <!-- Service Center Details -->
                         <div class="col-12">
                             <label for="service_center_name" class="form-label fw-semibold small text-slate-700">
                                 Authorized Service Center Network / Facility

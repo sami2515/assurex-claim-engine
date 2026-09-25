@@ -18,7 +18,7 @@
     </div>
 </div>
 
-<!-- Key Performance & Claim Metric Widgets (Req xl) -->
+<!-- Key Metrics -->
 <div class="row g-3 mb-4">
     <div class="col-6 col-md-4 col-xl-2">
         <div class="stat-widget">
@@ -88,7 +88,7 @@
     </div>
 </div>
 
-<!-- Approaching Warranty Expiry Alert Banner (Req 1.6.ix) -->
+<!-- Approaching Warranty Expiry Alert Banner -->
 {% set expiring_items = [] %}
 {% for p in products %}
     {% if p.warranty and p.warranty.is_approaching_expiry() %}
@@ -269,7 +269,7 @@
     </div>
 </div>
 
-<!-- Saved Purchase Receipts & Invoices (Req xl & xiv) -->
+<!-- Saved Purchase Receipts & Invoices -->
 <div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
     <div class="card-header-styled d-flex justify-content-between align-items-center flex-wrap gap-2">
         <span class="fw-bold text-slate-900"><i class="bi bi-receipt-cutoff text-primary me-2"></i>Saved Purchase Receipts &amp; Proof Documents</span>

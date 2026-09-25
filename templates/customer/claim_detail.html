@@ -21,7 +21,7 @@
     </div>
 </div>
 
-<!-- Missing Mandatory Documents Alert Banner (Req 1.6.xxix) -->
+<!-- Missing Documents Alert -->
 {% if claim.missing_document_flag or (missing_docs_info and missing_docs_info.has_missing) %}
 <div class="alert alert-warning border-0 shadow-sm rounded-4 mb-4 p-3 d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
     <div class="d-flex align-items-start gap-3">
@@ -314,7 +314,7 @@
     </div>
 </div>
 
-<!-- Decision Explanation Breakdown (Req 1.6.xxxv) -->
+<!-- DECISION EXPLANATION -->
 {% if decision_explanation %}
 <div class="card border-0 shadow-sm rounded-4 bg-white mb-4 overflow-hidden">
     <div class="card-header-styled d-flex justify-content-between align-items-center flex-wrap gap-2">
@@ -436,7 +436,7 @@
 </div>
 {% endif %}
 
-<!-- Reviewer Notes & Audit Trail (Req 1.6.xxxvii) -->
+<!-- Reviewer Notes & Audit Trail -->
 {% if claim.reviewer_notes or claim.reviewer_actions %}
 <div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
     <div class="card-header-styled d-flex justify-content-between align-items-center">
@@ -492,7 +492,7 @@
 </div>
 {% endif %}
 
-<!-- Dual-Model AI Comparison Details (Req xviii, xxi, xxii) -->
+<!-- Dual-Model AI Comparison Details -->
 {% if claim.model_evaluation %}
     {% set eval = claim.model_evaluation %}
     <div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
@@ -564,7 +564,7 @@
     </div>
 {% endif %}
 
-<!-- Attached Evidence Documents & Multi-Media Proof (Req 1.6.v & xii) -->
+<!-- Attached Evidence Documents & Multi-Media Proof -->
 <div class="card border-0 shadow-sm rounded-4 bg-white">
     <div class="card-header-styled d-flex justify-content-between align-items-center">
         <span><i class="bi bi-paperclip text-primary me-2"></i>Attached Evidence Documents &amp; Multi-Media Proof</span>
@@ -641,7 +641,7 @@
                                     {% endif %}
                                 </div>
 
-                                <!-- Modal: Replace Document (Req 1.6.xiv) -->
+                                <!-- Modal: Replace Document -->
                                 <div class="modal fade text-start" id="replaceDocModal_{{ doc.document_id }}" tabindex="-1" aria-hidden="true">
                                     <div class="modal-dialog modal-dialog-centered">
                                         <div class="modal-content rounded-4 border-0 shadow">
@@ -667,7 +667,7 @@
                                     </div>
                                 </div>
 
-                                <!-- Modal: Delete Document (Req 1.6.xiv) -->
+                                <!-- Modal: Delete Document -->
                                 <div class="modal fade text-start" id="deleteDocModal_{{ doc.document_id }}" tabindex="-1" aria-hidden="true">
                                     <div class="modal-dialog modal-dialog-centered">
                                         <div class="modal-content rounded-4 border-0 shadow">
@@ -703,7 +703,7 @@
     </div>
 </div>
 
-<!-- Modal: Upload Missing / Supplementary Document (Req 1.6.xxix & Req 1.6.xiv) -->
+<!-- Modal: Upload Missing / Supplementary Document -->
 <div class="modal fade text-start" id="uploadDocModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content rounded-4 border-0 shadow">
