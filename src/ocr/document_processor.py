@@ -62,7 +62,8 @@ class DocumentProcessor:
                         extracted_text.append(txt)
             return "\n".join(extracted_text)
         except Exception as e:
-            print(f"[!] Warning: pdfplumber extraction failed: {e}")
+            import logging
+            logging.getLogger(__name__).warning("PDF extraction failed for %s: %s", pdf_path.name, e)
             return ""
 
     def extract_text_from_image(self, image_path: Path) -> str:
@@ -265,7 +266,8 @@ class DocumentProcessor:
         2. Computes SHA-256 hash
         3. Extracts text via OCR / PDF engine
         4. Parses structured entities
-        5. Formats verification payload for UI review (Req vii)
+        5. Validates whether extracted content is a genuine receipt/invoice
+        6. Formats verification payload for UI review (Req vii)
         """
         if not file_path.exists():
             raise FileNotFoundError(f"Uploaded file not found at: {file_path}")
@@ -275,7 +277,7 @@ class DocumentProcessor:
         extracted_text = self.extract_document_text(file_path)
         parsed_entities = self.parse_entities_from_text(extracted_text)
 
-        return {
+        result = {
             "document_type": document_type,
             "filename": file_path.name,
             "file_size_bytes": file_size,
@@ -284,6 +286,10 @@ class DocumentProcessor:
             "entities": parsed_entities,
             "requires_user_verification": True
         }
+
+        # Flag whether this document contains valid receipt/invoice content
+        result["ocr_valid"] = self.is_valid_receipt_document(result)
+        return result
 
     def process_text(self, raw_text: str) -> dict:
         """Processes raw text and returns extracted entity payload."""

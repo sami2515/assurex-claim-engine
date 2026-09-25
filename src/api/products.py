@@ -43,16 +43,16 @@ def list_products():
                 counts["extended"] += 1
             if not p.warranty.is_active():
                 counts["expired"] += 1
-            elif p.warranty.is_approaching_expiry(threshold_days=30):
+            elif p.warranty.is_approaching_expiry():
                 counts["approaching"] += 1
             else:
                 counts["active"] += 1
 
     # Filter products based on selected status tab
     if status_filter == "active":
-        filtered_products = [p for p in all_products if p.warranty and p.warranty.is_active() and not p.warranty.is_approaching_expiry(30)]
+        filtered_products = [p for p in all_products if p.warranty and p.warranty.is_active() and not p.warranty.is_approaching_expiry()]
     elif status_filter == "approaching":
-        filtered_products = [p for p in all_products if p.warranty and p.warranty.is_approaching_expiry(30)]
+        filtered_products = [p for p in all_products if p.warranty and p.warranty.is_approaching_expiry()]
     elif status_filter == "expired":
         filtered_products = [p for p in all_products if p.warranty and not p.warranty.is_active()]
     elif status_filter == "extended":
@@ -168,11 +168,14 @@ def register_product():
         service_center = service_center_name if service_center_name else "Authorized National Service Network"
 
         w_start = p_date
-        w_expiry = w_start + timedelta(days=duration_months * 30)
+        w_expiry = w_start + timedelta(days=int(duration_months * 30.4375))
 
+        # Use matched policy, or fall back to the first available policy
+        if not policy:
+            policy = WarrantyPolicy.query.first()
         warranty = ProductWarranty(
             product_id=product.id,
-            policy_id=policy.id if policy else 1,
+            policy_id=policy.id if policy else None,
             warranty_provider=provider_name,
             start_date=w_start,
             expiry_date=w_expiry,
@@ -232,7 +235,13 @@ def register_product():
             details_json=json.dumps({"product_name": product.product_name, "serial": product.serial_number})
         )
         db.session.add(audit)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            flash("An error occurred while saving the product. Please try again.", "danger")
+            policies = WarrantyPolicy.query.all()
+            return render_template("customer/product_register.html", policies=policies)
 
         flash(
             f"Product '{product_name}' registered successfully! Assigned Unique Product ID: {product.product_id} with {duration_months}-month warranty coverage.",
@@ -462,18 +471,6 @@ def download_document(document_id):
     Enforces user access rights before serving.
     """
     doc = ClaimDocument.query.filter_by(document_id=document_id).first()
-    if not doc:
-        legacy_claim_map = {
-            "DOC-FE972E4E41": 1,
-            "DOC-A748896E51": 1,
-            "DOC-6608CB38AE": 2,
-            "DOC-323ACC6374": 2,
-            "DOC-A41A4D809F": 3,
-            "DOC-F29F034A90": 3,
-        }
-        mapped_claim_id = legacy_claim_map.get(document_id)
-        if mapped_claim_id:
-            doc = ClaimDocument.query.filter_by(claim_id=mapped_claim_id).first()
     if not doc:
         from flask import abort
         abort(404)
@@ -723,6 +720,9 @@ def add_repair_record(product_id):
     elif repair_date > date.today():
         flash("Repair date cannot be in the future.", "warning")
         return redirect(url_for("products.view_product", product_id=product.product_id))
+    elif product.purchase_date and repair_date < product.purchase_date:
+        flash("Repair date cannot be before the product purchase date.", "warning")
+        return redirect(url_for("products.view_product", product_id=product.product_id))
 
     try:
         repair_cost = float(repair_cost_str)
@@ -762,6 +762,6 @@ def add_repair_record(product_id):
     )
     db.session.commit()
 
-    flash(f"Service and maintenance record {repair.repair_id} recorded successfully (Req 1.6.xiii).", "success")
+    flash(f"Service and maintenance record {repair.repair_id} recorded successfully.", "success")
     return redirect(url_for("products.view_product", product_id=product.product_id))
 

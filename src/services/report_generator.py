@@ -216,12 +216,12 @@ class ClaimReportPDFGenerator:
             diff_str = f"{eval_record.top_confidence_difference:.4f}"
             consistency_status = eval_record.model_consistency_status
         else:
-            py_class = "Valid Claim"
-            py_probs = "Valid: 0.99 | Invalid: 0.01 | Review: 0.00"
-            gtm_class = "Valid Claim"
-            gtm_probs = "Valid: 1.00 | Invalid: 0.00 | Review: 0.00"
-            diff_str = "0.0100"
-            consistency_status = "Strong Match"
+            py_class = "Evaluation Pending"
+            py_probs = "N/A"
+            gtm_class = "Evaluation Pending"
+            gtm_probs = "N/A"
+            diff_str = "N/A"
+            consistency_status = "Awaiting Evaluation"
 
         py_ver = eval_record.python_model_version if eval_record and eval_record.python_model_version else Config.PYTHON_MODEL_VERSION
         gtm_ver = eval_record.gtm_model_version if eval_record and eval_record.gtm_model_version else Config.GTM_MODEL_VERSION

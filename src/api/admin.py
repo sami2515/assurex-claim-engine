@@ -267,9 +267,13 @@ def configure_model_thresholds():
     """Req 1.6.xxiv: Configure confidence-difference and minimum-confidence thresholds for Model Consistency Status."""
     user = get_current_user()
     try:
-        min_conf = float(request.form.get("min_confidence", "0.60").strip())
-        strong_diff = float(request.form.get("strong_diff", "0.15").strip())
-        acceptable_diff = float(request.form.get("acceptable_diff", "0.30").strip())
+        current_min_conf = SystemSetting.get_val("min_confidence_threshold", "0.60")
+        current_strong_diff = SystemSetting.get_val("strong_match_diff", "0.15")
+        current_acceptable_diff = SystemSetting.get_val("acceptable_match_diff", "0.30")
+
+        min_conf = float(request.form.get("min_confidence", current_min_conf).strip())
+        strong_diff = float(request.form.get("strong_diff", current_strong_diff).strip())
+        acceptable_diff = float(request.form.get("acceptable_diff", current_acceptable_diff).strip())
 
         if not (0.0 < min_conf <= 1.0):
             flash("Minimum confidence threshold must be between 0.01 and 1.00.", "warning")
@@ -297,6 +301,9 @@ def configure_model_thresholds():
         flash(f"Model consistency thresholds updated: Min Conf={min_conf:.2f}, Strong Diff<={strong_diff:.2f}, Acceptable Diff<={acceptable_diff:.2f}.", "success")
     except ValueError:
         flash("Invalid numerical values entered for model thresholds.", "danger")
+    except Exception:
+        db.session.rollback()
+        flash("An error occurred while saving thresholds. Please try again.", "danger")
 
     return redirect(url_for("admin.manage_policies"))
 

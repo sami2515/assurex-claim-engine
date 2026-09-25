@@ -6,6 +6,7 @@ from src.core.model_comparator import get_model_comparator
 from src.rules.policy_engine import get_policy_engine
 from src.rules.contradiction_detector import get_contradiction_detector
 from src.rules.duplicate_detector import get_duplicate_detector
+from src.rules.validator import ClaimValidator
 
 
 class MasterDecisionEngine:
@@ -260,11 +261,15 @@ class MasterDecisionEngine:
         )
         duplicate_flags = duplicate_results.get("duplicate_flags", [])
 
-        # Factor 5: Missing Mandatory Documents Check (Req xxxiv)
+        # Factor 5: Missing Mandatory Documents Check (Req xxix & xxxiv)
+        # Use the full validator to check all mandatory doc types
+        claim_docs = claim_data.get("documents", [])
+        has_repairs = bool(claim_data.get("has_prior_repairs") or claim_data.get("repair_count", 0) > 0)
+        missing_doc_info = ClaimValidator.identify_missing_documents(claim_docs, has_previous_repairs=has_repairs)
         has_missing_documents = bool(
+            missing_doc_info.get("missing_mandatory", []) or
             claim_data.get("missing_document_flag", False) or
-            claim_data.get("missing_documents_count", 0) > 0 or
-            (claim_data.get("has_receipt") == 0 and claim_data.get("has_invoice") == 0 and claim_data.get("documents_attached", 1) == 0)
+            claim_data.get("missing_documents_count", 0) > 0
         )
 
         return cls.synthesize_final_decision(

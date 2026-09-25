@@ -210,11 +210,12 @@ class TestSRS18Categories(unittest.TestCase):
         self.assertEqual(len(res_a["failed_rules"]), 0)
 
         # Case B: 4 days past expiration (within 7-day grace period)
+        # With accurate calendar math: 12 months ≈ 365 days, so 369 = 4 days overdue
         c_b = base_claim.copy()
         c_b["fault_occurrence_date"] = "2024-01-04"
         c_b["claim_submission_date"] = "2024-01-04"
-        c_b["days_since_purchase"] = 364
-        c_b["product_age_days"] = 364
+        c_b["days_since_purchase"] = 369
+        c_b["product_age_days"] = 369
         c_b["days_until_warranty_expiry"] = -4
         c_b["remaining_warranty_days"] = -4
         c_b["days_between_fault_and_claim"] = 0

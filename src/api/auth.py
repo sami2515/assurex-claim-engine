@@ -150,6 +150,18 @@ def register():
             flash("An account with this email address already exists.", "warning")
             return render_template("auth/register.html")
 
+        # Phone number format validation (Req ii)
+        if phone:
+            digits_only = ''.join(c for c in phone if c.isdigit())
+            if len(digits_only) < 7 or len(digits_only) > 15:
+                flash("Phone number must contain between 7 and 15 digits.", "warning")
+                return render_template("auth/register.html")
+
+        # Address length validation (Req ii)
+        if address and len(address) < 5:
+            flash("Please enter a complete address (at least 5 characters).", "warning")
+            return render_template("auth/register.html")
+
         user = User(
             email=email,
             full_name=full_name,
@@ -158,20 +170,25 @@ def register():
             address=address
         )
         user.set_password(password)
-        db.session.add(user)
-        db.session.flush()
+        try:
+            db.session.add(user)
+            db.session.flush()
 
-        audit = AuditLog(
-            user_id=user.id,
-            user_role=user.role,
-            action="ACCOUNT_CREATION",
-            entity_type="USER",
-            entity_id=user.user_id,
-            ip_address=request.remote_addr,
-            details_json=json.dumps({"role": user.role, "email": user.email})
-        )
-        db.session.add(audit)
-        db.session.commit()
+            audit = AuditLog(
+                user_id=user.id,
+                user_role=user.role,
+                action="ACCOUNT_CREATION",
+                entity_type="USER",
+                entity_id=user.user_id,
+                ip_address=request.remote_addr,
+                details_json=json.dumps({"role": user.role, "email": user.email})
+            )
+            db.session.add(audit)
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            flash("An error occurred during registration. Please try again.", "danger")
+            return render_template("auth/register.html")
 
         role_display = {
             Config.ROLE_CUSTOMER: "Customer",

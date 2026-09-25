@@ -253,13 +253,14 @@ class TestSRSDemonstrationCases(unittest.TestCase):
         """
         SRS Case 10: One tricky boundary-date claim.
         Claim submitted 3 days after 12-month warranty expiry, but within permissible 7-day grace period.
+        With accurate calendar math: 12 months ≈ 365 days, so 368 = 3 days overdue.
         Expected: Eligible for discretionary grace period review, triggers warning and manual review trigger.
         """
         policy_eng = get_policy_engine()
         claim_data = {
             "product_category": "Consumer Electronics",
             "warranty_duration_months": 12,
-            "product_age_days": 363,  # 360 days standard (12*30) + 3 days overdue (within 7d grace)
+            "product_age_days": 368,  # 365 days standard (12*30.4375) + 3 days overdue (within 7d grace)
             "remaining_warranty_days": 0,
             "has_receipt": 1,
             "missing_document_count": 0,

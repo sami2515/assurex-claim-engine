@@ -110,7 +110,9 @@ class WarrantyPolicyEngine:
             product_age = claim_data.get("days_since_purchase", 0)
 
         duration_months = claim_data.get("warranty_duration_months") or claim_data.get("warranty_period_months") or policy.get("coverage_duration_months", 12)
-        duration_days = duration_months * 30
+        # Use accurate average days-per-month (365.25/12 ≈ 30.44) to avoid
+        # calendar drift that incorrectly flags end-of-year claims as expired
+        duration_days = int(duration_months * 30.4375)
         overdue_days = max(0, product_age - duration_days)
         grace_days = policy.get("grace_period_days", 7)
 

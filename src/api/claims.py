@@ -44,7 +44,7 @@ def customer_dashboard():
 
     # Calculate exact metrics for Req xl dashboard
     active_warranties_count = sum(1 for p in products if p.warranty and p.warranty.is_active())
-    expiring_warranties_count = sum(1 for p in products if p.warranty and p.warranty.is_approaching_expiry(30))
+    expiring_warranties_count = sum(1 for p in products if p.warranty and p.warranty.is_approaching_expiry())
     pending_actions_count = sum(1 for c in claims if c.status == Config.STATUS_ADDITIONAL_INFO or c.missing_document_flag)
 
     # Fetch Saved Purchase Receipts & Invoices (Req xl & xiv)
@@ -172,7 +172,9 @@ def search_records():
     elif warranty_status_param == "Expired":
         query = query.filter(ProductWarranty.expiry_date < today)
     elif warranty_status_param in ["Approaching Expiry", "Expiring Soon"]:
-        query = query.filter(ProductWarranty.expiry_date >= today, ProductWarranty.expiry_date <= today + timedelta(days=30))
+        from src.models.entities import SystemSetting
+        alert_days = SystemSetting.get_int("warranty_expiry_alert_days", 30)
+        query = query.filter(ProductWarranty.expiry_date >= today, ProductWarranty.expiry_date <= today + timedelta(days=alert_days))
 
     # 6. Claim Status Filter
     if claim_status_param and claim_status_param != "ALL":
@@ -188,9 +190,12 @@ def search_records():
             min_val = float(min_conf_param)
             if min_val > 1.0:
                 min_val /= 100.0
-            query = query.filter(
-                func.max(ModelEvaluation.python_conf_valid, ModelEvaluation.python_conf_invalid, ModelEvaluation.python_conf_manual) >= min_val
+            # Use greatest() via case() for cross-DB compatibility
+            greatest_conf = func.max(
+                ModelEvaluation.python_conf_valid,
+                func.max(ModelEvaluation.python_conf_invalid, ModelEvaluation.python_conf_manual)
             )
+            query = query.filter(greatest_conf >= min_val)
         except ValueError:
             pass
 
@@ -199,9 +204,11 @@ def search_records():
             max_val = float(max_conf_param)
             if max_val > 1.0:
                 max_val /= 100.0
-            query = query.filter(
-                func.max(ModelEvaluation.python_conf_valid, ModelEvaluation.python_conf_invalid, ModelEvaluation.python_conf_manual) <= max_val
+            greatest_conf = func.max(
+                ModelEvaluation.python_conf_valid,
+                func.max(ModelEvaluation.python_conf_invalid, ModelEvaluation.python_conf_manual)
             )
+            query = query.filter(greatest_conf <= max_val)
         except ValueError:
             pass
 
