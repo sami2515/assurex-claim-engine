@@ -54,6 +54,14 @@ def create_app(config_class=Config):
             "claim_statuses": Config.ALL_CLAIM_STATUSES
         }
 
+    @app.after_request
+    def add_no_cache_headers(response):
+        if response.mimetype == "text/html":
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        return response
+
     # Root Route (Serves the public landing page with evaluator sandbox)
     @app.route("/")
     def index():
