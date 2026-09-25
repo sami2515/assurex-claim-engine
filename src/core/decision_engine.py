@@ -21,10 +21,34 @@ class MasterDecisionEngine:
     """
 
     def __init__(self):
-        self.comparator = get_model_comparator()
-        self.policy_engine = get_policy_engine()
-        self.contradiction_detector = get_contradiction_detector()
-        self.duplicate_detector = get_duplicate_detector()
+        self._comparator = None
+        self._policy_engine = None
+        self._contradiction_detector = None
+        self._duplicate_detector = None
+
+    @property
+    def comparator(self):
+        if self._comparator is None:
+            self._comparator = get_model_comparator()
+        return self._comparator
+
+    @property
+    def policy_engine(self):
+        if self._policy_engine is None:
+            self._policy_engine = get_policy_engine()
+        return self._policy_engine
+
+    @property
+    def contradiction_detector(self):
+        if self._contradiction_detector is None:
+            self._contradiction_detector = get_contradiction_detector()
+        return self._contradiction_detector
+
+    @property
+    def duplicate_detector(self):
+        if self._duplicate_detector is None:
+            self._duplicate_detector = get_duplicate_detector()
+        return self._duplicate_detector
 
     @classmethod
     def synthesize_final_decision(

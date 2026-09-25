@@ -130,11 +130,16 @@ def train_and_export_gtm_model():
     joblib.dump(classifier, model_bin_path)
     print(f"   [+] Saved GTM classifier to: {model_bin_path}")
 
-    # Dummy raw binary weights file for standard GTM format
+    # Portable compressed feature weights file for standard GTM format & cross-platform rebuild
+    import struct
+    import zlib
     raw_weights_path = GTM_DIR / "weights.bin"
+    X_uint8 = np.clip(np.round(X_train * 255.0), 0, 255).astype(np.uint8)
+    y_uint8 = y_train.astype(np.uint8)
+    header = b"GTM1" + struct.pack("<II", X_uint8.shape[0], X_uint8.shape[1])
+    comp_payload = zlib.compress(X_uint8.tobytes() + y_uint8.tobytes(), level=9)
     with open(raw_weights_path, "wb") as f:
-        # Save float32 representation
-        f.write(X_train[:10].tobytes())
+        f.write(header + comp_payload)
     print(f"   [+] Saved GTM weights.bin to: {raw_weights_path}")
 
     # labels.txt

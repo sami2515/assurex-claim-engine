@@ -98,7 +98,7 @@ def dashboard():
     approaching_warranties = get_approaching_warranties(threshold_days=alert_threshold_days)
 
     # ML Benchmark & Common Dataset Telemetry (Req 1.6.xvii, xviii, xix)
-    benchmark_path = Path("model/python_model/benchmark_results.json")
+    benchmark_path = Path(Config.BASE_DIR) / "model" / "python_model" / "benchmark_results.json"
     benchmark_data = {}
     if benchmark_path.exists():
         try:
@@ -106,7 +106,7 @@ def dashboard():
         except Exception:
             pass
 
-    dataset_stats_path = Path("data/dataset_statistics.json")
+    dataset_stats_path = Path(Config.BASE_DIR) / "data" / "dataset_statistics.json"
     dataset_stats = {}
     if dataset_stats_path.exists():
         try:

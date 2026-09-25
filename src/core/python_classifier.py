@@ -2,8 +2,11 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 import joblib
+from sklearn.ensemble import HistGradientBoostingClassifier
 from config.config import Config
-from src.core.preprocessor import extract_features
+from src.core.preprocessor import (
+    extract_features, build_preprocessor_pipeline, TARGET_COLUMN
+)
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 MODEL_DIR = BASE_DIR / "model" / "python_model"
@@ -17,14 +20,51 @@ class PythonClaimClassifier:
         self.preprocessor_path = preprocessor_path or (MODEL_DIR / "preprocessor.joblib")
         self.model_version = Config.PYTHON_MODEL_VERSION
 
-        if not self.model_path.exists() or not self.preprocessor_path.exists():
-            raise FileNotFoundError(
-                f"Model or preprocessor artifact missing. Ensure training has been executed."
-            )
+        loaded_ok = False
+        if self.model_path.exists() and self.preprocessor_path.exists():
+            try:
+                self.model = joblib.load(self.model_path)
+                self.preprocessor = joblib.load(self.preprocessor_path)
+                self.classes = list(self.model.classes_)
+                dummy_X = self.preprocessor.transform(extract_features(pd.DataFrame([{}])))
+                self.model.predict_proba(dummy_X)
+                loaded_ok = True
+            except Exception:
+                loaded_ok = False
 
-        self.model = joblib.load(self.model_path)
-        self.preprocessor = joblib.load(self.preprocessor_path)
+        if not loaded_ok:
+            self._rebuild_native_artifacts()
+
+    def _rebuild_native_artifacts(self):
+        """Compiles preprocessor and model natively on the current Python/NumPy/scikit-learn runtime."""
+        train_csv = BASE_DIR / "data" / "splits" / "train.csv"
+        if not train_csv.exists():
+            raise FileNotFoundError(
+                "Model or preprocessor artifact missing. Ensure training has been executed."
+            )
+        train_df = pd.read_csv(train_csv)
+        X_train_raw = extract_features(train_df)
+        y_train = train_df[TARGET_COLUMN].values
+
+        self.preprocessor = build_preprocessor_pipeline()
+        X_train = self.preprocessor.fit_transform(X_train_raw)
+
+        self.model = HistGradientBoostingClassifier(
+            max_iter=160,
+            learning_rate=0.08,
+            max_depth=8,
+            min_samples_leaf=5,
+            random_state=42
+        )
+        self.model.fit(X_train, y_train)
         self.classes = list(self.model.classes_)
+
+        try:
+            self.model_path.parent.mkdir(parents=True, exist_ok=True)
+            joblib.dump(self.preprocessor, self.preprocessor_path)
+            joblib.dump(self.model, self.model_path)
+        except Exception:
+            pass
 
     def predict_single(self, claim_data: dict) -> dict:
         """

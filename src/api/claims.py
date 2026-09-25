@@ -410,6 +410,20 @@ def create_claim_wizard():
 
                 # Process via OCR engine (extracts text from invoices/reports)
                 doc_info = doc_processor.process_document(save_dest, document_type=doc_key)
+                ext = uploaded_file.filename.rsplit(".", 1)[-1].lower() if "." in uploaded_file.filename else ""
+                if doc_key in ["receipt", "invoice_document"] and ext in ["png", "jpg", "jpeg"]:
+                    if not doc_processor.is_valid_receipt_document(doc_info):
+                        try:
+                            if save_dest.exists():
+                                save_dest.unlink()
+                        except Exception:
+                            pass
+                        db.session.rollback()
+                        flash(
+                            "The uploaded receipt image does not contain readable invoice details. Please upload a clear receipt or invoice.",
+                            "danger"
+                        )
+                        return redirect(url_for("claims.intake_wizard"))
 
                 claim_doc = ClaimDocument(
                     claim_id=claim.id,
@@ -745,22 +759,17 @@ def ocr_extract_preview():
     doc_processor = get_document_processor()
     doc_info = doc_processor.process_document(temp_path)
 
-    raw_text = doc_info.get("raw_text", "").strip()
-    entities = doc_info.get("entities", {})
-    has_detected_fields = any([
-        entities.get("invoice_number"),
-        entities.get("serial_number"),
-        entities.get("product_name"),
-        entities.get("purchase_amount"),
-        entities.get("retailer")
-    ])
-
-    if not raw_text or not has_detected_fields:
+    if not doc_processor.is_valid_receipt_document(doc_info):
+        try:
+            if temp_path.exists():
+                temp_path.unlink()
+        except Exception:
+            pass
         return jsonify({
             "success": False,
             "filename": doc_info["filename"],
             "sha256": doc_info["sha256_hash"],
-            "error": "No readable invoice or receipt details detected in the uploaded file."
+            "error": "No readable invoice or receipt details were found in this file. Please upload a clear receipt or invoice."
         }), 200
 
     return jsonify({
@@ -878,6 +887,20 @@ def upload_claim_document(claim_id):
     # Process document via OCR & SHA-256 Hashing engine
     doc_processor = get_document_processor()
     doc_info = doc_processor.process_document(save_dest, document_type=doc_type)
+
+    ext = uploaded_file.filename.rsplit(".", 1)[-1].lower() if "." in uploaded_file.filename else ""
+    if doc_type in ["receipt", "invoice_document"] and ext in ["png", "jpg", "jpeg"]:
+        if not doc_processor.is_valid_receipt_document(doc_info):
+            try:
+                if save_dest.exists():
+                    save_dest.unlink()
+            except Exception:
+                pass
+            flash(
+                "The uploaded receipt image does not contain readable invoice details. Please upload a clear receipt or invoice.",
+                "danger"
+            )
+            return redirect(url_for("claims.view_claim", claim_id=claim.claim_id))
 
     # Check duplicate document hash (Req 1.6.xxxi)
     dup_check = DuplicateDetector.check_document_duplicates(

@@ -115,7 +115,7 @@ class DocumentProcessor:
 
         # 1. Invoice Number pattern (e.g. INV-2026-12345, INV-887412, or Invoice: 12345)
         direct_inv = re.search(r"\b(INV-[A-Z0-9-]+)\b", raw_text, re.IGNORECASE)
-        inv_labeled = re.search(r"(?:Invoice|Inv)\s*(?:No\.?|Num(?:ber)?|#)?[:\s]+([A-Z0-9-]+)", raw_text, re.IGNORECASE)
+        inv_labeled = re.search(r"(?:Invoice|Inv)(?:\s*(?:No\.?|Num(?:ber)?|#))?\s*[:#]\s*([A-Z0-9-]+)", raw_text, re.IGNORECASE)
 
         if direct_inv:
             entities["invoice_number"] = direct_inv.group(1).strip()
@@ -127,7 +127,7 @@ class DocumentProcessor:
         # 2. Purchase Date pattern (YYYY-MM-DD or DD/MM/YYYY)
         date_iso = re.search(r"\b(202[0-9]-[0-1][0-9]-[0-3][0-9])\b", raw_text)
         date_std = re.search(r"\b([0-3]?[0-9]/[0-1]?[0-9]/202[0-9])\b", raw_text)
-        date_labeled = re.search(r"(?:Purchase\s*)?Date[:\s]+([0-9]{4}-[0-9]{2}-[0-9]{2}|[0-9]{1,2}/[0-9]{1,2}/[0-9]{4})", raw_text, re.IGNORECASE)
+        date_labeled = re.search(r"(?:Purchase\s*)?Date\s*:\s*([0-9]{4}-[0-9]{2}-[0-9]{2}|[0-9]{1,2}/[0-9]{1,2}/[0-9]{4})", raw_text, re.IGNORECASE)
         if date_iso:
             entities["purchase_date"] = date_iso.group(1)
         elif date_std:
@@ -142,13 +142,13 @@ class DocumentProcessor:
         if sn_match:
             entities["serial_number"] = sn_match.group(1).strip()
         else:
-            sn_alt = re.search(r"Serial(?:\s*(?:No|Number|#))?[:\s]+([A-Z0-9-]+)", raw_text, re.IGNORECASE)
+            sn_alt = re.search(r"Serial(?:\s*(?:No\.?|Number|#))?\s*[:#]\s*([A-Z0-9-]+)", raw_text, re.IGNORECASE)
             entities["serial_number"] = sn_alt.group(1).strip() if sn_alt else None
 
         # 4. Purchase Amount pattern ($XXX.XX or labeled Amount)
         amt_match = re.search(r"\$\s*([0-9,]+\.[0-9]{2})", raw_text)
         if not amt_match:
-            amt_match = re.search(r"(?:Total|Amount|Price)[:\s]+\$?\s*([0-9,]+\.[0-9]{2})", raw_text, re.IGNORECASE)
+            amt_match = re.search(r"(?:Total(?:\s*Amount)?|Purchase\s*Amount|Amount|Price)\s*:\s*\$?\s*([0-9,]+\.[0-9]{2})", raw_text, re.IGNORECASE)
         if amt_match:
             cleaned_amt = amt_match.group(1).replace(",", "")
             try:
@@ -170,11 +170,11 @@ class DocumentProcessor:
                 entities["retailer"] = ret
                 break
         if not entities["retailer"]:
-            ret_match = re.search(r"(?:Retailer|Merchant|Store|Seller)[:\s]+([^\n\r,]+)", raw_text, re.IGNORECASE)
+            ret_match = re.search(r"(?:Retailer|Merchant|Store|Seller)\s*:\s*([^\n\r,]+)", raw_text, re.IGNORECASE)
             entities["retailer"] = ret_match.group(1).strip() if ret_match else None
 
         # 6. Product Name pattern (Req 1.6.vi)
-        prod_labeled = re.search(r"(?:Product(?:\s*Name)?|Item(?:\s*Description)?|Equipment|Device)[:\s]+([^\n\r,;]+)", raw_text, re.IGNORECASE)
+        prod_labeled = re.search(r"(?:Product(?:\s*Name)?|Item(?:\s*Description)?|Equipment|Device)\s*:\s*([^\n\r,;]+)", raw_text, re.IGNORECASE)
         if prod_labeled and len(prod_labeled.group(1).strip()) > 3:
             entities["product_name"] = prod_labeled.group(1).strip()
         else:
@@ -189,7 +189,7 @@ class DocumentProcessor:
                     break
 
         # 7. Model Number pattern (Req 1.6.vi)
-        model_labeled = re.search(r"(?:Model(?:\s*(?:No\.?|Num(?:ber)?|#))?)[:\s]+([A-Z0-9-]+)", raw_text, re.IGNORECASE)
+        model_labeled = re.search(r"(?:Model(?:\s*(?:No\.?|Num(?:ber)?|#))?)\s*[:#]\s*([A-Z0-9-]+)", raw_text, re.IGNORECASE)
         if model_labeled:
             entities["model_number"] = model_labeled.group(1).strip()
         else:
@@ -201,8 +201,8 @@ class DocumentProcessor:
                 entities["model_number"] = None
 
         # 8. Warranty Duration pattern (Req 1.6.vi)
-        warr_month_match = re.search(r"(?:Warranty(?:\s*(?:Duration|Period|Coverage|Term))?)[:\s]+(\d+)\s*(?:Months?|m\b)", raw_text, re.IGNORECASE)
-        warr_year_match = re.search(r"(?:Warranty(?:\s*(?:Duration|Period|Coverage|Term))?)[:\s]+(\d+)\s*(?:Years?|yr|yrs)", raw_text, re.IGNORECASE)
+        warr_month_match = re.search(r"(?:Warranty(?:\s*(?:Duration|Period|Coverage|Term))?)\s*:\s*(\d+)\s*(?:Months?|m\b)", raw_text, re.IGNORECASE)
+        warr_year_match = re.search(r"(?:Warranty(?:\s*(?:Duration|Period|Coverage|Term))?)\s*:\s*(\d+)\s*(?:Years?|yr|yrs)", raw_text, re.IGNORECASE)
         generic_warr = re.search(r"(\d+)\s*[- ]?(?:Months?|m\b)\s*(?:Warranty|Coverage)", raw_text, re.IGNORECASE)
 
         if warr_month_match:
@@ -215,6 +215,36 @@ class DocumentProcessor:
             entities["warranty_duration"] = 12
 
         return entities
+
+    def is_valid_receipt_document(self, doc_info: dict) -> bool:
+        """
+        Verifies whether extracted OCR text and entities represent a valid
+        invoice or purchase receipt rather than a logo or unrelated image.
+        """
+        if not doc_info:
+            return False
+        raw_text = (doc_info.get("raw_text") or "").strip()
+        if not raw_text:
+            return False
+        entities = doc_info.get("entities") or {}
+        core_identifiers = [
+            entities.get("invoice_number"),
+            entities.get("serial_number"),
+            entities.get("purchase_amount"),
+            entities.get("purchase_date")
+        ]
+        all_detected = [
+            entities.get("invoice_number"),
+            entities.get("serial_number"),
+            entities.get("product_name"),
+            entities.get("model_number"),
+            entities.get("purchase_amount"),
+            entities.get("purchase_date"),
+            entities.get("retailer")
+        ]
+        has_core = any(bool(v) for v in core_identifiers)
+        detected_count = sum(1 for v in all_detected if v)
+        return bool(has_core and detected_count >= 2)
 
     def process_document(self, file_path: Path, document_type: str = "receipt") -> dict:
         """

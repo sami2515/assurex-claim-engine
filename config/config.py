@@ -8,7 +8,7 @@ class Config:
 
     # Core Application Settings
     SECRET_KEY = os.environ.get("SECRET_KEY", "assurex-secure-secret-key-2026-production")
-    DEBUG = os.environ.get("DEBUG", "True").lower() in ("true", "1")
+    DEBUG = os.environ.get("DEBUG", "False").lower() in ("true", "1")
     TESTING = False
 
     # Directory Paths

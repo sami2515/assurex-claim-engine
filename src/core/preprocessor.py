@@ -101,11 +101,28 @@ def save_preprocessor(preprocessor, filepath: Path = None):
 
 
 def load_preprocessor(filepath: Path = None) -> ColumnTransformer:
-    """Load a serialized preprocessor."""
+    """Load a serialized preprocessor, rebuilding from train.csv if pickle version differs."""
     target = filepath or (MODEL_DIR / "preprocessor.joblib")
-    if not target.exists():
+    if target.exists():
+        try:
+            prep = joblib.load(target)
+            dummy_df = extract_features(pd.DataFrame([{}]))
+            prep.transform(dummy_df)
+            return prep
+        except Exception:
+            pass
+
+    train_csv = BASE_DIR / "data" / "splits" / "train.csv"
+    if not train_csv.exists():
         raise FileNotFoundError(f"Preprocessor not found at: {target}")
-    return joblib.load(target)
+    train_df = pd.read_csv(train_csv)
+    prep = build_preprocessor_pipeline()
+    prep.fit(extract_features(train_df))
+    try:
+        save_preprocessor(prep, target)
+    except Exception:
+        pass
+    return prep
 
 
 class ClaimDataPreprocessor:

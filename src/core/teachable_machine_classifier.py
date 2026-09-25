@@ -1,7 +1,10 @@
+import struct
+import zlib
 from pathlib import Path
 from PIL import Image
 import numpy as np
 import joblib
+from sklearn.ensemble import HistGradientBoostingClassifier
 from config.config import Config
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -17,15 +20,58 @@ class TeachableMachineClaimClassifier:
     def __init__(self, model_path: Path = None):
         self.model_path = model_path or (GTM_DIR / "gtm_classifier.joblib")
         self.model_version = Config.GTM_MODEL_VERSION
+        self.classes = CLASSES
 
-        if not self.model_path.exists():
+        loaded_ok = False
+        if self.model_path.exists():
+            try:
+                self.classifier = joblib.load(self.model_path)
+                dummy_X = np.zeros((1, GRID_W * GRID_H), dtype=np.float32)
+                self.classifier.predict_proba(dummy_X)
+                loaded_ok = True
+            except Exception:
+                loaded_ok = False
+
+        if not loaded_ok:
+            self._rebuild_native_classifier()
+
+    def _rebuild_native_classifier(self):
+        """Compiles GTM vision classifier natively on the current Python/NumPy/scikit-learn runtime."""
+        weights_path = GTM_DIR / "weights.bin"
+        if not weights_path.exists():
             raise FileNotFoundError(
                 f"Teachable Machine model artifact missing at: {self.model_path}. "
                 "Ensure GTM training pipeline has been executed."
             )
 
-        self.classifier = joblib.load(self.model_path)
-        self.classes = CLASSES
+        raw_bytes = weights_path.read_bytes()
+        if raw_bytes.startswith(b"GTM1"):
+            n_samples, feat_dim = struct.unpack("<II", raw_bytes[4:12])
+            decompressed = zlib.decompress(raw_bytes[12:])
+            x_bytes_len = n_samples * feat_dim
+            X_uint8 = np.frombuffer(decompressed[:x_bytes_len], dtype=np.uint8).reshape((n_samples, feat_dim))
+            y_uint8 = np.frombuffer(decompressed[x_bytes_len:x_bytes_len + n_samples], dtype=np.uint8)
+            X_train = X_uint8.astype(np.float32) / 255.0
+            y_train = y_uint8.astype(int)
+        else:
+            raise FileNotFoundError(
+                f"Incompatible Teachable Machine weights at: {weights_path}."
+            )
+
+        self.classifier = HistGradientBoostingClassifier(
+            max_iter=120,
+            learning_rate=0.08,
+            max_depth=10,
+            min_samples_leaf=4,
+            random_state=42
+        )
+        self.classifier.fit(X_train, y_train)
+
+        try:
+            self.model_path.parent.mkdir(parents=True, exist_ok=True)
+            joblib.dump(self.classifier, self.model_path)
+        except Exception:
+            pass
 
     def extract_features(self, image_input) -> np.ndarray:
         """Extract spatial grid features from file path or PIL image."""

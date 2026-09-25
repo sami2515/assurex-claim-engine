@@ -359,7 +359,7 @@ class AnalyticsService:
         }
 
         # Load benchmark telemetry if present
-        benchmark_path = Path("model/python_model/benchmark_results.json")
+        benchmark_path = Path(Config.BASE_DIR) / "model" / "python_model" / "benchmark_results.json"
         benchmark_data = {}
         if benchmark_path.exists():
             try:

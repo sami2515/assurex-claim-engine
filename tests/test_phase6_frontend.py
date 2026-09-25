@@ -1058,6 +1058,8 @@ class TestPhase6Frontend(unittest.TestCase):
             self.assertEqual(pol_db["coverage_duration_months"], 36)
             self.assertEqual(pol_db["claim_reporting_period_days"], 60)
             self.assertIn("OLED Burn-in", pol_db["covered_faults"])
+            db.session.delete(custom_policy)
+            db.session.commit()
 
     def test_req_xxvii_serial_number_verification_across_4_sources(self):
         """Req 1.6.xxvii: Verify serial comparison across user entry, receipt, warranty card, product image, and repair records."""
@@ -1199,25 +1201,33 @@ class TestPhase6Frontend(unittest.TestCase):
 
         # 3. Test UI view rendering missing document alert on claim detail
         with self.app.app_context():
-            claim = Claim.query.filter_by(missing_document_flag=True).first()
-            if not claim:
-                claim = Claim.query.first()
-                claim.missing_document_flag = True
+            claim = Claim.query.first()
+            orig_flag = claim.missing_document_flag
+            orig_status = claim.status
+            claim.missing_document_flag = True
             claim.status = Config.STATUS_SUBMITTED
             db.session.commit()
             claim_code = claim.claim_id
 
-        with self.client.session_transaction() as sess:
-            with self.app.app_context():
-                user = User.query.filter_by(role=Config.ROLE_ADMIN).first()
-                sess["user_id"] = user.id
-                sess["role"] = user.role
-                sess["user_code"] = user.user_id
+        try:
+            with self.client.session_transaction() as sess:
+                with self.app.app_context():
+                    user = User.query.filter_by(role=Config.ROLE_ADMIN).first()
+                    sess["user_id"] = user.id
+                    sess["role"] = user.role
+                    sess["user_code"] = user.user_id
 
-        res = self.client.get(f"/claims/{claim_code}")
-        self.assertEqual(res.status_code, 200)
-        self.assertIn(b"Missing Mandatory Documents Detected", res.data)
-        self.assertIn(b"Upload Missing Document", res.data)
+            res = self.client.get(f"/claims/{claim_code}")
+            self.assertEqual(res.status_code, 200)
+            self.assertIn(b"Missing Mandatory Documents Detected", res.data)
+            self.assertIn(b"Upload Missing Document", res.data)
+        finally:
+            with self.app.app_context():
+                c = Claim.query.filter_by(claim_id=claim_code).first()
+                if c:
+                    c.missing_document_flag = orig_flag
+                    c.status = orig_status
+                    db.session.commit()
 
     def test_req_xxx_duplicate_claim_seven_factors(self):
         """
@@ -1296,6 +1306,11 @@ class TestPhase6Frontend(unittest.TestCase):
         with self.app.app_context():
             # Create a test document with a known SHA-256 hash
             test_claim = Claim.query.first()
+            orig_status = test_claim.status
+            orig_missing = test_claim.missing_document_flag
+            if test_claim.status in [Config.STATUS_APPROVED, Config.STATUS_REJECTED, Config.STATUS_CLOSED]:
+                test_claim.status = Config.STATUS_MANUAL_REVIEW
+                db.session.commit()
             sha256_sample = "a1b2c3d4e5f678901234567890abcdef1234567890abcdef1234567890abcdef"
             
             # Clean any old test doc
@@ -1317,38 +1332,49 @@ class TestPhase6Frontend(unittest.TestCase):
             db.session.add(doc1)
             db.session.commit()
 
-            # Check duplicate detection for the same hash in another claim
-            check_dup = detector.check_document_duplicates(sha256_sample, exclude_claim_id=999999)
-            self.assertTrue(check_dup["is_duplicate"])
-            self.assertIn(test_claim.claim_id, check_dup["matched_claims"])
-            self.assertIn("tax_invoice_original.pdf", str(check_dup["matched_documents"]))
+            try:
+                # Check duplicate detection for the same hash in another claim
+                check_dup = detector.check_document_duplicates(sha256_sample, exclude_claim_id=999999)
+                self.assertTrue(check_dup["is_duplicate"])
+                self.assertIn(test_claim.claim_id, check_dup["matched_claims"])
+                self.assertIn("tax_invoice_original.pdf", str(check_dup["matched_documents"]))
 
-            # Check duplicate detection excluding the owner claim
-            check_own = detector.check_document_duplicates(sha256_sample, exclude_claim_id=test_claim.id)
-            self.assertFalse(check_own["is_duplicate"])
+                # Check duplicate detection excluding the owner claim
+                check_own = detector.check_document_duplicates(sha256_sample, exclude_claim_id=test_claim.id)
+                self.assertFalse(check_own["is_duplicate"])
 
-            # Test document upload route for supplementary/missing document
-            with self.client.session_transaction() as sess:
-                user = User.query.filter_by(role=Config.ROLE_ADMIN).first()
-                sess["user_id"] = user.id
-                sess["role"] = user.role
-                sess["user_code"] = user.user_id
+                # Test document upload route for supplementary/missing document
+                with self.client.session_transaction() as sess:
+                    user = User.query.filter_by(role=Config.ROLE_ADMIN).first()
+                    sess["user_id"] = user.id
+                    sess["role"] = user.role
+                    sess["user_code"] = user.user_id
 
-            fake_pdf = (io.BytesIO(b"%PDF-1.4 simulated upload content"), "supplementary_evidence.pdf")
-            res_upload = self.client.post(
-                f"/claims/{test_claim.claim_id}/documents/upload",
-                data={
-                    "document_type": "warranty_card",
-                    "evidence_file": fake_pdf
-                },
-                follow_redirects=True
-            )
-            self.assertEqual(res_upload.status_code, 200)
-            self.assertIn(b"uploaded successfully", res_upload.data)
-
-            # Cleanup test doc
-            db.session.delete(doc1)
-            db.session.commit()
+                fake_pdf = (io.BytesIO(b"%PDF-1.4 simulated upload content"), "supplementary_evidence.pdf")
+                res_upload = self.client.post(
+                    f"/claims/{test_claim.claim_id}/documents/upload",
+                    data={
+                        "document_type": "warranty_card",
+                        "evidence_file": fake_pdf
+                    },
+                    follow_redirects=True
+                )
+                self.assertEqual(res_upload.status_code, 200)
+                self.assertIn(b"uploaded successfully", res_upload.data)
+            finally:
+                # Cleanup test docs
+                db.session.delete(doc1)
+                for sup_doc in ClaimDocument.query.filter_by(original_filename="supplementary_evidence.pdf").all():
+                    try:
+                        p = Path(sup_doc.file_path)
+                        if p.exists():
+                            p.unlink()
+                    except Exception:
+                        pass
+                    db.session.delete(sup_doc)
+                test_claim.status = orig_status
+                test_claim.missing_document_flag = orig_missing
+                db.session.commit()
 
     def test_req_xxxii_ai_generated_claim_summary(self):
         """
@@ -1734,43 +1760,53 @@ class TestPhase6Frontend(unittest.TestCase):
         with self.app.app_context():
             claim = Claim.query.first()
             claim_id_val = claim.claim_id
+            orig_status = claim.status
+            orig_notes = claim.reviewer_notes
             reviewer = User.query.filter_by(role=Config.ROLE_REVIEWER).first()
             customer = User.query.filter_by(role=Config.ROLE_CUSTOMER).first()
 
-        # 1. Unauthorized customer blocked from reviewer queue
-        with self.client.session_transaction() as sess:
-            sess["user_id"] = customer.id
-            sess["role"] = customer.role
-            sess["user_code"] = customer.user_id
+        try:
+            # 1. Unauthorized customer blocked from reviewer queue
+            with self.client.session_transaction() as sess:
+                sess["user_id"] = customer.id
+                sess["role"] = customer.role
+                sess["user_code"] = customer.user_id
 
-        res_unauth = self.client.get("/reviewer/queue")
-        self.assertIn(res_unauth.status_code, [302, 403])
+            res_unauth = self.client.get("/reviewer/queue")
+            self.assertIn(res_unauth.status_code, [302, 403])
 
-        # 2. Authorized reviewer access
-        with self.client.session_transaction() as sess:
-            sess["user_id"] = reviewer.id
-            sess["role"] = reviewer.role
-            sess["user_code"] = reviewer.user_id
+            # 2. Authorized reviewer access
+            with self.client.session_transaction() as sess:
+                sess["user_id"] = reviewer.id
+                sess["role"] = reviewer.role
+                sess["user_code"] = reviewer.user_id
 
-        res_queue = self.client.get("/reviewer/queue?status=ALL")
-        self.assertEqual(res_queue.status_code, 200)
-        self.assertIn(b"Claim Adjudication", res_queue.data)
+            res_queue = self.client.get("/reviewer/queue?status=ALL")
+            self.assertEqual(res_queue.status_code, 200)
+            self.assertIn(b"Claim Adjudication", res_queue.data)
 
-        # 3. Test REQUEST_INFO action transitions status to Additional Information Required
-        res_info = self.client.post(
-            f"/reviewer/claim/{claim_id_val}/adjudicate",
-            data={
-                "action": "REQUEST_INFO",
-                "comments": "Please provide an authorized service repair report and high-resolution defect photograph."
-            },
-            follow_redirects=True
-        )
-        self.assertEqual(res_info.status_code, 200)
+            # 3. Test REQUEST_INFO action transitions status to Additional Information Required
+            res_info = self.client.post(
+                f"/reviewer/claim/{claim_id_val}/adjudicate",
+                data={
+                    "action": "REQUEST_INFO",
+                    "comments": "Please provide an authorized service repair report and high-resolution defect photograph."
+                },
+                follow_redirects=True
+            )
+            self.assertEqual(res_info.status_code, 200)
 
-        with self.app.app_context():
-            updated_claim = Claim.query.filter_by(claim_id=claim_id_val).first()
-            self.assertEqual(updated_claim.status, Config.STATUS_ADDITIONAL_INFO)
-            self.assertIn("repair report", updated_claim.reviewer_notes)
+            with self.app.app_context():
+                updated_claim = Claim.query.filter_by(claim_id=claim_id_val).first()
+                self.assertEqual(updated_claim.status, Config.STATUS_ADDITIONAL_INFO)
+                self.assertIn("repair report", updated_claim.reviewer_notes)
+        finally:
+            with self.app.app_context():
+                c = Claim.query.filter_by(claim_id=claim_id_val).first()
+                if c:
+                    c.status = orig_status
+                    c.reviewer_notes = orig_notes
+                    db.session.commit()
 
     def test_req_xxxvii_reviewer_comments_and_decision_override_audit(self):
         """
@@ -1785,56 +1821,68 @@ class TestPhase6Frontend(unittest.TestCase):
             rev_code = reviewer.user_id
             claim = Claim.query.first()
             claim_id_val = claim.claim_id
+            orig_status = claim.status
+            orig_final = claim.final_decision
+            orig_notes = claim.reviewer_notes
             # Set automated recommendation to Manual Review Required or Likely Invalid
             claim.final_decision = "Manual Review Required"
             db.session.commit()
 
-        with self.client.session_transaction() as sess:
-            sess["user_id"] = rev_id
-            sess["role"] = rev_role
-            sess["user_code"] = rev_code
+        try:
+            with self.client.session_transaction() as sess:
+                sess["user_id"] = rev_id
+                sess["role"] = rev_role
+                sess["user_code"] = rev_code
 
-        # Submit an Override: Reviewer approves a claim that was flagged for Manual Review
-        post_data = {
-            "action": "APPROVE",
-            "override_reason": "Bench technician inspection verified genuine factory component failure.",
-            "comments": "Customer goodwill override authorized by senior triage reviewer after hardware bench diagnostic."
-        }
-        res_override = self.client.post(
-            f"/reviewer/claim/{claim_id_val}/adjudicate",
-            data=post_data,
-            follow_redirects=True
-        )
-        self.assertEqual(res_override.status_code, 200)
-        self.assertIn(b"adjudicated successfully", res_override.data)
+            # Submit an Override: Reviewer approves a claim that was flagged for Manual Review
+            post_data = {
+                "action": "APPROVE",
+                "override_reason": "Bench technician inspection verified genuine factory component failure.",
+                "comments": "Customer goodwill override authorized by senior triage reviewer after hardware bench diagnostic."
+            }
+            res_override = self.client.post(
+                f"/reviewer/claim/{claim_id_val}/adjudicate",
+                data=post_data,
+                follow_redirects=True
+            )
+            self.assertEqual(res_override.status_code, 200)
+            self.assertIn(b"adjudicated successfully", res_override.data)
 
-        with self.app.app_context():
-            adjudicated_claim = Claim.query.filter_by(claim_id=claim_id_val).first()
-            self.assertEqual(adjudicated_claim.status, Config.STATUS_APPROVED)
+            with self.app.app_context():
+                adjudicated_claim = Claim.query.filter_by(claim_id=claim_id_val).first()
+                self.assertEqual(adjudicated_claim.status, Config.STATUS_APPROVED)
 
-            # Verify ReviewerAction recorded with original AI recommendation preserved
-            latest_action = ReviewerAction.query.filter_by(claim_id=adjudicated_claim.id).order_by(ReviewerAction.id.desc()).first()
-            self.assertIsNotNone(latest_action)
-            self.assertTrue(latest_action.is_override)
-            self.assertEqual(latest_action.previous_recommendation, "Manual Review Required")
-            self.assertEqual(latest_action.reviewer_decision, "Approved")
-            self.assertEqual(latest_action.override_reason, post_data["override_reason"])
-            self.assertEqual(latest_action.comments, post_data["comments"])
+                # Verify ReviewerAction recorded with original AI recommendation preserved
+                latest_action = ReviewerAction.query.filter_by(claim_id=adjudicated_claim.id).order_by(ReviewerAction.id.desc()).first()
+                self.assertIsNotNone(latest_action)
+                self.assertTrue(latest_action.is_override)
+                self.assertEqual(latest_action.previous_recommendation, "Manual Review Required")
+                self.assertEqual(latest_action.reviewer_decision, "Approved")
+                self.assertEqual(latest_action.override_reason, post_data["override_reason"])
+                self.assertEqual(latest_action.comments, post_data["comments"])
 
-            # Verify AuditLog logged
-            audit = AuditLog.query.filter_by(action="REVIEWER_ADJUDICATION", entity_id=claim_id_val).order_by(AuditLog.id.desc()).first()
-            self.assertIsNotNone(audit)
-            audit_details = json.loads(audit.details_json)
-            self.assertTrue(audit_details["is_override"])
-            self.assertEqual(audit_details["override_reason"], post_data["override_reason"])
+                # Verify AuditLog logged
+                audit = AuditLog.query.filter_by(action="REVIEWER_ADJUDICATION", entity_id=claim_id_val).order_by(AuditLog.id.desc()).first()
+                self.assertIsNotNone(audit)
+                audit_details = json.loads(audit.details_json)
+                self.assertTrue(audit_details["is_override"])
+                self.assertEqual(audit_details["override_reason"], post_data["override_reason"])
 
-        # Verify inspection view renders the Reviewer Audit History & Override Trail table
-        res_inspect = self.client.get(f"/reviewer/claim/{claim_id_val}")
-        self.assertEqual(res_inspect.status_code, 200)
-        self.assertIn(b"Reviewer Audit History", res_inspect.data)
-        self.assertIn(b"Decision Override Trail", res_inspect.data)
-        self.assertIn(b"Override Applied", res_inspect.data)
-        self.assertIn(b"Bench technician inspection verified", res_inspect.data)
+            # Verify inspection view renders the Reviewer Audit History & Override Trail table
+            res_inspect = self.client.get(f"/reviewer/claim/{claim_id_val}")
+            self.assertEqual(res_inspect.status_code, 200)
+            self.assertIn(b"Reviewer Audit History", res_inspect.data)
+            self.assertIn(b"Decision Override Trail", res_inspect.data)
+            self.assertIn(b"Override Applied", res_inspect.data)
+            self.assertIn(b"Bench technician inspection verified", res_inspect.data)
+        finally:
+            with self.app.app_context():
+                c = Claim.query.filter_by(claim_id=claim_id_val).first()
+                if c:
+                    c.status = orig_status
+                    c.final_decision = orig_final
+                    c.reviewer_notes = orig_notes
+                    db.session.commit()
 
     def test_req_xxxviii_claim_status_tracking_eight_stages(self):
         """
@@ -1851,42 +1899,52 @@ class TestPhase6Frontend(unittest.TestCase):
 
             claim = Claim.query.first()
             claim_id_val = claim.claim_id
+            orig_status = claim.status
+            orig_notes = claim.reviewer_notes
 
-        # 1. Access live tracker view
-        with self.client.session_transaction() as sess:
-            sess["user_id"] = rev_id
-            sess["role"] = rev_role
-            sess["user_code"] = rev_code
+        try:
+            # 1. Access live tracker view
+            with self.client.session_transaction() as sess:
+                sess["user_id"] = rev_id
+                sess["role"] = rev_role
+                sess["user_code"] = rev_code
 
-        res_track = self.client.get(f"/claims/{claim_id_val}/track")
-        self.assertEqual(res_track.status_code, 200)
-        self.assertIn(b"Claim Progress Tracker", res_track.data)
-        self.assertIn(b"Lifecycle Progress Timeline", res_track.data)
+            res_track = self.client.get(f"/claims/{claim_id_val}/track")
+            self.assertEqual(res_track.status_code, 200)
+            self.assertIn(b"Claim Progress Tracker", res_track.data)
+            self.assertIn(b"Lifecycle Progress Timeline", res_track.data)
 
-        # Verify all 8 lifecycle stages are defined in tracker template
-        for stage in Config.ALL_CLAIM_STATUSES:
-            self.assertIn(stage.encode(), res_track.data)
+            # Verify all 8 lifecycle stages are defined in tracker template
+            for stage in Config.ALL_CLAIM_STATUSES:
+                self.assertIn(stage.encode(), res_track.data)
 
-        # 2. Test transition to Closed stage via Reviewer Workbench
-        res_close = self.client.post(
-            f"/reviewer/claim/{claim_id_val}/adjudicate",
-            data={
-                "action": "CLOSE",
-                "comments": "Claim settlement executed. Warranty replacement unit dispatched and case officially closed."
-            },
-            follow_redirects=True
-        )
-        self.assertEqual(res_close.status_code, 200)
+            # 2. Test transition to Closed stage via Reviewer Workbench
+            res_close = self.client.post(
+                f"/reviewer/claim/{claim_id_val}/adjudicate",
+                data={
+                    "action": "CLOSE",
+                    "comments": "Claim settlement executed. Warranty replacement unit dispatched and case officially closed."
+                },
+                follow_redirects=True
+            )
+            self.assertEqual(res_close.status_code, 200)
 
-        with self.app.app_context():
-            closed_claim = Claim.query.filter_by(claim_id=claim_id_val).first()
-            self.assertEqual(closed_claim.status, Config.STATUS_CLOSED)
+            with self.app.app_context():
+                closed_claim = Claim.query.filter_by(claim_id=claim_id_val).first()
+                self.assertEqual(closed_claim.status, Config.STATUS_CLOSED)
 
-            # Verify ClaimStatusHistory captured the Closed transition
-            latest_hist = ClaimStatusHistory.query.filter_by(claim_id=closed_claim.id).order_by(ClaimStatusHistory.id.desc()).first()
-            self.assertIsNotNone(latest_hist)
-            self.assertEqual(latest_hist.new_status, Config.STATUS_CLOSED)
-            self.assertIn("officially closed", latest_hist.reason_comment)
+                # Verify ClaimStatusHistory captured the Closed transition
+                latest_hist = ClaimStatusHistory.query.filter_by(claim_id=closed_claim.id).order_by(ClaimStatusHistory.id.desc()).first()
+                self.assertIsNotNone(latest_hist)
+                self.assertEqual(latest_hist.new_status, Config.STATUS_CLOSED)
+                self.assertIn("officially closed", latest_hist.reason_comment)
+        finally:
+            with self.app.app_context():
+                c = Claim.query.filter_by(claim_id=claim_id_val).first()
+                if c:
+                    c.status = orig_status
+                    c.reviewer_notes = orig_notes
+                    db.session.commit()
 
     def test_req_xxxix_notifications_and_alerts_coverage(self):
         """
@@ -1956,34 +2014,40 @@ class TestPhase6Frontend(unittest.TestCase):
             db.session.add_all(test_notifs)
             db.session.commit()
             seeded_notif_id = test_notifs[0].id
+            seeded_ids = [n.id for n in test_notifs]
 
-        with self.client.session_transaction() as sess:
-            sess["user_id"] = cust_id
-            sess["role"] = cust_role
-            sess["user_code"] = cust_code
+        try:
+            with self.client.session_transaction() as sess:
+                sess["user_id"] = cust_id
+                sess["role"] = cust_role
+                sess["user_code"] = cust_code
 
-        # Verify dashboard renders notifications
-        res_dash = self.client.get("/claims/")
-        self.assertIn(b"Recent System Alerts", res_dash.data)
-        self.assertIn(b"Notifications", res_dash.data)
-        self.assertIn(b"Warranty Expiry Alert", res_dash.data)
-        self.assertIn(b"Claim Approved", res_dash.data)
+            # Verify dashboard renders notifications
+            res_dash = self.client.get("/claims/")
+            self.assertIn(b"Recent System Alerts", res_dash.data)
+            self.assertIn(b"Notifications", res_dash.data)
+            self.assertIn(b"Warranty Expiry Alert", res_dash.data)
+            self.assertIn(b"Claim Approved", res_dash.data)
 
-        # Test mark single notification as read
-        res_read = self.client.post(f"/claims/notifications/{seeded_notif_id}/read", follow_redirects=True)
-        self.assertEqual(res_read.status_code, 200)
+            # Test mark single notification as read
+            res_read = self.client.post(f"/claims/notifications/{seeded_notif_id}/read", follow_redirects=True)
+            self.assertEqual(res_read.status_code, 200)
 
-        with self.app.app_context():
-            n = db.session.get(Notification, seeded_notif_id)
-            self.assertTrue(n.is_read)
+            with self.app.app_context():
+                n = db.session.get(Notification, seeded_notif_id)
+                self.assertTrue(n.is_read)
 
-        # Test mark all notifications as read
-        res_clear = self.client.post("/claims/notifications/mark-all-read", follow_redirects=True)
-        self.assertEqual(res_clear.status_code, 200)
+            # Test mark all notifications as read
+            res_clear = self.client.post("/claims/notifications/mark-all-read", follow_redirects=True)
+            self.assertEqual(res_clear.status_code, 200)
 
-        with self.app.app_context():
-            unread_count = Notification.query.filter_by(user_id=cust_id, is_read=False).count()
-            self.assertEqual(unread_count, 0)
+            with self.app.app_context():
+                unread_count = Notification.query.filter_by(user_id=cust_id, is_read=False).count()
+                self.assertEqual(unread_count, 0)
+        finally:
+            with self.app.app_context():
+                Notification.query.filter(Notification.id.in_(seeded_ids)).delete(synchronize_session=False)
+                db.session.commit()
 
     def test_req_xl_claim_dashboard_components(self):
         """
@@ -2360,67 +2424,84 @@ class TestPhase6Frontend(unittest.TestCase):
             admin = User.query.filter_by(role=Config.ROLE_ADMIN).first()
             claim = Claim.query.first()
             doc = ClaimDocument.query.first()
+            orig_doc_json = doc.ocr_data_json
+            orig_inv = doc.product.invoice_number if doc.product else None
+            orig_price = doc.product.purchase_price if doc.product else None
+            orig_status = claim.status
 
-        with self.client.session_transaction() as sess:
-            sess["user_id"] = admin.id
-            sess["role"] = admin.role
-            sess["user_code"] = admin.user_id
+        try:
+            with self.client.session_transaction() as sess:
+                sess["user_id"] = admin.id
+                sess["role"] = admin.role
+                sess["user_code"] = admin.user_id
 
-        # 1. Extracted-data correction audit log
-        res_ocr = self.client.post(
-            f"/claims/documents/{doc.document_id}/correct-data",
-            data={"invoice_number": "INV-CORRECTED-999", "purchase_price": "299.99"},
-            follow_redirects=True
-        )
-        self.assertEqual(res_ocr.status_code, 200)
+            # 1. Extracted-data correction audit log
+            res_ocr = self.client.post(
+                f"/claims/documents/{doc.document_id}/correct-data",
+                data={"invoice_number": "INV-CORRECTED-999", "purchase_price": "299.99"},
+                follow_redirects=True
+            )
+            self.assertEqual(res_ocr.status_code, 200)
 
-        with self.app.app_context():
-            # Check EXTRACTED_DATA_CORRECTION is in AuditLog
-            corr_log = AuditLog.query.filter_by(action="EXTRACTED_DATA_CORRECTION").first()
-            self.assertIsNotNone(corr_log)
+            with self.app.app_context():
+                # Check EXTRACTED_DATA_CORRECTION is in AuditLog
+                corr_log = AuditLog.query.filter_by(action="EXTRACTED_DATA_CORRECTION").first()
+                self.assertIsNotNone(corr_log)
 
-            # 2. Status change audit log
-            c = Claim.query.filter_by(claim_id=claim.claim_id).first()
-            c.transition_status(Config.STATUS_UNDER_EVALUATION, updated_by_user_id=admin.id, notes="Verification triage")
-            db.session.commit()
+                # 2. Status change audit log
+                c = Claim.query.filter_by(claim_id=claim.claim_id).first()
+                c.transition_status(Config.STATUS_UNDER_EVALUATION, updated_by_user_id=admin.id, notes="Verification triage")
+                db.session.commit()
 
-            status_log = AuditLog.query.filter_by(action="STATUS_CHANGE").first()
-            self.assertIsNotNone(status_log)
+                status_log = AuditLog.query.filter_by(action="STATUS_CHANGE").first()
+                self.assertIsNotNone(status_log)
 
-            # 3. Verify Account Creation audit log exists
-            acct_log = AuditLog.query.filter(AuditLog.action.in_(["ACCOUNT_CREATION", "USER_REGISTRATION"])).first()
-            self.assertIsNotNone(acct_log)
+                # 3. Verify Account Creation audit log exists
+                acct_log = AuditLog.query.filter(AuditLog.action.in_(["ACCOUNT_CREATION", "USER_REGISTRATION"])).first()
+                self.assertIsNotNone(acct_log)
 
-            # 4. Verify Product Registration audit log exists
-            prod_log = AuditLog.query.filter(AuditLog.action.in_(["PRODUCT_REGISTRATION", "PRODUCT_REGISTERED"])).first()
-            self.assertIsNotNone(prod_log)
+                # 4. Verify Product Registration audit log exists
+                prod_log = AuditLog.query.filter(AuditLog.action.in_(["PRODUCT_REGISTRATION", "PRODUCT_REGISTERED"])).first()
+                self.assertIsNotNone(prod_log)
 
-            # 5. Verify Document Upload audit log exists
-            doc_log = AuditLog.query.filter(AuditLog.action.in_(["DOCUMENT_UPLOAD", "DOCUMENT_ATTACHED"])).first()
-            self.assertIsNotNone(doc_log)
+                # 5. Verify Document Upload audit log exists
+                doc_log = AuditLog.query.filter(AuditLog.action.in_(["DOCUMENT_UPLOAD", "DOCUMENT_ATTACHED"])).first()
+                self.assertIsNotNone(doc_log)
 
-            # 6. Verify Model Prediction / Claim Evaluated log exists
-            model_log = AuditLog.query.filter(AuditLog.action.in_(["MODEL_PREDICTION", "CLAIM_EVALUATED"])).first()
-            self.assertIsNotNone(model_log)
+                # 6. Verify Model Prediction / Claim Evaluated log exists
+                model_log = AuditLog.query.filter(AuditLog.action.in_(["MODEL_PREDICTION", "CLAIM_EVALUATED"])).first()
+                self.assertIsNotNone(model_log)
 
-            # 7. Verify Claim Submission log exists
-            sub_log = AuditLog.query.filter(AuditLog.action.in_(["CLAIM_SUBMISSION", "CLAIM_EVALUATED"])).first()
-            self.assertIsNotNone(sub_log)
+                # 7. Verify Claim Submission log exists
+                sub_log = AuditLog.query.filter(AuditLog.action.in_(["CLAIM_SUBMISSION", "CLAIM_EVALUATED"])).first()
+                self.assertIsNotNone(sub_log)
 
-            # 8. Verify Reviewer Action log exists
-            rev_log = AuditLog.query.filter(AuditLog.action.in_(["REVIEWER_ACTION", "REVIEWER_ADJUDICATION"])).first()
-            self.assertIsNotNone(rev_log)
+                # 8. Verify Reviewer Action log exists
+                rev_log = AuditLog.query.filter(AuditLog.action.in_(["REVIEWER_ACTION", "REVIEWER_ADJUDICATION"])).first()
+                self.assertIsNotNone(rev_log)
 
-            # 9. Verify Final Decision log exists
-            dec_log = AuditLog.query.filter(AuditLog.action.in_(["FINAL_DECISION", "CLAIM_EVALUATED"])).first()
-            self.assertIsNotNone(dec_log)
+                # 9. Verify Final Decision log exists
+                dec_log = AuditLog.query.filter(AuditLog.action.in_(["FINAL_DECISION", "CLAIM_EVALUATED"])).first()
+                self.assertIsNotNone(dec_log)
 
-        # 10. Audit Log viewer UI renders properly
-        res_view = self.client.get("/admin/audit-logs")
-        self.assertEqual(res_view.status_code, 200)
-        self.assertIn(b"System Security", res_view.data)
-        self.assertIn(b"Audit Trail", res_view.data)
-        self.assertIn(b"Audit Log Ledger", res_view.data)
+            # 10. Audit Log viewer UI renders properly
+            res_view = self.client.get("/admin/audit-logs")
+            self.assertEqual(res_view.status_code, 200)
+            self.assertIn(b"System Security", res_view.data)
+            self.assertIn(b"Audit Trail", res_view.data)
+            self.assertIn(b"Audit Log Ledger", res_view.data)
+        finally:
+            with self.app.app_context():
+                d = ClaimDocument.query.filter_by(document_id=doc.document_id).first()
+                if d:
+                    d.ocr_data_json = orig_doc_json
+                    if d.product:
+                        d.product.invoice_number = orig_inv
+                        d.product.purchase_price = orig_price
+                c = Claim.query.filter_by(claim_id=claim.claim_id).first()
+                if c:
+                    c.status = orig_status
+                db.session.commit()
 
     def test_req_xlviii_model_version_tracking(self):
         """Req xlviii: Model Version Tracking - Predictions linked to version; updating does not alter previous results."""

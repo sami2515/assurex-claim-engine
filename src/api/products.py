@@ -20,7 +20,7 @@ def list_products():
     Supports viewing all active, expired, approaching expiry, and extended warranties.
     """
     user = get_current_user()
-    status_filter = request.args.get("status", "all").strip().lower()
+    status_filter = (request.args.get("status") or request.args.get("tab") or "all").strip().lower()
 
     if session.get("role") in [Config.ROLE_ADMIN, Config.ROLE_STAFF, Config.ROLE_REVIEWER]:
         query = Product.query
@@ -177,6 +177,17 @@ def register_product():
                 doc_processor = get_document_processor()
                 doc_info = doc_processor.process_document(save_dest, document_type="receipt")
 
+                if ext in ["png", "jpg", "jpeg"] and not doc_processor.is_valid_receipt_document(doc_info):
+                    try:
+                        if save_dest.exists():
+                            save_dest.unlink()
+                    except Exception:
+                        pass
+                    db.session.rollback()
+                    flash("The uploaded receipt image does not contain readable invoice details. Please upload a clear receipt or register without attaching an unreadable image.", "danger")
+                    policies = WarrantyPolicy.query.all()
+                    return render_template("customer/product_register.html", policies=policies)
+
                 claim_doc = ClaimDocument(
                     product_id=product.id,
                     claim_id=None,
@@ -230,7 +241,7 @@ def scan_receipt():
     if ext not in Config.ALLOWED_DOCUMENT_EXTENSIONS:
         return jsonify({
             "success": False,
-            "error": f"Unsupported format '.{ext}'. Allowed formats: PDF, JPG, JPEG, PNG (Req 1.6.v)."
+            "error": f"Unsupported format '.{ext}'. Allowed formats: PDF, JPG, JPEG, PNG."
         }), 400
 
     upload_folder = Path(Config.UPLOAD_DIR)
@@ -242,22 +253,17 @@ def scan_receipt():
     doc_processor = get_document_processor()
     doc_info = doc_processor.process_document(temp_path, document_type="receipt")
 
-    raw_text = doc_info.get("raw_text", "").strip()
-    entities = doc_info.get("entities", {})
-    has_detected_fields = any([
-        entities.get("invoice_number"),
-        entities.get("serial_number"),
-        entities.get("product_name"),
-        entities.get("purchase_amount"),
-        entities.get("retailer")
-    ])
-
-    if not raw_text or not has_detected_fields:
+    if not doc_processor.is_valid_receipt_document(doc_info):
+        try:
+            if temp_path.exists():
+                temp_path.unlink()
+        except Exception:
+            pass
         return jsonify({
             "success": False,
             "filename": doc_info["filename"],
             "sha256": doc_info["sha256_hash"],
-            "error": "No readable invoice or receipt details detected in the uploaded file. Please ensure the document is clear, or enter details manually below."
+            "error": "No readable invoice or receipt details were found in this file. Please upload a clear invoice or enter the details manually."
         }), 200
 
     return jsonify({
@@ -269,6 +275,53 @@ def scan_receipt():
         "entities": doc_info["entities"],
         "raw_text_snippet": doc_info["raw_text"][:250]
     })
+
+
+def _ensure_document_file_on_disk(doc: ClaimDocument, target_path: Path) -> bool:
+    """Rebuilds a seeded document file on disk if it is missing from the upload directory."""
+    try:
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        suffix = target_path.suffix.lower()
+        text_body = (
+            doc.ocr_extracted_text
+            or f"Document ID: {doc.document_id}\n"
+               f"Filename: {doc.original_filename}\n"
+               f"Document Type: {doc.document_type}\n"
+               f"SHA-256: {doc.file_hash_sha256}\n"
+        )
+        if suffix == ".pdf":
+            from reportlab.pdfgen import canvas
+            from reportlab.lib.pagesizes import letter
+            c = canvas.Canvas(str(target_path), pagesize=letter)
+            c.setFont("Helvetica-Bold", 14)
+            c.drawString(50, 740, "AssureX Document Archive Record")
+            c.setFont("Helvetica", 10)
+            y = 710
+            for line in text_body.splitlines():
+                c.drawString(50, y, line[:95])
+                y -= 16
+                if y < 60:
+                    c.showPage()
+                    c.setFont("Helvetica", 10)
+                    y = 740
+            c.save()
+            return True
+        elif suffix in [".png", ".jpg", ".jpeg"]:
+            from PIL import Image, ImageDraw
+            img = Image.new("RGB", (720, 480), color=(255, 255, 255))
+            draw = ImageDraw.Draw(img)
+            draw.rectangle([20, 20, 700, 460], outline=(30, 41, 59), width=2)
+            y = 45
+            for line in text_body.splitlines():
+                draw.text((40, y), line[:85], fill=(15, 23, 42))
+                y += 24
+            img.save(str(target_path))
+            return True
+        else:
+            target_path.write_text(text_body, encoding="utf-8")
+            return True
+    except Exception:
+        return False
 
 
 @product_bp.route("/documents/<string:document_id>/download", methods=["GET"])
@@ -296,10 +349,15 @@ def download_document(document_id):
         flash("Access denied: You do not possess permissions to view or download this document.", "danger")
         return redirect(request.referrer or url_for("auth.portal_redirect"))
 
-    file_path = Path(doc.file_path)
+    file_path = Path(doc.file_path) if doc.file_path else Path(Config.UPLOAD_DIR) / doc.original_filename
     if not file_path.exists():
-        flash("Document file not found on disk.", "warning")
-        return redirect(request.referrer or url_for("products.list_products"))
+        normalized_name = str(doc.file_path or doc.original_filename).replace("\\", "/").split("/")[-1]
+        candidate_path = Path(Config.UPLOAD_DIR) / normalized_name
+        if candidate_path.exists() or _ensure_document_file_on_disk(doc, candidate_path):
+            file_path = candidate_path
+        else:
+            flash("Document file not found on disk.", "warning")
+            return redirect(request.referrer or url_for("products.list_products"))
 
     as_attachment = request.args.get("mode") == "download" or request.args.get("download") == "1"
     return send_file(
@@ -332,7 +390,7 @@ def replace_document(document_id):
             is_authorized = True
         else:
             flash("Evidence documents cannot be altered on finalized claims.", "warning")
-            return redirect(request.referrer or url_for("claims.view_claim_detail", claim_id=doc.claim.claim_id))
+            return redirect(request.referrer or url_for("claims.view_claim", claim_id=doc.claim.claim_id))
 
     if not is_authorized:
         flash("Access denied: You do not possess permissions to replace this document.", "danger")
@@ -359,6 +417,16 @@ def replace_document(document_id):
     # Recalculate file metadata & SHA-256
     doc_processor = get_document_processor()
     doc_info = doc_processor.process_document(save_path, document_type=doc.document_type)
+
+    ext = clean_filename.rsplit(".", 1)[-1].lower() if "." in clean_filename else ""
+    if doc.document_type in ["receipt", "invoice_document"] and ext in ["png", "jpg", "jpeg"] and not doc_processor.is_valid_receipt_document(doc_info):
+        try:
+            if save_path.exists():
+                save_path.unlink()
+        except Exception:
+            pass
+        flash("The uploaded receipt image does not contain readable invoice details. Please upload a clear receipt or invoice.", "danger")
+        return redirect(request.referrer or url_for("products.list_products"))
 
     # Delete old file safely if different
     try:
@@ -420,7 +488,7 @@ def delete_document(document_id):
             is_authorized = True
         else:
             flash("Evidence documents cannot be deleted from finalized claims.", "warning")
-            return redirect(request.referrer or url_for("claims.view_claim_detail", claim_id=doc.claim.claim_id))
+            return redirect(request.referrer or url_for("claims.view_claim", claim_id=doc.claim.claim_id))
 
     if not is_authorized:
         flash("Access denied: You do not possess permissions to remove this document.", "danger")

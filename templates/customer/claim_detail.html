@@ -228,7 +228,12 @@
                     </div>
                     <div class="col-6">
                         <div class="text-muted extra-small">Warranty Conditions</div>
-                        <div class="fw-semibold small">{{ claim.warranty.warranty_provider }} (Expires: {{ claim.warranty.expiry_date.strftime('%Y-%m-%d') }})</div>
+                        {% set w = claim.warranty or (claim.product.warranty if claim.product else None) %}
+                        {% if w %}
+                            <div class="fw-semibold small">{{ w.warranty_provider }} (Expires: {{ w.expiry_date.strftime('%Y-%m-%d') }})</div>
+                        {% else %}
+                            <div class="fw-semibold small text-muted">No Warranty Attached</div>
+                        {% endif %}
                     </div>
                     <div class="col-6">
                         <div class="text-muted extra-small">Service History</div>
