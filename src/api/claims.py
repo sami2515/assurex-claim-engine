@@ -425,6 +425,24 @@ def create_claim_wizard():
                         )
                         return redirect(url_for("claims.intake_wizard"))
 
+                # Apply user-verified OCR overrides from Step 3 (Req 1.6.vii)
+                if doc_key in ["receipt", "invoice_document"]:
+                    entities = dict(doc_info.get("entities") or {})
+                    if request.form.get("wizard_verified_invoice", "").strip():
+                        entities["invoice_number"] = request.form.get("wizard_verified_invoice").strip()
+                    if request.form.get("wizard_verified_date", "").strip():
+                        entities["purchase_date"] = request.form.get("wizard_verified_date").strip()
+                    if request.form.get("wizard_verified_serial", "").strip():
+                        entities["serial_number"] = request.form.get("wizard_verified_serial").strip()
+                    if request.form.get("wizard_verified_retailer", "").strip():
+                        entities["retailer"] = request.form.get("wizard_verified_retailer").strip()
+                    if request.form.get("wizard_verified_amount", "").strip():
+                        try:
+                            entities["purchase_amount"] = float(request.form.get("wizard_verified_amount").strip())
+                        except ValueError:
+                            pass
+                    doc_info["entities"] = entities
+
                 claim_doc = ClaimDocument(
                     claim_id=claim.id,
                     product_id=product.id,
@@ -788,6 +806,10 @@ def track_claim_status(claim_id):
     Req xxxviii: Real-time progress timeline across all 8 SRS stages.
     """
     claim = Claim.query.filter_by(claim_id=claim_id).first_or_404()
+    curr_user = get_current_user()
+    if session.get("role") == Config.ROLE_CUSTOMER and curr_user and claim.user_id != curr_user.id:
+        flash("Access denied: You can only track your own warranty claims.", "danger")
+        return redirect(url_for("claims.customer_dashboard"))
     return render_template(
         "customer/claim_track.html",
         claim=claim,
@@ -800,6 +822,10 @@ def track_claim_status(claim_id):
 def view_claim(claim_id):
     """Full claim dossier inspection view with dual-model charts, missing documents alert, and verification."""
     claim = Claim.query.filter_by(claim_id=claim_id).first_or_404()
+    curr_user = get_current_user()
+    if session.get("role") == Config.ROLE_CUSTOMER and curr_user and claim.user_id != curr_user.id:
+        flash("Access denied: You can only view your own warranty claims.", "danger")
+        return redirect(url_for("claims.customer_dashboard"))
     has_repairs = bool(claim.product and ((hasattr(claim.product, "repair_records") and len(claim.product.repair_records) > 0) or getattr(claim.product, "has_prior_repairs", False)))
     missing_docs_info = ClaimValidator.identify_missing_documents(claim.documents, has_previous_repairs=has_repairs)
     
@@ -999,7 +1025,11 @@ def correct_extracted_data(doc_id):
     if request.is_json:
         return jsonify({"success": True, "message": "Extracted data corrected and audit trail logged.", "entities": prev_data})
     flash("Extracted document details corrected and verified successfully.", "success")
-    return redirect(url_for("claims.view_claim", claim_id=doc.claim.claim_id if doc.claim else ""))
+    if doc.claim:
+        return redirect(url_for("claims.view_claim", claim_id=doc.claim.claim_id))
+    elif doc.product:
+        return redirect(url_for("products.view_product", product_id=doc.product.product_id))
+    return redirect(url_for("claims.customer_dashboard"))
 
 
 @claim_bp.route("/<string:claim_id>/summary-card", methods=["GET"])
@@ -1011,6 +1041,10 @@ def view_summary_card(claim_id):
     repair history, document availability, serial-number status) without AI predictions.
     """
     claim = Claim.query.filter_by(claim_id=claim_id).first_or_404()
+    curr_user = get_current_user()
+    if session.get("role") == Config.ROLE_CUSTOMER and curr_user and claim.user_id != curr_user.id:
+        flash("Access denied: You can only view summary cards for your own claims.", "danger")
+        return redirect(url_for("claims.customer_dashboard"))
     upload_folder = Path(Config.UPLOAD_DIR)
     card_path = upload_folder / f"{claim.claim_id}_card.png"
 
@@ -1030,5 +1064,5 @@ def view_summary_card(claim_id):
         upload_folder.mkdir(parents=True, exist_ok=True)
         card_img.save(card_path)
 
-    return send_file(card_path, mimetype="image/png")
+    return send_file(str(card_path.resolve()), mimetype="image/png")
 

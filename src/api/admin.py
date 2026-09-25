@@ -198,11 +198,20 @@ def claims_search():
 def manage_policies():
     """Req xxvi: Dynamic policy editor allowing live adjustments to rules and thresholds."""
     if request.method == "POST":
-        category = request.form.get("category")
-        policy_name = request.form.get("policy_name")
-        duration = int(request.form.get("duration", 12))
-        grace = int(request.form.get("grace", 7))
-        reporting = int(request.form.get("reporting", 30))
+        category = (request.form.get("category") or "").strip()
+        policy_name = (request.form.get("policy_name") or "").strip()
+        try:
+            duration = int(request.form.get("duration", 12) or 12)
+            grace = int(request.form.get("grace", 7) or 7)
+            reporting = int(request.form.get("reporting", 30) or 30)
+        except ValueError:
+            flash("Duration, grace period, and reporting window must be valid whole numbers.", "danger")
+            return redirect(url_for("admin.manage_policies"))
+
+        if duration < 1 or grace < 0 or reporting < 1:
+            flash("Duration and reporting period must be positive numbers, and grace period cannot be negative.", "warning")
+            return redirect(url_for("admin.manage_policies"))
+
         rules_text = request.form.get("rules_json")
 
         policy = WarrantyPolicy.query.filter_by(category=category).first()
@@ -210,7 +219,7 @@ def manage_policies():
             policy = WarrantyPolicy(category=category)
             db.session.add(policy)
 
-        policy.policy_name = policy_name
+        policy.policy_name = policy_name or f"{category} Standard Policy"
         policy.coverage_duration_months = duration
         policy.grace_period_days = grace
         policy.claim_reporting_period_days = reporting

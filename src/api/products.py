@@ -89,7 +89,18 @@ def register_product():
         model_number = request.form.get("model_number", "").strip()
         serial_number = request.form.get("serial_number", "").strip()
         purchase_date_str = request.form.get("purchase_date", "").strip()
-        purchase_price = float(request.form.get("purchase_price", "0.0") or 0.0)
+        try:
+            purchase_price = float(request.form.get("purchase_price", "0.0") or 0.0)
+        except ValueError:
+            flash("Please enter a valid numerical purchase price.", "danger")
+            policies = WarrantyPolicy.query.all()
+            return render_template("customer/product_register.html", policies=policies)
+
+        if purchase_price < 0:
+            flash("Purchase price cannot be negative.", "danger")
+            policies = WarrantyPolicy.query.all()
+            return render_template("customer/product_register.html", policies=policies)
+
         retailer = request.form.get("retailer", "").strip()
         invoice_number = request.form.get("invoice_number", "").strip()
 
@@ -105,10 +116,16 @@ def register_product():
             return render_template("customer/product_register.html", policies=policies)
 
         # Parse purchase date
-        try:
-            p_date = datetime.strptime(purchase_date_str, "%Y-%m-%d").date()
-        except ValueError:
-            p_date = date.today()
+        from src.rules.validator import ClaimValidator
+        p_date = ClaimValidator.parse_date(purchase_date_str)
+        if not p_date:
+            flash("Please enter a valid purchase date (YYYY-MM-DD or DD/MM/YYYY).", "warning")
+            policies = WarrantyPolicy.query.all()
+            return render_template("customer/product_register.html", policies=policies)
+        if p_date > date.today():
+            flash("Purchase date cannot be in the future.", "warning")
+            policies = WarrantyPolicy.query.all()
+            return render_template("customer/product_register.html", policies=policies)
 
         # Check existing serial to avoid collisions
         existing = Product.query.filter_by(serial_number=serial_number).first()
@@ -135,10 +152,12 @@ def register_product():
 
         # 2. Attach Warranty Record (Req iv)
         policy = WarrantyPolicy.query.filter_by(category=category).first()
+        if not policy and "industrial" in category.lower():
+            policy = WarrantyPolicy.query.filter_by(category="Industrial Tools").first()
         
         # Determine duration: user input or default from policy
         if warranty_duration_str and warranty_duration_str.isdigit():
-            duration_months = int(warranty_duration_str)
+            duration_months = max(1, min(120, int(warranty_duration_str)))
         else:
             duration_months = policy.coverage_duration_months if policy else 12
 
@@ -665,6 +684,10 @@ def view_product(product_id):
     policy coverage conditions, exclusions, historical service records, and uploaded proof documents (Req iii, iv, v).
     """
     product = Product.query.filter_by(product_id=product_id).first_or_404()
+    curr_user = get_current_user()
+    if session.get("role") == Config.ROLE_CUSTOMER and curr_user and product.user_id != curr_user.id:
+        flash("Access denied: You can only view your own registered products.", "danger")
+        return redirect(url_for("products.list_products"))
     policy_rules = product.warranty.policy.get_rules() if product.warranty and product.warranty.policy else {}
     return render_template("customer/product_detail.html", product=product, policy_rules=policy_rules)
 
@@ -693,15 +716,23 @@ def add_repair_record(product_id):
     is_authorized = request.form.get("is_authorized_center") in ["true", "1", "on", "yes", True]
     notes = request.form.get("notes", "").strip()
 
-    try:
-        repair_date = datetime.strptime(repair_date_str, "%Y-%m-%d").date()
-    except Exception:
+    from src.rules.validator import ClaimValidator
+    repair_date = ClaimValidator.parse_date(repair_date_str)
+    if not repair_date:
         repair_date = date.today()
+    elif repair_date > date.today():
+        flash("Repair date cannot be in the future.", "warning")
+        return redirect(url_for("products.view_product", product_id=product.product_id))
 
     try:
         repair_cost = float(repair_cost_str)
     except ValueError:
-        repair_cost = 0.0
+        flash("Please enter a valid numerical repair cost.", "warning")
+        return redirect(url_for("products.view_product", product_id=product.product_id))
+
+    if repair_cost < 0:
+        flash("Repair cost cannot be negative.", "warning")
+        return redirect(url_for("products.view_product", product_id=product.product_id))
 
     repair = RepairHistory(
         product_id=product.id,

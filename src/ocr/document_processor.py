@@ -21,8 +21,20 @@ class DocumentProcessor:
     """Intelligent Document Ingestion, SHA-256 Hashing, and OCR Entity Extraction Engine."""
 
     def __init__(self, tesseract_cmd: str = None):
-        if tesseract_cmd and PYTESSERACT_AVAILABLE:
-            pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
+        if PYTESSERACT_AVAILABLE:
+            if tesseract_cmd:
+                pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
+            else:
+                common_paths = [
+                    r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+                    r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+                    "/usr/bin/tesseract",
+                    "/usr/local/bin/tesseract"
+                ]
+                for p in common_paths:
+                    if os.path.exists(p):
+                        pytesseract.pytesseract.tesseract_cmd = p
+                        break
 
     @staticmethod
     def compute_sha256(file_input) -> str:

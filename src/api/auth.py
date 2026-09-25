@@ -13,7 +13,9 @@ def get_current_user():
     user_id = session.get("user_id")
     if not user_id:
         return None
-    return db.session.get(User, user_id)
+    if isinstance(user_id, str) and not user_id.isdigit():
+        return User.query.filter_by(user_id=user_id).first()
+    return db.session.get(User, int(user_id))
 
 
 def login_required(f):
@@ -130,6 +132,14 @@ def register():
 
         if not email or not password or not full_name:
             flash("Name, email, and password are required fields.", "warning")
+            return render_template("auth/register.html")
+
+        if "@" not in email or "." not in email.split("@")[-1]:
+            flash("Please enter a valid email address.", "warning")
+            return render_template("auth/register.html")
+
+        if len(password) < 8:
+            flash("Password must be at least 8 characters long.", "warning")
             return render_template("auth/register.html")
 
         if confirm_password and password != confirm_password:

@@ -123,12 +123,14 @@ class ClaimReportPDFGenerator:
         elements.append(Paragraph("OFFICIAL WARRANTY CLAIM EVALUATION CERTIFICATE & AUDIT DOSSIER", self.subtitle_style))
         elements.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor("#0284C7"), spaceAfter=10))
 
+        from xml.sax.saxutils import escape as xml_escape
+
         # -------------------------------------------------------------
         # 2. Executive Claim Summary Card Table
         # -------------------------------------------------------------
-        claimant_name = claim.claimant.full_name if claim.claimant else "David Miller"
+        claimant_name = xml_escape(str(claim.claimant.full_name if claim.claimant else "David Miller"))
         submission_date_str = claim.claim_submission_date.strftime("%Y-%m-%d") if claim.claim_submission_date else "N/A"
-        final_decision = claim.final_decision or "Under Evaluation"
+        final_decision = xml_escape(str(claim.final_decision or "Under Evaluation"))
 
         # Color badge for decision
         if "Valid" in final_decision:
@@ -140,17 +142,17 @@ class ClaimReportPDFGenerator:
 
         meta_data = [
             [
-                Paragraph("<b>Claim ID:</b>", self.body_style), Paragraph(claim.claim_id, self.bold_body),
+                Paragraph("<b>Claim ID:</b>", self.body_style), Paragraph(xml_escape(str(claim.claim_id)), self.bold_body),
                 Paragraph("<b>Submission Date:</b>", self.body_style), Paragraph(submission_date_str, self.body_style)
             ],
             [
                 Paragraph("<b>Claimant:</b>", self.body_style), Paragraph(claimant_name, self.body_style),
-                Paragraph("<b>Current Status:</b>", self.body_style), Paragraph(claim.status, self.bold_body)
+                Paragraph("<b>Current Status:</b>", self.body_style), Paragraph(xml_escape(str(claim.status)), self.bold_body)
             ],
             [
                 Paragraph("<b>Final Recommendation:</b>", self.body_style),
                 Paragraph(f"<font color='{decision_color.hexval()}'><b>{final_decision.upper()}</b></font>", self.bold_body),
-                Paragraph("<b>Risk Rating:</b>", self.body_style), Paragraph(claim.risk_level or "Medium", self.body_style)
+                Paragraph("<b>Risk Rating:</b>", self.body_style), Paragraph(xml_escape(str(claim.risk_level or "Medium")), self.body_style)
             ]
         ]
         meta_table = Table(meta_data, colWidths=[110, 160, 110, 160])
@@ -167,22 +169,22 @@ class ClaimReportPDFGenerator:
         # -------------------------------------------------------------
         # 3. Product & Warranty Details
         # -------------------------------------------------------------
-        elements.append(Paragraph("1. Product & Warranty Record", self.section_heading))
+        elements.append(Paragraph("1. Product &amp; Warranty Record", self.section_heading))
         prod = claim.product
         warr = claim.warranty
 
         prod_data = [
             [
-                Paragraph("<b>Product Name:</b>", self.body_style), Paragraph(prod.product_name if prod else "N/A", self.body_style),
-                Paragraph("<b>Category:</b>", self.body_style), Paragraph(prod.category if prod else "N/A", self.body_style)
+                Paragraph("<b>Product Name:</b>", self.body_style), Paragraph(xml_escape(str(prod.product_name if prod else "N/A")), self.body_style),
+                Paragraph("<b>Category:</b>", self.body_style), Paragraph(xml_escape(str(prod.category if prod else "N/A")), self.body_style)
             ],
             [
-                Paragraph("<b>Hardware Serial Number:</b>", self.body_style), Paragraph(prod.serial_number if prod else "N/A", self.bold_body),
-                Paragraph("<b>Invoice Number:</b>", self.body_style), Paragraph(prod.invoice_number if prod else "N/A", self.body_style)
+                Paragraph("<b>Hardware Serial Number:</b>", self.body_style), Paragraph(xml_escape(str(prod.serial_number if prod else "N/A")), self.bold_body),
+                Paragraph("<b>Invoice Number:</b>", self.body_style), Paragraph(xml_escape(str(prod.invoice_number if prod and prod.invoice_number else "N/A")), self.body_style)
             ],
             [
                 Paragraph("<b>Purchase Date:</b>", self.body_style), Paragraph(prod.purchase_date.strftime("%Y-%m-%d") if prod and prod.purchase_date else "N/A", self.body_style),
-                Paragraph("<b>Retailer Channel:</b>", self.body_style), Paragraph(prod.retailer if prod else "N/A", self.body_style)
+                Paragraph("<b>Retailer Channel:</b>", self.body_style), Paragraph(xml_escape(str(prod.retailer if prod else "N/A")), self.body_style)
             ],
             [
                 Paragraph("<b>Warranty Span:</b>", self.body_style), Paragraph(f"{warr.start_date} to {warr.expiry_date}" if warr else "N/A", self.body_style),
@@ -341,20 +343,20 @@ class ClaimReportPDFGenerator:
 
         audit_data = [
             [
-                Paragraph("<b>Adjudicated By:</b>", self.body_style), Paragraph(reviewer_name, self.bold_body),
+                Paragraph("<b>Adjudicated By:</b>", self.body_style), Paragraph(xml_escape(str(reviewer_name)), self.bold_body),
                 Paragraph("<b>Certificate Generated:</b>", self.body_style), Paragraph(datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC"), self.body_style)
             ],
             [
                 Paragraph("<b>Reviewer Comments:</b>", self.body_style),
-                Paragraph(reviewer_comments, self.body_style),
+                Paragraph(xml_escape(str(reviewer_comments)), self.body_style),
                 Paragraph("<b>Digital Signature:</b>", self.body_style),
-                Paragraph(f"VERIFIED-AUTH-{claim.claim_id}", self.small_style)
+                Paragraph(f"VERIFIED-AUTH-{xml_escape(str(claim.claim_id))}", self.small_style)
             ],
             [
                 Paragraph("<b>Adjudication Notes:</b>", self.body_style),
-                Paragraph(adjudication_notes, self.body_style),
+                Paragraph(xml_escape(str(adjudication_notes)), self.body_style),
                 Paragraph("<b>Final Recommendation:</b>", self.body_style),
-                Paragraph(claim.final_decision or "Pending", self.bold_body)
+                Paragraph(xml_escape(str(claim.final_decision or "Pending")), self.bold_body)
             ]
         ]
         audit_table = Table(audit_data, colWidths=[110, 200, 110, 120])

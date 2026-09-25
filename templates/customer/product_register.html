@@ -369,7 +369,7 @@ function triggerOcrScan() {
             verificationPanel.classList.add('d-none');
             if (errorPanel) {
                 errorPanel.classList.remove('d-none');
-                document.getElementById('scan-error-msg').innerText = 'The uploaded file does not contain valid receipt or invoice information and was not accepted. Please upload a clear purchase invoice or enter the details manually below.';
+                document.getElementById('scan-error-msg').innerText = data.error || 'The uploaded file does not contain valid receipt or invoice information and was not accepted. Please upload a clear purchase invoice or enter the details manually below.';
             }
         }
     })

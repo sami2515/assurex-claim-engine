@@ -255,13 +255,15 @@ class ClaimDataPreprocessor:
         # 7. Handling Missing Values for Numerical & Categorical Features
         if product:
             cleaned["purchase_price"] = float(product.purchase_price)
-            cleaned["product_category"] = str(product.category)
+            raw_cat = str(product.category)
+            cleaned["product_category"] = "Industrial Tools" if "industrial" in raw_cat.lower() else raw_cat
             cleaned["product_model"] = str(product.model_number)
             cleaned["product_serial"] = str(product.serial_number)
             cleaned["retailer"] = str(product.retailer)
         else:
             cleaned["purchase_price"] = float(cleaned.get("purchase_price", 0.0))
-            cleaned["product_category"] = str(cleaned.get("product_category", "Unknown"))
+            raw_cat = str(cleaned.get("product_category", "Unknown"))
+            cleaned["product_category"] = "Industrial Tools" if "industrial" in raw_cat.lower() else raw_cat
 
         cleaned["damage_type"] = str(cleaned.get("damage_type", "Unknown"))
         cleaned["fault_category"] = str(cleaned.get("fault_category", "Unknown"))

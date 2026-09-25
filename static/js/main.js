@@ -410,23 +410,23 @@ document.addEventListener("DOMContentLoaded", function () {
                         <div class="row g-2 extra-small">
                             <div class="col-sm-6 col-md-3">
                                 <label class="text-muted d-block extra-small">Invoice / Receipt #</label>
-                                <input type="text" class="form-control form-control-sm font-mono" id="wizard_verified_invoice" value="${e.invoice_number || ''}">
+                                <input type="text" class="form-control form-control-sm font-mono" id="wizard_verified_invoice" name="wizard_verified_invoice" value="${e.invoice_number || ''}">
                             </div>
                             <div class="col-sm-6 col-md-3">
                                 <label class="text-muted d-block extra-small">Purchase Date</label>
-                                <input type="date" class="form-control form-control-sm" id="wizard_verified_date" value="${e.purchase_date || ''}">
+                                <input type="date" class="form-control form-control-sm" id="wizard_verified_date" name="wizard_verified_date" value="${e.purchase_date || ''}">
                             </div>
                             <div class="col-sm-6 col-md-3">
                                 <label class="text-muted d-block extra-small">Hardware Serial #</label>
-                                <input type="text" class="form-control form-control-sm font-mono text-primary fw-semibold" id="wizard_verified_serial" value="${e.serial_number || ''}">
+                                <input type="text" class="form-control form-control-sm font-mono text-primary fw-semibold" id="wizard_verified_serial" name="wizard_verified_serial" value="${e.serial_number || ''}">
                             </div>
                             <div class="col-sm-6 col-md-3">
                                 <label class="text-muted d-block extra-small">Purchase / Claim Value ($)</label>
-                                <input type="number" step="0.01" class="form-control form-control-sm fw-bold text-success" id="wizard_verified_amount" value="${e.purchase_amount ? parseFloat(e.purchase_amount).toFixed(2) : '150.00'}" onchange="if(document.getElementById('claim_amount')) document.getElementById('claim_amount').value = this.value">
+                                <input type="number" step="0.01" class="form-control form-control-sm fw-bold text-success" id="wizard_verified_amount" name="wizard_verified_amount" value="${e.purchase_amount ? parseFloat(e.purchase_amount).toFixed(2) : '150.00'}" onchange="if(document.getElementById('claim_amount')) document.getElementById('claim_amount').value = this.value">
                             </div>
                             <div class="col-sm-12 col-md-6 mt-2">
                                 <label class="text-muted d-block extra-small">Merchant / Retailer</label>
-                                <input type="text" class="form-control form-control-sm" id="wizard_verified_retailer" value="${e.retailer || ''}">
+                                <input type="text" class="form-control form-control-sm" id="wizard_verified_retailer" name="wizard_verified_retailer" value="${e.retailer || ''}">
                             </div>
                             <div class="col-sm-12 col-md-6 mt-2">
                                 <label class="text-muted d-block extra-small">Cryptographic SHA-256 Digest</label>

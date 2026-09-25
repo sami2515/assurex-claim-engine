@@ -62,6 +62,23 @@ class ClaimValidator:
         "description": "Service center diagnostic report documenting previous repairs or maintenance."
     }
 
+    @staticmethod
+    def parse_date(date_val):
+        """Parses date strings across standard formats (YYYY-MM-DD, DD/MM/YYYY, MM/DD/YYYY)."""
+        if not date_val:
+            return None
+        if isinstance(date_val, datetime):
+            return date_val.date()
+        if isinstance(date_val, date):
+            return date_val
+        s = str(date_val).strip()
+        for fmt in ["%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y"]:
+            try:
+                return datetime.strptime(s, fmt).date()
+            except ValueError:
+                continue
+        return None
+
     @classmethod
     def identify_missing_documents(cls, documents_or_files, has_previous_repairs: bool = False) -> dict:
         """
@@ -235,8 +252,8 @@ class ClaimValidator:
         if not fault_date_str:
             errors.append("Mandatory field missing: Date of fault occurrence must be provided.")
         else:
-            try:
-                fault_date = datetime.strptime(fault_date_str, "%Y-%m-%d").date()
+            fault_date = cls.parse_date(fault_date_str)
+            if fault_date is not None:
                 cleaned["fault_occurrence_date"] = fault_date
 
                 # Logic check: Cannot be in the future
@@ -249,8 +266,8 @@ class ClaimValidator:
                         f"Date Conflict: Fault date ({fault_date}) is earlier than product purchase date "
                         f"({product.purchase_date}). This may affect claim eligibility."
                     )
-            except ValueError:
-                errors.append(f"Invalid date format for fault occurrence: '{fault_date_str}'. Expected format is YYYY-MM-DD.")
+            else:
+                errors.append(f"Invalid date format for fault occurrence: '{fault_date_str}'. Expected format is YYYY-MM-DD or DD/MM/YYYY.")
 
         # 4. Numerical Values Validation
         claim_amount_str = form_data.get("claim_amount")
