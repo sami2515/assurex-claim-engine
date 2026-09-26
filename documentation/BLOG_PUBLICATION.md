@@ -12,7 +12,7 @@
 | **Subtitle** | *Technical overview of machine learning, OCR, visual classification, and configurable warranty rules* |
 | **Platform** | **Medium** |
 | **Live Article URL** | [https://medium.com/@samikhan031027/building-assurex-a-dual-model-warranty-claim-evaluation-system-8a30d3684111](https://medium.com/@samikhan031027/building-assurex-a-dual-model-warranty-claim-evaluation-system-8a30d3684111) |
-| **Author** | Sami Khan &middot; AssureX Engineering Team |
+| **Author** | Muhammad Sami &middot; AssureX Engineering Team |
 | **Publication Date** | September 2026 |
 | **Official Word Count** | **3,794+ Words** *(Exceeds mandatory $\ge 2,000$ words requirement)* |
 | **Local Source File** | [`documentation/TECHNICAL_BLOG.md`](file:///c:/Users/sami/Desktop/techwiz%207/documentation/TECHNICAL_BLOG.md) |
