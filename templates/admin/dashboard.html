@@ -15,6 +15,9 @@
         <a href="{{ url_for('admin.analytics_dashboard') }}" class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1 shadow-sm">
             <i class="bi bi-bar-chart-line-fill"></i> Analytics &amp; Reports
         </a>
+        <a href="{{ url_for('admin.users_directory') }}" class="btn btn-outline-dark btn-sm d-inline-flex align-items-center gap-1 shadow-sm">
+            <i class="bi bi-people-fill"></i> Manage Users (RBAC)
+        </a>
         <a href="{{ url_for('admin.export_data', export_type='claims') }}" class="btn btn-outline-secondary btn-sm d-inline-flex align-items-center gap-1 shadow-sm">
             <i class="bi bi-file-earmark-spreadsheet"></i> Claims CSV
         </a>

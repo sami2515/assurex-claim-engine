@@ -1,4 +1,6 @@
+import hmac
 import json
+import secrets
 from functools import wraps
 from flask import Blueprint, request, session, redirect, url_for, flash, jsonify, render_template, g
 from config.config import Config
@@ -8,108 +10,215 @@ from src.models.entities import User, AuditLog
 auth_bp = Blueprint("auth", __name__)
 
 
+def generate_csrf_token():
+    """Generates and stores a cryptographically secure CSRF token in session."""
+    if "csrf_token" not in session:
+        session["csrf_token"] = secrets.token_hex(32)
+    return session["csrf_token"]
+
+
+def validate_csrf_token(token: str) -> bool:
+    """Validates submitted CSRF token against session."""
+    session_token = session.get("csrf_token")
+    if not session_token or not token:
+        return False
+    return hmac.compare_digest(str(session_token), str(token))
+
+
+def csrf_protect(f):
+    """Decorator enforcing CSRF token validation on state-changing requests."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if request.method in ("POST", "PUT", "DELETE", "PATCH"):
+            from flask import current_app
+            # Allow testing bypass only when explicitly configured
+            if current_app.config.get("TESTING") and not current_app.config.get("WTF_CSRF_ENABLED", False):
+                return f(*args, **kwargs)
+            
+            token = request.form.get("csrf_token") or request.headers.get("X-CSRFToken")
+            if not validate_csrf_token(token):
+                flash("Security validation failed (Invalid or missing CSRF token). Please try again.", "danger")
+                return redirect(request.referrer or url_for("auth.login")), 403
+        return f(*args, **kwargs)
+    return decorated_function
+
+
 def get_current_user():
-    """Retrieves currently authenticated User object from session."""
+    """
+    Retrieves currently authenticated User object from database using session identity.
+    Returns fresh DB instance or None if not found/invalid.
+    """
     user_id = session.get("user_id")
     if not user_id:
         return None
-    if isinstance(user_id, str) and not user_id.isdigit():
-        return User.query.filter_by(user_id=user_id).first()
-    return db.session.get(User, int(user_id))
+    try:
+        if isinstance(user_id, str) and not user_id.isdigit():
+            return User.query.filter_by(user_id=user_id).first()
+        return db.session.get(User, int(user_id))
+    except Exception:
+        return None
 
 
 def login_required(f):
-    """Guard ensuring an authenticated session exists."""
+    """Guard ensuring an active, authenticated user identity exists in database."""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not session.get("user_id"):
             flash("Please sign in to access this portal.", "warning")
             return redirect(url_for("auth.login"))
+        
+        user = get_current_user()
+        if not user:
+            session.clear()
+            flash("Session expired. Please sign in again.", "warning")
+            return redirect(url_for("auth.login"))
+        
+        if user.is_active is False:
+            session.clear()
+            flash("Your account has been deactivated. Please contact the administrator.", "danger")
+            return redirect(url_for("auth.login"))
+        
+        # Ensure session role is synchronized with database single source of truth
+        session["role"] = user.role
         return f(*args, **kwargs)
     return decorated_function
 
 
 def role_required(*allowed_roles):
-    """Guard enforcing specific role permissions."""
+    """
+    Guard enforcing DB-backed role permissions as the single source of truth.
+    Does NOT rely on stale session cookies; verifies directly against database record.
+    """
     def decorator(f):
         @wraps(f)
         def decorated_function(*args, **kwargs):
             if not session.get("user_id"):
                 flash("Please sign in to continue.", "warning")
                 return redirect(url_for("auth.login"))
-            user_role = session.get("role")
-            if user_role not in allowed_roles:
+            
+            user = get_current_user()
+            if not user:
+                session.clear()
+                flash("Session expired. Please sign in again.", "warning")
+                return redirect(url_for("auth.login"))
+            
+            if user.is_active is False:
+                session.clear()
+                flash("Your account has been deactivated. Please contact the administrator.", "danger")
+                return redirect(url_for("auth.login"))
+            
+            # Authoritative check from database record directly
+            if user.role not in allowed_roles:
                 flash("Unauthorized access: You don't have the required permissions.", "danger")
                 return redirect(url_for("auth.portal_redirect"))
+            
+            # Synchronize session state with DB
+            session["role"] = user.role
             return f(*args, **kwargs)
         return decorated_function
     return decorator
 
 
 @auth_bp.route("/login", methods=["GET", "POST"])
+@csrf_protect
 def login():
-    """User authentication endpoint supporting form submission and JSON API."""
+    """
+    User authentication endpoint.
+    Verifies credentials, enforces active account status, applies CSRF protection,
+    and records audit trail events for login successes and failures.
+    Deactivated accounts cannot log in under any circumstances.
+    """
     if request.method == "POST":
         email = request.form.get("email", "").strip().lower()
         password = request.form.get("password", "")
 
+        if not email or not password:
+            flash("Email and password are required fields.", "warning")
+            return render_template("auth/login.html")
+
         user = User.query.filter_by(email=email).first()
-        if user and user.check_password(password) and (user.is_active is not False):
-            if not user.is_active:
-                user.is_active = True
-                db.session.commit()
 
-            session["user_id"] = user.id
-            session["user_code"] = user.user_id
-            session["role"] = user.role
-            session["user_name"] = user.full_name
-            session["email"] = user.email
-
-            # Record login audit log
-            audit = AuditLog(
-                user_id=user.id,
-                user_role=user.role,
-                action="USER_LOGIN_SUCCESS",
-                entity_type="USER",
-                entity_id=user.user_id,
-                ip_address=request.remote_addr
-            )
-            db.session.add(audit)
-            db.session.commit()
-
-            flash(f"Welcome back, {user.full_name}!", "success")
-            return redirect(url_for("auth.portal_redirect"))
-        else:
-            fail_reason = "User not found" if not user else ("Invalid password" if not user.check_password(password) else "Account disabled")
-            # Monitor repeated login attempts via AuditLog
+        if not user:
+            # Login failed - non-existent user
             audit_fail = AuditLog(
-                user_id=user.id if user else None,
-                user_role=user.role if user else None,
+                user_id=None,
+                user_role=None,
                 action="LOGIN_FAILED",
                 entity_type="USER",
-                entity_id=user.user_id if user else email,
+                entity_id=email,
                 ip_address=request.remote_addr,
-                details_json=json.dumps({"attempted_email": email, "reason": fail_reason})
+                details_json=json.dumps({"attempted_email": email, "reason": "User not found"})
             )
             db.session.add(audit_fail)
             db.session.commit()
+            flash(f"Account with email '{email}' does not exist. Please register first or use a demo account.", "danger")
+            return render_template("auth/login.html")
 
-            if not user:
-                flash(f"Account with email '{email}' does not exist. Please register first or use a demo account.", "danger")
-            elif not user.check_password(password):
-                flash("Invalid password entered. Please check your credentials.", "danger")
-            else:
-                flash("Account is disabled. Please contact the administrator.", "danger")
+        if not user.check_password(password):
+            # Login failed - bad password
+            audit_fail = AuditLog(
+                user_id=user.id,
+                user_role=user.role,
+                action="LOGIN_FAILED",
+                entity_type="USER",
+                entity_id=user.user_id,
+                ip_address=request.remote_addr,
+                details_json=json.dumps({"attempted_email": email, "reason": "Invalid password"})
+            )
+            db.session.add(audit_fail)
+            db.session.commit()
+            flash("Invalid password entered. Please check your credentials.", "danger")
+            return render_template("auth/login.html")
+
+        if not user.is_active:
+            # Login blocked - inactive/deactivated account (NO AUTO-REACTIVATION)
+            audit_fail = AuditLog(
+                user_id=user.id,
+                user_role=user.role,
+                action="LOGIN_FAILED",
+                entity_type="USER",
+                entity_id=user.user_id,
+                ip_address=request.remote_addr,
+                details_json=json.dumps({"attempted_email": email, "reason": "Account disabled"})
+            )
+            db.session.add(audit_fail)
+            db.session.commit()
+            flash("Account is disabled. Please contact the administrator.", "danger")
+            return render_template("auth/login.html")
+
+        # Session establishment for verified active user
+        session["user_id"] = user.id
+        session["user_code"] = user.user_id
+        session["role"] = user.role
+        session["user_name"] = user.full_name
+        session["email"] = user.email
+
+        # Record login audit log
+        audit = AuditLog(
+            user_id=user.id,
+            user_role=user.role,
+            action="USER_LOGIN_SUCCESS",
+            entity_type="USER",
+            entity_id=user.user_id,
+            ip_address=request.remote_addr,
+            details_json=json.dumps({"role": user.role, "email": user.email})
+        )
+        db.session.add(audit)
+        db.session.commit()
+
+        flash(f"Welcome back, {user.full_name}!", "success")
+        return redirect(url_for("auth.portal_redirect"))
 
     return render_template("auth/login.html")
 
 
 @auth_bp.route("/register", methods=["GET", "POST"])
+@csrf_protect
 def register():
     """
-    User Registration and Authentication.
-    Supports registration for Customers, Service-Center Staff, Claim Reviewers, and Administrators.
-    Maintains a unique User ID and enforces role-based access.
+    User Registration and Authentication (Customer Self-Registration).
+    Public registration deterministically creates Customer accounts only.
+    Client-submitted role values are ignored to prevent privilege escalation.
     """
     if request.method == "POST":
         email = request.form.get("email", "").strip().lower()
@@ -118,17 +227,9 @@ def register():
         phone = request.form.get("phone", "").strip()
         address = request.form.get("address", "").strip()
         confirm_password = request.form.get("confirm_password", "")
-        role_input = request.form.get("role", "").strip().lower()
-        role_map = {
-            "customer": Config.ROLE_CUSTOMER,
-            "staff": Config.ROLE_STAFF,
-            "service_center_staff": Config.ROLE_STAFF,
-            "reviewer": Config.ROLE_REVIEWER,
-            "claim_reviewer": Config.ROLE_REVIEWER,
-            "admin": Config.ROLE_ADMIN,
-            "administrator": Config.ROLE_ADMIN
-        }
-        role = role_map.get(role_input, Config.ROLE_CUSTOMER)
+        # Public self-registration ALWAYS creates CUSTOMER accounts only.
+        # Any client-supplied role parameter is strictly ignored.
+        role = Config.ROLE_CUSTOMER
 
         if not email or not password or not full_name:
             flash("Name, email, and password are required fields.", "warning")
@@ -177,11 +278,11 @@ def register():
             audit = AuditLog(
                 user_id=user.id,
                 user_role=user.role,
-                action="ACCOUNT_CREATION",
+                action="ACCOUNT_CREATED",
                 entity_type="USER",
                 entity_id=user.user_id,
                 ip_address=request.remote_addr,
-                details_json=json.dumps({"role": user.role, "email": user.email})
+                details_json=json.dumps({"role": user.role, "email": user.email, "self_registered": True, "ip": request.remote_addr})
             )
             db.session.add(audit)
             db.session.commit()
@@ -190,14 +291,7 @@ def register():
             flash("An error occurred during registration. Please try again.", "danger")
             return render_template("auth/register.html")
 
-        role_display = {
-            Config.ROLE_CUSTOMER: "Customer",
-            Config.ROLE_STAFF: "Service Staff",
-            Config.ROLE_REVIEWER: "Claim Reviewer",
-            Config.ROLE_ADMIN: "Administrator"
-        }.get(role, role)
-
-        flash(f"Account created successfully as {role_display}! You may now sign in.", "success")
+        flash("Account created successfully as Customer! You may now sign in.", "success")
         return redirect(url_for("auth.login"))
 
     return render_template("auth/register.html")
@@ -288,15 +382,16 @@ def profile():
 @auth_bp.route("/logout")
 def logout():
     """Terminates session and records audit event."""
-    user_id = session.get("user_id")
-    if user_id:
+    user = get_current_user()
+    if user:
         audit = AuditLog(
-            user_id=user_id,
-            user_role=session.get("role"),
+            user_id=user.id,
+            user_role=user.role,
             action="USER_LOGOUT",
             entity_type="USER",
-            entity_id=session.get("user_code", ""),
-            ip_address=request.remote_addr
+            entity_id=user.user_id,
+            ip_address=request.remote_addr,
+            details_json=json.dumps({"email": user.email, "role": user.role})
         )
         db.session.add(audit)
         db.session.commit()
@@ -309,8 +404,9 @@ def logout():
 @auth_bp.route("/portal")
 @login_required
 def portal_redirect():
-    """Smart router directing users to their role-specific dashboard."""
-    role = session.get("role")
+    """Smart router directing users to their role-specific dashboard based on DB role."""
+    user = get_current_user()
+    role = user.role if user else session.get("role")
     if role == Config.ROLE_ADMIN:
         return redirect(url_for("admin.dashboard"))
     elif role == Config.ROLE_REVIEWER:

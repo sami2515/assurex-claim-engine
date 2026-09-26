@@ -1,11 +1,11 @@
 import json
 from datetime import datetime
 from pathlib import Path
-from flask import Blueprint, request, session, redirect, url_for, flash, jsonify, render_template, Response
+from flask import Blueprint, request, session, redirect, url_for, flash, jsonify, render_template, Response, abort
 from config.config import Config
 from database.db import db
 from src.models.entities import Claim, Product, User, WarrantyPolicy, ModelEvaluation, AuditLog, ProductWarranty, SystemSetting
-from src.api.auth import login_required, role_required, get_current_user
+from src.api.auth import login_required, role_required, get_current_user, csrf_protect
 from src.services.export_service import DataExportService
 from src.services.alert_service import (
     get_alert_threshold_days,
@@ -424,3 +424,337 @@ def export_warranties():
 def export_analytics():
     """Alias for analytics CSV export."""
     return export_data("analytics")
+
+
+# ==============================================================================
+# ROLE-BASED ACCESS CONTROL (RBAC) USER MANAGEMENT
+# ==============================================================================
+
+ROLE_NORMALIZATION_MAP = {
+    "admin": Config.ROLE_ADMIN,
+    "administrator": Config.ROLE_ADMIN,
+    "reviewer": Config.ROLE_REVIEWER,
+    "claim_reviewer": Config.ROLE_REVIEWER,
+    "staff": Config.ROLE_STAFF,
+    "service_center_staff": Config.ROLE_STAFF,
+    "customer": Config.ROLE_CUSTOMER,
+}
+
+ADMIN_ROLES = [Config.ROLE_ADMIN, "Admin", "administrator"]
+
+
+def is_admin_role(role_name):
+    if not role_name:
+        return False
+    return role_name in ADMIN_ROLES or role_name.lower() in ["admin", "administrator"]
+
+
+@admin_bp.route("/users", methods=["GET"])
+@login_required
+@role_required(Config.ROLE_ADMIN)
+def users_directory():
+    """
+    Administrator User Directory and Access Management console.
+    Provides filtering across roles (Customer, Staff, Reviewer, Admin),
+    status (Active/Inactive), and text search across names, emails, and IDs.
+    """
+    q = request.args.get("q", "").strip()
+    role_filter = request.args.get("role", "").strip()
+    status_filter = request.args.get("status", "").strip()
+
+    query = User.query
+
+    if q:
+        search_pattern = f"%{q}%"
+        query = query.filter(
+            (User.full_name.ilike(search_pattern)) |
+            (User.email.ilike(search_pattern)) |
+            (User.user_id.ilike(search_pattern))
+        )
+
+    if role_filter and role_filter != "all":
+        canonical_role = ROLE_NORMALIZATION_MAP.get(role_filter.lower(), role_filter)
+        query = query.filter(
+            (User.role == canonical_role) |
+            (User.role == role_filter)
+        )
+
+    if status_filter == "active":
+        query = query.filter(User.is_active == True)
+    elif status_filter == "inactive":
+        query = query.filter(User.is_active == False)
+
+    users = query.order_by(User.id.desc()).all()
+
+    # Active admin count for last-admin safety rules
+    active_admin_count = User.query.filter(
+        User.role.in_(ADMIN_ROLES),
+        User.is_active == True
+    ).count()
+
+    total_users_count = User.query.count()
+    customer_count = User.query.filter(User.role.in_([Config.ROLE_CUSTOMER, "Customer", "customer"])).count()
+    staff_count = User.query.filter(User.role.in_([Config.ROLE_STAFF, "Staff", "service_center_staff"])).count()
+    reviewer_count = User.query.filter(User.role.in_([Config.ROLE_REVIEWER, "Reviewer", "claim_reviewer"])).count()
+
+    current_user = get_current_user()
+
+    role_options = [
+        {"val": Config.ROLE_CUSTOMER, "label": "Customer"},
+        {"val": Config.ROLE_STAFF, "label": "Service Staff"},
+        {"val": Config.ROLE_REVIEWER, "label": "Claim Reviewer"},
+        {"val": Config.ROLE_ADMIN, "label": "Administrator"}
+    ]
+
+    return render_template(
+        "admin/users.html",
+        users=users,
+        q=q,
+        role_filter=role_filter,
+        status_filter=status_filter,
+        active_admin_count=active_admin_count,
+        total_users_count=total_users_count,
+        customer_count=customer_count,
+        staff_count=staff_count,
+        reviewer_count=reviewer_count,
+        current_user=current_user,
+        role_options=role_options
+    )
+
+
+@admin_bp.route("/users/create", methods=["POST"])
+@login_required
+@role_required(Config.ROLE_ADMIN)
+@csrf_protect
+def create_user():
+    """
+    Admin endpoint to provision elevated roles (Staff, Reviewer, Admin) or Customer accounts.
+    Strictly validates email uniqueness, required fields, password length, and logs audit event.
+    """
+    email = request.form.get("email", "").strip().lower()
+    full_name = request.form.get("full_name", "").strip()
+    role_raw = request.form.get("role", "").strip()
+    password = request.form.get("password", "")
+    phone = request.form.get("phone", "").strip()
+    address = request.form.get("address", "").strip()
+
+    role = ROLE_NORMALIZATION_MAP.get(role_raw.lower())
+
+    if not email or not full_name or not password or not role_raw:
+        flash("Full name, email address, role, and temporary password are required.", "warning")
+        return redirect(url_for("admin.users_directory"))
+
+    if not role:
+        flash(f"Invalid role '{role_raw}'.", "danger")
+        return redirect(url_for("admin.users_directory"))
+
+    if "@" not in email or "." not in email.split("@")[-1]:
+        flash("Please enter a valid email address.", "warning")
+        return redirect(url_for("admin.users_directory"))
+
+    if len(password) < 8:
+        flash("Password must be at least 8 characters long.", "warning")
+        return redirect(url_for("admin.users_directory"))
+
+    if User.query.filter_by(email=email).first():
+        flash(f"A user account with email '{email}' already exists.", "danger")
+        return redirect(url_for("admin.users_directory"))
+
+    if phone:
+        digits_only = ''.join(c for c in phone if c.isdigit())
+        if len(digits_only) < 7 or len(digits_only) > 15:
+            flash("Phone number must contain between 7 and 15 digits.", "warning")
+            return redirect(url_for("admin.users_directory"))
+
+    new_user = User(
+        email=email,
+        full_name=full_name,
+        role=role,
+        phone_number=phone or None,
+        address=address or None,
+        is_active=True
+    )
+    new_user.set_password(password)
+
+    try:
+        db.session.add(new_user)
+        db.session.flush()
+
+        current_user = get_current_user()
+        audit = AuditLog(
+            user_id=current_user.id if current_user else session.get("user_id"),
+            user_role=current_user.role if current_user else session.get("role"),
+            action="ACCOUNT_CREATED",
+            entity_type="USER",
+            entity_id=new_user.user_id,
+            ip_address=request.remote_addr,
+            details_json=json.dumps({
+                "actor_id": current_user.id if current_user else None,
+                "target_id": new_user.id,
+                "target_user_id": new_user.id,
+                "target_user_code": new_user.user_id,
+                "email": new_user.email,
+                "assigned_role": new_user.role,
+                "provisioned_by": current_user.email if current_user else "admin",
+                "ip": request.remote_addr
+            })
+        )
+        db.session.add(audit)
+        db.session.commit()
+        flash(f"Account for '{new_user.full_name}' ({new_user.role}) successfully provisioned with ID {new_user.user_id}.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Failed to create account: {str(e)}", "danger")
+
+    return redirect(url_for("admin.users_directory"))
+
+
+@admin_bp.route("/users/<int:user_id>/role", methods=["POST"])
+@login_required
+@role_required(Config.ROLE_ADMIN)
+@csrf_protect
+def update_user_role(user_id):
+    """
+    Admin endpoint to change a user's role.
+    Safeguards:
+    1. Prevents administrator self-demotion.
+    2. Prevents demoting the last active administrator.
+    Records RBAC_ROLE_CHANGE event to immutable audit log.
+    """
+    target_user = db.session.get(User, user_id)
+    if not target_user:
+        flash("Target user not found.", "danger")
+        return redirect(url_for("admin.users_directory"))
+
+    new_role_raw = request.form.get("role", "").strip()
+    new_role = ROLE_NORMALIZATION_MAP.get(new_role_raw.lower())
+
+    if not new_role:
+        flash(f"Invalid role selection: '{new_role_raw}'.", "danger")
+        return redirect(url_for("admin.users_directory"))
+
+    if target_user.role == new_role:
+        flash(f"User '{target_user.full_name}' already possesses the role '{new_role}'.", "info")
+        return redirect(url_for("admin.users_directory"))
+
+    current_user = get_current_user()
+
+    # Safeguard 1: Administrator cannot self-demote
+    if current_user and current_user.id == target_user.id and not is_admin_role(new_role):
+        flash("Self-demotion is prohibited. You cannot remove your own Administrator role.", "danger")
+        return redirect(url_for("admin.users_directory"))
+
+    # Safeguard 2: Last active administrator protection
+    if is_admin_role(target_user.role) and not is_admin_role(new_role):
+        active_admin_count = User.query.filter(
+            User.role.in_(ADMIN_ROLES),
+            User.is_active == True
+        ).count()
+        if active_admin_count <= 1:
+            flash("Action blocked: Cannot demote the last active Administrator in the system.", "danger")
+            return redirect(url_for("admin.users_directory"))
+
+    old_role = target_user.role
+    target_user.role = new_role
+
+    try:
+        audit = AuditLog(
+            user_id=current_user.id if current_user else session.get("user_id"),
+            user_role=current_user.role if current_user else session.get("role"),
+            action="RBAC_ROLE_CHANGE",
+            entity_type="USER",
+            entity_id=target_user.user_id,
+            ip_address=request.remote_addr,
+            details_json=json.dumps({
+                "actor_id": current_user.id if current_user else None,
+                "target_id": target_user.id,
+                "target_user_id": target_user.id,
+                "target_user_code": target_user.user_id,
+                "old_role": old_role,
+                "new_role": new_role,
+                "changed_by": current_user.email if current_user else "admin",
+                "ip": request.remote_addr
+            })
+        )
+        db.session.add(audit)
+        db.session.commit()
+        flash(f"Role for '{target_user.full_name}' successfully updated from {old_role} to {new_role}.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Failed to update user role: {str(e)}", "danger")
+
+    return redirect(url_for("admin.users_directory"))
+
+
+@admin_bp.route("/users/<int:user_id>/toggle-status", methods=["POST"])
+@login_required
+@role_required(Config.ROLE_ADMIN)
+@csrf_protect
+def toggle_user_status(user_id):
+    """
+    Admin endpoint for soft activation and deactivation of user accounts.
+    Safeguards:
+    1. Administrator cannot deactivate their own account.
+    2. Cannot deactivate the last active administrator.
+    Records ACCOUNT_ACTIVATED or ACCOUNT_DEACTIVATED in audit log.
+    """
+    target_user = db.session.get(User, user_id)
+    if not target_user:
+        flash("Target user not found.", "danger")
+        return redirect(url_for("admin.users_directory"))
+
+    current_user = get_current_user()
+
+    if target_user.is_active:
+        # Attempting deactivation
+        # Safeguard 1: Administrator cannot self-deactivate
+        if current_user and current_user.id == target_user.id:
+            flash("Self-deactivation is prohibited. You cannot deactivate your own account.", "danger")
+            return redirect(url_for("admin.users_directory"))
+
+        # Safeguard 2: Last active administrator protection
+        if is_admin_role(target_user.role):
+            active_admin_count = User.query.filter(
+                User.role.in_(ADMIN_ROLES),
+                User.is_active == True
+            ).count()
+            if active_admin_count <= 1:
+                flash("Action blocked: Cannot deactivate the last active Administrator in the system.", "danger")
+                return redirect(url_for("admin.users_directory"))
+
+        target_user.is_active = False
+        action_name = "ACCOUNT_DEACTIVATED"
+        flash_msg = f"Account '{target_user.full_name}' has been deactivated. The user is now blocked from logging in."
+    else:
+        # Activating
+        target_user.is_active = True
+        action_name = "ACCOUNT_ACTIVATED"
+        flash_msg = f"Account '{target_user.full_name}' has been reactivated. The user can now log in."
+
+    try:
+        audit = AuditLog(
+            user_id=current_user.id if current_user else session.get("user_id"),
+            user_role=current_user.role if current_user else session.get("role"),
+            action=action_name,
+            entity_type="USER",
+            entity_id=target_user.user_id,
+            ip_address=request.remote_addr,
+            details_json=json.dumps({
+                "actor_id": current_user.id if current_user else None,
+                "target_id": target_user.id,
+                "target_user_id": target_user.id,
+                "target_user_code": target_user.user_id,
+                "target_email": target_user.email,
+                "new_status": target_user.is_active,
+                "performed_by": current_user.email if current_user else "admin",
+                "ip": request.remote_addr
+            })
+        )
+        db.session.add(audit)
+        db.session.commit()
+        flash(flash_msg, "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Failed to update account status: {str(e)}", "danger")
+
+    return redirect(url_for("admin.users_directory"))

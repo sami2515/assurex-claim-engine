@@ -30,12 +30,20 @@ claim_bp = Blueprint("claims", __name__, url_prefix="/claims")
 def customer_dashboard():
     """Customer dashboard displaying registered products, active warranties, expiring warranties, saved receipts, submitted claims, pending actions, and recent decisions."""
     user = get_current_user()
-    
-    # Automatically scan & dispatch expiry alerts for the current customer
-    if session.get("role") == Config.ROLE_CUSTOMER:
+    if not user:
+        flash("Please sign in to continue.", "warning")
+        return redirect(url_for("auth.login"))
+
+    is_elevated = user.role in [
+        Config.ROLE_ADMIN, Config.ROLE_STAFF, Config.ROLE_REVIEWER,
+        "administrator", "service_center_staff", "claim_reviewer", "Admin", "Staff", "Reviewer"
+    ]
+
+    # Automatically scan & dispatch expiry alerts for regular customer
+    if not is_elevated:
         scan_and_generate_warranty_alerts(user_id=user.id)
 
-    if session.get("role") in [Config.ROLE_ADMIN, Config.ROLE_STAFF, Config.ROLE_REVIEWER]:
+    if is_elevated:
         claims = Claim.query.order_by(Claim.created_at.desc()).all()
         products = Product.query.order_by(Product.created_at.desc()).all()
     else:
@@ -81,6 +89,9 @@ def customer_dashboard():
 def mark_notification_read(notif_id):
     """Mark a specific user alert or notification as read."""
     user = get_current_user()
+    if not user:
+        flash("Please sign in to continue.", "warning")
+        return redirect(url_for("auth.login"))
     notif = Notification.query.filter_by(id=notif_id, user_id=user.id).first_or_404()
     notif.is_read = True
     db.session.commit()
@@ -93,6 +104,9 @@ def mark_notification_read(notif_id):
 def mark_all_notifications_read():
     """Mark all unread notifications as read."""
     user = get_current_user()
+    if not user:
+        flash("Please sign in to continue.", "warning")
+        return redirect(url_for("auth.login"))
     Notification.query.filter_by(user_id=user.id, is_read=False).update({"is_read": True})
     db.session.commit()
     flash("All notification alerts marked as read.", "success")
@@ -123,7 +137,14 @@ def search_records():
     10. Date Range (start_date, end_date)
     """
     user = get_current_user()
-    role = session.get("role")
+    if not user:
+        flash("Please sign in to continue.", "warning")
+        return redirect(url_for("auth.login"))
+
+    is_elevated = user.role in [
+        Config.ROLE_ADMIN, Config.ROLE_STAFF, Config.ROLE_REVIEWER,
+        "administrator", "service_center_staff", "claim_reviewer", "Admin", "Staff", "Reviewer"
+    ]
 
     # Extract 10 Filter Parameters
     claim_id_param = request.args.get("claim_id", "").strip()
@@ -146,7 +167,7 @@ def search_records():
         .outerjoin(ModelEvaluation, Claim.id == ModelEvaluation.claim_id)
 
     # Permission Scoping: Regular customers only search their own claims
-    if role == Config.ROLE_CUSTOMER:
+    if not is_elevated:
         query = query.filter(Claim.user_id == user.id)
 
     # 1. Claim ID Filter (partial/exact)
@@ -309,12 +330,24 @@ def create_claim_wizard():
     Step 5: Automated Dual-Model Adjudication & Lifecycle Routing
     """
     user = get_current_user()
-    products = Product.query.filter_by(user_id=user.id).all() if session.get("role") == Config.ROLE_CUSTOMER else Product.query.all()
+    if not user:
+        flash("Please sign in to continue.", "warning")
+        return redirect(url_for("auth.login"))
+
+    is_elevated = user.role in [
+        Config.ROLE_ADMIN, Config.ROLE_STAFF, Config.ROLE_REVIEWER,
+        "administrator", "service_center_staff", "claim_reviewer", "Admin", "Staff", "Reviewer"
+    ]
+    is_staff_or_admin = user.role in [
+        Config.ROLE_ADMIN, Config.ROLE_STAFF,
+        "administrator", "service_center_staff", "Admin", "Staff"
+    ]
+    products = Product.query.all() if is_elevated else Product.query.filter_by(user_id=user.id).all()
 
     if request.method == "POST":
         # Data Validation - Check mandatory fields, dates, numbers, files, duplicate IDs
         is_valid, val_errors, val_warnings, cleaned_data = ClaimValidator.validate_claim_submission(
-            request.form, request.files, user_role=session.get("role")
+            request.form, request.files, user_role=user.role
         )
         if not is_valid:
             for err in val_errors:
@@ -335,9 +368,13 @@ def create_claim_wizard():
         claim_amount = cleaned_data.get("claim_amount", product.purchase_price)
 
         # Determine Claim Owner User:
-        # Customers file claims for their own assets.
+        # Customers file claims for their own assets only (IDOR prevention).
         # Service-center staff or admin filing on customer's behalf link claim directly to the product owner!
-        claim_user_id = product.user_id if session.get("role") in [Config.ROLE_STAFF, Config.ROLE_ADMIN] else user.id
+        if not is_staff_or_admin and product.user_id != user.id:
+            flash("Access denied: You can only file claims for your own registered products.", "danger")
+            return redirect(url_for("claims.intake_wizard"))
+
+        claim_user_id = product.user_id if is_staff_or_admin else user.id
 
         # Strict Warranty Verification: Block claim if product has no warranty attached
         if not product.warranty:
@@ -366,7 +403,7 @@ def create_claim_wizard():
         # Record Initial Status History
         sub_reason = (
             f"Claim dossier registered by authorized service center staff ({user.full_name}) on behalf of customer."
-            if session.get("role") == Config.ROLE_STAFF
+            if is_staff_or_admin
             else "Claim dossier submitted by claimant."
         )
         status_log = ClaimStatusHistory(
@@ -605,7 +642,7 @@ def create_claim_wizard():
             title=f"Claim Submission Confirmed: {claim.claim_id}",
             message=(
                 f"Authorized service center staff ({user.full_name}) registered warranty claim {claim.claim_id} for your {product.product_name}."
-                if session.get("role") == Config.ROLE_STAFF
+                if user.role in [Config.ROLE_STAFF, "service_center_staff", "Staff"]
                 else f"Your warranty claim {claim.claim_id} for '{product.product_name}' has been submitted and is now being processed."
             ),
             related_claim_id=claim.claim_id,
@@ -683,7 +720,7 @@ def create_claim_wizard():
         # 1. Claim Submission Audit
         audit_sub = AuditLog(
             user_id=user.id,
-            user_role=session.get("role"),
+            user_role=user.role,
             action="CLAIM_SUBMISSION",
             entity_type="Claim",
             entity_id=claim.claim_id,
@@ -699,7 +736,7 @@ def create_claim_wizard():
         # 2. Model Prediction Audit
         audit_pred = AuditLog(
             user_id=user.id,
-            user_role=session.get("role"),
+            user_role=user.role,
             action="MODEL_PREDICTION",
             entity_type="ModelEvaluation",
             entity_id=claim.claim_id,
@@ -716,7 +753,7 @@ def create_claim_wizard():
         # 3. Final Decision Audit
         audit_dec = AuditLog(
             user_id=user.id,
-            user_role=session.get("role"),
+            user_role=user.role,
             action="FINAL_DECISION",
             entity_type="Claim",
             entity_id=claim.claim_id,
@@ -814,7 +851,15 @@ def track_claim_status(claim_id):
     """
     claim = Claim.query.filter_by(claim_id=claim_id).first_or_404()
     curr_user = get_current_user()
-    if session.get("role") == Config.ROLE_CUSTOMER and curr_user and claim.user_id != curr_user.id:
+    if not curr_user:
+        flash("Please sign in to continue.", "warning")
+        return redirect(url_for("auth.login"))
+
+    is_elevated = curr_user.role in [
+        Config.ROLE_ADMIN, Config.ROLE_STAFF, Config.ROLE_REVIEWER,
+        "administrator", "service_center_staff", "claim_reviewer", "Admin", "Staff", "Reviewer"
+    ]
+    if not is_elevated and claim.user_id != curr_user.id:
         flash("Access denied: You can only track your own warranty claims.", "danger")
         return redirect(url_for("claims.customer_dashboard"))
     return render_template(
@@ -830,7 +875,15 @@ def view_claim(claim_id):
     """Full claim dossier inspection view with dual-model charts, missing documents alert, and verification."""
     claim = Claim.query.filter_by(claim_id=claim_id).first_or_404()
     curr_user = get_current_user()
-    if session.get("role") == Config.ROLE_CUSTOMER and curr_user and claim.user_id != curr_user.id:
+    if not curr_user:
+        flash("Please sign in to continue.", "warning")
+        return redirect(url_for("auth.login"))
+
+    is_elevated = curr_user.role in [
+        Config.ROLE_ADMIN, Config.ROLE_STAFF, Config.ROLE_REVIEWER,
+        "administrator", "service_center_staff", "claim_reviewer", "Admin", "Staff", "Reviewer"
+    ]
+    if not is_elevated and claim.user_id != curr_user.id:
         flash("Access denied: You can only view your own warranty claims.", "danger")
         return redirect(url_for("claims.customer_dashboard"))
     has_repairs = bool(claim.product and ((hasattr(claim.product, "repair_records") and len(claim.product.repair_records) > 0) or getattr(claim.product, "has_prior_repairs", False)))
@@ -875,10 +928,16 @@ def upload_claim_document(claim_id):
     """
     claim = Claim.query.filter_by(claim_id=claim_id).first_or_404()
     user = get_current_user()
-    role = session.get("role")
+    if not user:
+        flash("Please sign in to continue.", "warning")
+        return redirect(url_for("auth.login"))
 
     # Permission check: claimant owner, staff, or admin
-    if role not in [Config.ROLE_ADMIN, Config.ROLE_STAFF] and claim.user_id != user.id:
+    is_staff_or_admin = user.role in [
+        Config.ROLE_ADMIN, Config.ROLE_STAFF,
+        "administrator", "service_center_staff", "Admin", "Staff"
+    ]
+    if not is_staff_or_admin and claim.user_id != user.id:
         flash("Access denied: You do not have permission to attach documents to this claim.", "danger")
         return redirect(url_for("claims.view_claim", claim_id=claim.claim_id))
 
@@ -899,7 +958,7 @@ def upload_claim_document(claim_id):
         # Monitor failed uploads for anomaly detection
         audit_fail = AuditLog(
             user_id=user.id,
-            user_role=role,
+            user_role=user.role,
             action="UPLOAD_FAILED",
             entity_type="ClaimDocument",
             entity_id=claim.claim_id,
@@ -971,7 +1030,7 @@ def upload_claim_document(claim_id):
     # Log audit event
     audit = AuditLog(
         user_id=user.id,
-        user_role=role,
+        user_role=user.role,
         action="DOCUMENT_UPLOAD",
         entity_type="ClaimDocument",
         entity_id=claim_doc.document_id,
@@ -1006,7 +1065,23 @@ def correct_extracted_data(doc_id):
     Allows user/reviewer to correct OCR extracted details on an uploaded document.
     """
     user = get_current_user()
+    if not user:
+        flash("Please sign in to continue.", "warning")
+        return redirect(url_for("auth.login"))
+
     doc = ClaimDocument.query.filter_by(document_id=doc_id).first_or_404()
+
+    is_elevated = user.role in [
+        Config.ROLE_ADMIN, Config.ROLE_STAFF, Config.ROLE_REVIEWER,
+        "administrator", "service_center_staff", "claim_reviewer", "Admin", "Staff", "Reviewer"
+    ]
+    is_owner = (doc.product and doc.product.user_id == user.id) or (doc.claim and doc.claim.user_id == user.id)
+    if not is_elevated and not is_owner:
+        if request.is_json:
+            return jsonify({"success": False, "error": "Access denied"}), 403
+        flash("Access denied: You do not have permission to correct this document.", "danger")
+        return redirect(url_for("claims.customer_dashboard"))
+
     corrected_payload = request.form.to_dict() or (request.get_json(silent=True) or {})
 
     prev_data = doc.get_ocr_payload()
@@ -1016,7 +1091,7 @@ def correct_extracted_data(doc_id):
 
     audit = AuditLog(
         user_id=user.id,
-        user_role=session.get("role"),
+        user_role=user.role,
         action="EXTRACTED_DATA_CORRECTION",
         entity_type="ClaimDocument",
         entity_id=doc.document_id,
@@ -1049,7 +1124,15 @@ def view_summary_card(claim_id):
     """
     claim = Claim.query.filter_by(claim_id=claim_id).first_or_404()
     curr_user = get_current_user()
-    if session.get("role") == Config.ROLE_CUSTOMER and curr_user and claim.user_id != curr_user.id:
+    if not curr_user:
+        flash("Please sign in to continue.", "warning")
+        return redirect(url_for("auth.login"))
+
+    is_elevated = curr_user.role in [
+        Config.ROLE_ADMIN, Config.ROLE_STAFF, Config.ROLE_REVIEWER,
+        "administrator", "service_center_staff", "claim_reviewer", "Admin", "Staff", "Reviewer"
+    ]
+    if not is_elevated and claim.user_id != curr_user.id:
         flash("Access denied: You can only view summary cards for your own claims.", "danger")
         return redirect(url_for("claims.customer_dashboard"))
     upload_folder = Path(Config.UPLOAD_DIR)

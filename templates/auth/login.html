@@ -24,6 +24,7 @@
 
             <div class="card-body p-4 p-md-5">
                 <form id="loginForm" method="POST" action="{{ url_for('auth.login') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-3">
                         <label for="email" class="form-label fw-semibold small text-slate-700">Email Address</label>
                         <div class="input-group">

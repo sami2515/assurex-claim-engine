@@ -55,6 +55,33 @@ class TestPhase6Frontend(unittest.TestCase):
         self.assertEqual(res_bad.status_code, 200)
         self.assertIn(b"Invalid password", res_bad.data)
 
+        # Inactive/disabled account login check: verify disabled user cannot log in
+        with self.app.app_context():
+            test_disabled = User(
+                email="disabled_test@assurex.local",
+                full_name="Disabled User",
+                role=Config.ROLE_CUSTOMER,
+                is_active=False
+            )
+            test_disabled.set_password("DisabledPass123!")
+            db.session.add(test_disabled)
+            db.session.commit()
+
+        try:
+            disabled_client = self.app.test_client()
+            res_disabled = disabled_client.post("/login", data={"email": "disabled_test@assurex.local", "password": "DisabledPass123!"}, follow_redirects=True)
+            self.assertEqual(res_disabled.status_code, 200)
+            self.assertIn(b"Account is disabled", res_disabled.data)
+            with self.app.app_context():
+                chk = User.query.filter_by(email="disabled_test@assurex.local").first()
+                self.assertFalse(chk.is_active)
+        finally:
+            with self.app.app_context():
+                cleanup = User.query.filter_by(email="disabled_test@assurex.local").first()
+                if cleanup:
+                    db.session.delete(cleanup)
+                    db.session.commit()
+
     def test_user_profile_management(self):
         """Req 1.6.ii: Verify User Profile management renders unique User ID and updates details."""
         with self.client.session_transaction() as sess:
@@ -104,20 +131,20 @@ class TestPhase6Frontend(unittest.TestCase):
         try:
             res = self.client.post("/register", data={
                 "email": test_email,
-                "full_name": "Test Reviewer Officer",
-                "role": "Reviewer",
+                "full_name": "Test Customer User",
+                "role": "Reviewer",  # Attacker attempts role injection, should be ignored
                 "phone": "+1-800-555-9988",
                 "address": "Audit Dept #5",
-                "password": "ReviewerPass123!",
-                "confirm_password": "ReviewerPass123!"
+                "password": "CustomerPass123!",
+                "confirm_password": "CustomerPass123!"
             }, follow_redirects=True)
             self.assertEqual(res.status_code, 200)
-            self.assertIn(b"Account created successfully as Claim Reviewer", res.data)
+            self.assertIn(b"Account created successfully as Customer", res.data)
 
             with self.app.app_context():
                 created = User.query.filter_by(email=test_email).first()
                 self.assertIsNotNone(created)
-                self.assertEqual(created.role, Config.ROLE_REVIEWER)
+                self.assertEqual(created.role, Config.ROLE_CUSTOMER)
                 self.assertTrue(created.user_id.startswith("USR-"))
         finally:
             with self.app.app_context():
@@ -2457,7 +2484,7 @@ class TestPhase6Frontend(unittest.TestCase):
                 self.assertIsNotNone(status_log)
 
                 # 3. Verify Account Creation audit log exists
-                acct_log = AuditLog.query.filter(AuditLog.action.in_(["ACCOUNT_CREATION", "USER_REGISTRATION"])).first()
+                acct_log = AuditLog.query.filter(AuditLog.action.in_(["ACCOUNT_CREATED", "ACCOUNT_CREATION", "USER_REGISTRATION"])).first()
                 self.assertIsNotNone(acct_log)
 
                 # 4. Verify Product Registration audit log exists
@@ -2648,6 +2675,420 @@ class TestPhase6Frontend(unittest.TestCase):
         res_dispatch = self.client.post("/admin/anomalies/dispatch", follow_redirects=True)
         self.assertEqual(res_dispatch.status_code, 200)
         self.assertIn(b"Anomaly", res_dispatch.data)
+
+    def test_rbac_admin_user_management_and_safeguards(self):
+        """
+        Verify RBAC User Directory, Provisioning, Role Updates, Status Toggles,
+        and Lockout Safeguards (Self-Demotion, Self-Deactivation, Last Active Admin).
+        """
+        with self.app.app_context():
+            admin = User.query.filter_by(role=Config.ROLE_ADMIN, is_active=True).first()
+            self.assertIsNotNone(admin)
+            admin_id = admin.id
+
+        # 1. Non-admin (Customer) access to /admin/users is blocked
+        with self.app.app_context():
+            customer = User.query.filter_by(role=Config.ROLE_CUSTOMER).first()
+        with self.client.session_transaction() as sess:
+            sess["user_id"] = customer.id
+            sess["role"] = Config.ROLE_CUSTOMER
+            sess["email"] = customer.email
+
+        res_cust = self.client.get("/admin/users", follow_redirects=True)
+        self.assertIn(b"Unauthorized access", res_cust.data)
+
+        # 2. Authenticated Admin accesses /admin/users
+        with self.client.session_transaction() as sess:
+            sess["user_id"] = admin_id
+            sess["role"] = Config.ROLE_ADMIN
+            sess["email"] = admin.email
+
+        res_dir = self.client.get("/admin/users")
+        self.assertEqual(res_dir.status_code, 200)
+        self.assertIn(b"User Management", res_dir.data)
+        self.assertIn(b"Provision Enterprise User", res_dir.data)
+
+        # Filter by search
+        res_search = self.client.get("/admin/users?q=admin@assurex.local")
+        self.assertEqual(res_search.status_code, 200)
+        self.assertIn(b"admin@assurex.local", res_search.data)
+
+        # 3. Admin provisions a new Staff member
+        new_staff_email = "rbac_test_staff@assurex.local"
+        with self.app.app_context():
+            existing = User.query.filter_by(email=new_staff_email).first()
+            if existing:
+                db.session.delete(existing)
+                db.session.commit()
+
+        try:
+            res_prov = self.client.post("/admin/users/create", data={
+                "full_name": "RBAC Test Staff",
+                "email": new_staff_email,
+                "role": Config.ROLE_STAFF,
+                "password": "StaffSecure123!",
+                "phone": "+1-800-555-1122",
+                "address": "Repair Bay 7"
+            }, follow_redirects=True)
+            self.assertEqual(res_prov.status_code, 200)
+            self.assertIn(b"successfully provisioned", res_prov.data)
+
+            with self.app.app_context():
+                created_staff = User.query.filter_by(email=new_staff_email).first()
+                self.assertIsNotNone(created_staff)
+                self.assertEqual(created_staff.role, Config.ROLE_STAFF)
+                self.assertTrue(created_staff.is_active)
+                staff_id = created_staff.id
+
+                # Audit log verification
+                audit = AuditLog.query.filter_by(action="ACCOUNT_CREATED", entity_id=created_staff.user_id).first()
+                self.assertIsNotNone(audit)
+
+            # 4. Safeguard 1: Self-demotion is prohibited
+            res_self_demote = self.client.post(f"/admin/users/{admin_id}/role", data={
+                "role": Config.ROLE_CUSTOMER
+            }, follow_redirects=True)
+            self.assertEqual(res_self_demote.status_code, 200)
+            self.assertIn(b"Self-demotion is prohibited", res_self_demote.data)
+            with self.app.app_context():
+                chk_admin = db.session.get(User, admin_id)
+                self.assertEqual(chk_admin.role, Config.ROLE_ADMIN)
+
+            # 5. Safeguard 2: Self-deactivation is prohibited
+            res_self_deact = self.client.post(f"/admin/users/{admin_id}/toggle-status", follow_redirects=True)
+            self.assertEqual(res_self_deact.status_code, 200)
+            self.assertIn(b"Self-deactivation is prohibited", res_self_deact.data)
+            with self.app.app_context():
+                chk_admin = db.session.get(User, admin_id)
+                self.assertTrue(chk_admin.is_active)
+
+            # 6. Target role modification works
+            res_change_role = self.client.post(f"/admin/users/{staff_id}/role", data={
+                "role": Config.ROLE_REVIEWER
+            }, follow_redirects=True)
+            self.assertEqual(res_change_role.status_code, 200)
+            self.assertIn(b"successfully updated", res_change_role.data)
+            with self.app.app_context():
+                chk_staff = db.session.get(User, staff_id)
+                self.assertEqual(chk_staff.role, Config.ROLE_REVIEWER)
+
+                audit_role = AuditLog.query.filter_by(action="RBAC_ROLE_CHANGE", entity_id=chk_staff.user_id).first()
+                self.assertIsNotNone(audit_role)
+
+            # 7. Soft deactivation works
+            res_deact = self.client.post(f"/admin/users/{staff_id}/toggle-status", follow_redirects=True)
+            self.assertEqual(res_deact.status_code, 200)
+            self.assertIn(b"has been deactivated", res_deact.data)
+            with self.app.app_context():
+                chk_staff = db.session.get(User, staff_id)
+                self.assertFalse(chk_staff.is_active)
+
+                audit_deact = AuditLog.query.filter_by(action="ACCOUNT_DEACTIVATED", entity_id=chk_staff.user_id).first()
+                self.assertIsNotNone(audit_deact)
+
+            # 8. Soft reactivation works
+            res_react = self.client.post(f"/admin/users/{staff_id}/toggle-status", follow_redirects=True)
+            self.assertEqual(res_react.status_code, 200)
+            self.assertIn(b"has been reactivated", res_react.data)
+            with self.app.app_context():
+                chk_staff = db.session.get(User, staff_id)
+                self.assertTrue(chk_staff.is_active)
+
+                audit_react = AuditLog.query.filter_by(action="ACCOUNT_ACTIVATED", entity_id=chk_staff.user_id).first()
+                self.assertIsNotNone(audit_react)
+
+        finally:
+            with self.app.app_context():
+                cleanup = User.query.filter_by(email=new_staff_email).first()
+                if cleanup:
+                    db.session.delete(cleanup)
+                    db.session.commit()
+
+    def test_phase8_object_level_access_control_idor(self):
+        """Phase 8: Object-Level Access Control (IDOR) Hardening across claims, products, warranties, docs, notifications."""
+        from datetime import date, timedelta
+        from werkzeug.security import generate_password_hash
+
+        client_b = self.app.test_client()
+
+        with self.app.app_context():
+            # Setup Customer A
+            cust_a = User.query.filter_by(email="customer_a_idor@assurex.local").first()
+            if not cust_a:
+                cust_a = User(
+                    email="customer_a_idor@assurex.local",
+                    password_hash=generate_password_hash("Password123!"),
+                    full_name="Customer A IDOR",
+                    role=Config.ROLE_CUSTOMER,
+                    is_active=True
+                )
+                db.session.add(cust_a)
+                db.session.flush()
+
+            # Setup Customer B
+            cust_b = User.query.filter_by(email="customer_b_idor@assurex.local").first()
+            if not cust_b:
+                cust_b = User(
+                    email="customer_b_idor@assurex.local",
+                    password_hash=generate_password_hash("Password123!"),
+                    full_name="Customer B IDOR",
+                    role=Config.ROLE_CUSTOMER,
+                    is_active=True
+                )
+                db.session.add(cust_b)
+                db.session.flush()
+
+            # Create a test Product for Customer A
+            prod_a = Product.query.filter_by(serial_number="SN-IDOR-A-001").first()
+            if not prod_a:
+                prod_a = Product(
+                    user_id=cust_a.id,
+                    product_name="Customer A Laptop",
+                    category="Electronics",
+                    brand="Dell",
+                    model_number="XPS-15",
+                    serial_number="SN-IDOR-A-001",
+                    purchase_date=date.today() - timedelta(days=100),
+                    purchase_price=1200.0,
+                    retailer="Tech Store"
+                )
+                db.session.add(prod_a)
+                db.session.flush()
+
+            # Attach Warranty to Product A
+            policy = WarrantyPolicy.query.first()
+            warr_a = ProductWarranty.query.filter_by(product_id=prod_a.id).first()
+            if not warr_a:
+                warr_a = ProductWarranty(
+                    product_id=prod_a.id,
+                    policy_id=policy.id if policy else 1,
+                    warranty_provider="Dell Official",
+                    start_date=date.today() - timedelta(days=100),
+                    expiry_date=date.today() + timedelta(days=265),
+                    is_extended=False
+                )
+                db.session.add(warr_a)
+                db.session.flush()
+
+            # Create a Claim for Customer A
+            claim_a = Claim.query.filter_by(fault_description="Customer A Broken Screen IDOR").first()
+            if not claim_a:
+                claim_a = Claim(
+                    user_id=cust_a.id,
+                    product_id=prod_a.id,
+                    warranty_id=warr_a.id,
+                    fault_occurrence_date=date.today() - timedelta(days=10),
+                    fault_description="Customer A Broken Screen IDOR",
+                    fault_category="Screen",
+                    damage_type="Hardware",
+                    claim_submission_date=date.today(),
+                    status=Config.STATUS_SUBMITTED
+                )
+                db.session.add(claim_a)
+                db.session.flush()
+
+            # Create a Notification for Customer A
+            notif_a = Notification(
+                user_id=cust_a.id,
+                notification_type=Config.NOTIF_TYPE_CLAIM_SUBMISSION,
+                title="Customer A Private Alert",
+                message="This is confidential to Customer A."
+            )
+            db.session.add(notif_a)
+            db.session.commit()
+
+            cust_a_id = cust_a.id
+            cust_b_id = cust_b.id
+            prod_a_id = prod_a.product_id
+            prod_a_db_id = prod_a.id
+            claim_a_id = claim_a.claim_id
+            claim_a_db_id = claim_a.id
+            notif_a_id = notif_a.id
+
+        try:
+            # Login as Customer B
+            res_b_login = client_b.post("/login", data={
+                "email": "customer_b_idor@assurex.local",
+                "password": "Password123!"
+            }, follow_redirects=True)
+            self.assertEqual(res_b_login.status_code, 200)
+
+            # 1. Customer B attempts to view Customer A's Product (IDOR attack)
+            res_prod = client_b.get(f"/products/{prod_a_id}", follow_redirects=True)
+            self.assertEqual(res_prod.status_code, 200)
+            self.assertIn(b"Access denied: You can only view your own registered products", res_prod.data)
+
+            # 2. Customer B attempts to log repair on Customer A's Product
+            res_repair = client_b.post(f"/products/{prod_a_id}/repairs/new", data={
+                "repair_date": str(date.today()),
+                "repair_center": "Rogue Repair Shop",
+                "replaced_parts": "Hacked Part",
+                "outcome": "Tampered",
+                "repair_cost": "500"
+            }, follow_redirects=True)
+            self.assertEqual(res_repair.status_code, 200)
+            self.assertIn(b"You do not have authorization to log repairs for this equipment asset", res_repair.data)
+
+            # 3. Customer B attempts to view Customer A's Claim (IDOR attack)
+            res_claim = client_b.get(f"/claims/{claim_a_id}", follow_redirects=True)
+            self.assertEqual(res_claim.status_code, 200)
+            self.assertIn(b"Access denied: You can only view your own warranty claims", res_claim.data)
+
+            # 4. Customer B attempts to track Customer A's Claim
+            res_track = client_b.get(f"/claims/{claim_a_id}/track", follow_redirects=True)
+            self.assertEqual(res_track.status_code, 200)
+            self.assertIn(b"Access denied: You can only track your own warranty claims", res_track.data)
+
+            # 5. Customer B attempts to download Customer A's PDF Report
+            res_pdf = client_b.get(f"/reports/claim/{claim_a_id}/pdf", follow_redirects=True)
+            self.assertEqual(res_pdf.status_code, 200)
+            self.assertIn(b"Access denied: You can only download reports for your own warranty claims", res_pdf.data)
+
+            # 6. Customer B attempts to view Customer A's Summary Card
+            res_card = client_b.get(f"/claims/{claim_a_id}/summary-card", follow_redirects=True)
+            self.assertEqual(res_card.status_code, 200)
+            self.assertIn(b"Access denied: You can only view summary cards for your own claims", res_card.data)
+
+            # 7. Customer B attempts to upload document to Customer A's Claim
+            res_up = client_b.post(f"/claims/{claim_a_id}/documents/upload", data={}, follow_redirects=True)
+            self.assertEqual(res_up.status_code, 200)
+            self.assertIn(b"Access denied: You do not have permission to attach documents to this claim", res_up.data)
+
+            # 8. Customer B attempts to file a claim on Customer A's Product
+            res_claim_steal = client_b.post("/claims/new", data={
+                "product_id": str(prod_a_db_id),
+                "fault_occurrence_date": str(date.today() - timedelta(days=2)),
+                "fault_category": "Electrical",
+                "damage_type": "Circuit Failure",
+                "fault_description": "Attempting to claim on Customer A product"
+            }, follow_redirects=True)
+            self.assertEqual(res_claim_steal.status_code, 200)
+            self.assertIn(b"Access denied: You can only file claims for your own registered products", res_claim_steal.data)
+
+            # 9. Customer B searches claims: Customer A's claim should NOT be returned
+            res_search = client_b.get("/claims/search")
+            self.assertEqual(res_search.status_code, 200)
+            self.assertNotIn(claim_a_id.encode("utf-8"), res_search.data)
+
+            res_query = client_b.get(f"/claims/search?claim_id={claim_a_id}")
+            self.assertEqual(res_query.status_code, 200)
+            self.assertIn(b"0 Matches Found", res_query.data)
+            self.assertIn(b"No Matching Claims or Warranties Found", res_query.data)
+
+            # 10. Customer B attempts to mark Customer A's notification read (HTTP 404 isolation)
+            res_notif = client_b.post(f"/claims/notifications/{notif_a_id}/read", follow_redirects=True)
+            self.assertEqual(res_notif.status_code, 404)
+
+        finally:
+            with self.app.app_context():
+                Notification.query.filter_by(user_id=cust_a_id).delete()
+                Claim.query.filter_by(user_id=cust_a_id).delete()
+                ProductWarranty.query.filter_by(product_id=prod_a_db_id).delete()
+                Product.query.filter_by(id=prod_a_db_id).delete()
+                User.query.filter_by(id=cust_a_id).delete()
+                User.query.filter_by(id=cust_b_id).delete()
+                db.session.commit()
+
+    def test_phase9_rbac_audit_trail(self):
+        """Phase 9: Comprehensive RBAC Audit Trail Verification (ACCOUNT_CREATED, RBAC_ROLE_CHANGE, ACCOUNT_ACTIVATED, ACCOUNT_DEACTIVATED)."""
+        admin_client = self.app.test_client()
+
+        # Login as Admin
+        res_login = admin_client.post("/login", data={
+            "email": "admin@assurex.local",
+            "password": "AdminPass123!"
+        }, follow_redirects=True)
+        self.assertEqual(res_login.status_code, 200)
+
+        with self.app.app_context():
+            admin_user = User.query.filter_by(email="admin@assurex.local").first()
+            admin_id = admin_user.id
+
+        test_staff_email = "audit_staff_p9@assurex.local"
+
+        try:
+            # 1. Test Admin Provisioning triggers ACCOUNT_CREATED audit log
+            res_prov = admin_client.post("/admin/users/create", data={
+                "email": test_staff_email,
+                "full_name": "Audit Test Staff",
+                "role": "Staff",
+                "password": "TempStaffPass123!",
+                "phone": "1234567890",
+                "address": "Service Center 101"
+            }, follow_redirects=True)
+            self.assertEqual(res_prov.status_code, 200)
+
+            with self.app.app_context():
+                target_user = User.query.filter_by(email=test_staff_email).first()
+                self.assertIsNotNone(target_user)
+                target_id = target_user.id
+                target_code = target_user.user_id
+
+                audit_create = AuditLog.query.filter_by(action="ACCOUNT_CREATED", entity_id=target_code).first()
+                self.assertIsNotNone(audit_create)
+                self.assertEqual(audit_create.user_id, admin_id)
+                self.assertEqual(audit_create.user_role, Config.ROLE_ADMIN)
+                self.assertEqual(audit_create.entity_type, "USER")
+                details = json.loads(audit_create.details_json)
+                self.assertEqual(details["actor_id"], admin_id)
+                self.assertEqual(details["target_id"], target_id)
+                self.assertEqual(details["assigned_role"], Config.ROLE_STAFF)
+                self.assertIn("ip", details)
+
+            # 2. Test Role Change triggers RBAC_ROLE_CHANGE audit log
+            res_role = admin_client.post(f"/admin/users/{target_id}/role", data={
+                "role": "Reviewer"
+            }, follow_redirects=True)
+            self.assertEqual(res_role.status_code, 200)
+
+            with self.app.app_context():
+                audit_role = AuditLog.query.filter_by(action="RBAC_ROLE_CHANGE", entity_id=target_code).first()
+                self.assertIsNotNone(audit_role)
+                self.assertEqual(audit_role.user_id, admin_id)
+                self.assertEqual(audit_role.user_role, Config.ROLE_ADMIN)
+                self.assertEqual(audit_role.entity_type, "USER")
+                details_role = json.loads(audit_role.details_json)
+                self.assertEqual(details_role["actor_id"], admin_id)
+                self.assertEqual(details_role["target_id"], target_id)
+                self.assertEqual(details_role["old_role"], Config.ROLE_STAFF)
+                self.assertEqual(details_role["new_role"], Config.ROLE_REVIEWER)
+                self.assertIn("ip", details_role)
+
+            # 3. Test Deactivation triggers ACCOUNT_DEACTIVATED audit log
+            res_deact = admin_client.post(f"/admin/users/{target_id}/toggle-status", follow_redirects=True)
+            self.assertEqual(res_deact.status_code, 200)
+
+            with self.app.app_context():
+                audit_deact = AuditLog.query.filter_by(action="ACCOUNT_DEACTIVATED", entity_id=target_code).first()
+                self.assertIsNotNone(audit_deact)
+                self.assertEqual(audit_deact.user_id, admin_id)
+                details_deact = json.loads(audit_deact.details_json)
+                self.assertEqual(details_deact["actor_id"], admin_id)
+                self.assertEqual(details_deact["target_id"], target_id)
+                self.assertFalse(details_deact["new_status"])
+                self.assertIn("ip", details_deact)
+
+            # 4. Test Reactivation triggers ACCOUNT_ACTIVATED audit log
+            res_act = admin_client.post(f"/admin/users/{target_id}/toggle-status", follow_redirects=True)
+            self.assertEqual(res_act.status_code, 200)
+
+            with self.app.app_context():
+                audit_act = AuditLog.query.filter_by(action="ACCOUNT_ACTIVATED", entity_id=target_code).first()
+                self.assertIsNotNone(audit_act)
+                self.assertEqual(audit_act.user_id, admin_id)
+                details_act = json.loads(audit_act.details_json)
+                self.assertEqual(details_act["actor_id"], admin_id)
+                self.assertEqual(details_act["target_id"], target_id)
+                self.assertTrue(details_act["new_status"])
+                self.assertIn("ip", details_act)
+
+        finally:
+            with self.app.app_context():
+                cleanup = User.query.filter_by(email=test_staff_email).first()
+                if cleanup:
+                    AuditLog.query.filter_by(entity_id=cleanup.user_id).delete()
+                    db.session.delete(cleanup)
+                    db.session.commit()
 
 
 if __name__ == "__main__":

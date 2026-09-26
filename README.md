@@ -70,10 +70,35 @@ The system handles fraud detection, OCR receipt extraction, SHA-256 document has
 
 | Role | Email | Password | Access Scope |
 |:---|:---|:---|:---|
-| **System Administrator** | `admin@assurex.local` | `AdminPass123!` | Admin Portal, Policies Editor, Analytics, Audit Logs |
-| **Claims Reviewer** | `reviewer@assurex.local` | `ReviewerPass123!` | Reviewer Queue, Adjudication Workbench, Overrides |
-| **Customer / Claimant** | `customer@assurex.local` | `CustomerPass123!` | Customer Portal, Product Fleet, Intake Wizard |
+| **System Administrator** | `admin@assurex.local` | `AdminPass123!` | Admin Portal, User Management (RBAC), Policies, Analytics, Audit Trail |
+| **Claims Reviewer** | `reviewer@assurex.local` | `ReviewerPass123!` | Reviewer Queue, Claim Inspection, Adjudication Decision Overrides |
+| **Customer / Claimant** | `customer@assurex.local` | `CustomerPass123!` | Customer Portal, Product Fleet, Intake Wizard, Tracking |
 | **Service Center Staff** | `staff@assurex.local` | `StaffPass123!` | Service Hub Maintenance Records, Repair Logging |
+
+---
+
+## Role-Based Access Control (RBAC) & Security Architecture
+
+AssureX Claim Engine enforces an enterprise-grade, defense-in-depth Role-Based Access Control (RBAC) framework strictly compliant with **Aptech SRS Sections 1.6.i, 1.6.ii, 1.6.xlvii (Audit Trail), and 1.6.l (Monitoring & Anomaly Alerts)**.
+
+### Canonical Roles & Privileges
+1. **`administrator`** (`Config.ROLE_ADMIN`): Full governance over user accounts (`/admin/users`), policy configurations, system thresholds, analytics, and immutable audit logs.
+2. **`claim_reviewer`** (`Config.ROLE_REVIEWER`): Specialized adjudication access to the manual review queue, forensic evidence review, and decision overrides (`/reviewer/`).
+3. **`service_center_staff`** (`Config.ROLE_STAFF`): Technical service hub operations, repair record creation, and authorized service center updates.
+4. **`customer`** (`Config.ROLE_CUSTOMER`): Restricted self-service portal for product registration, claim intake wizard, status tracking, and personal document management.
+
+### Security Invariants & Defensive Controls
+- **Deterministic Public Registration**: Public `/register` deterministically provisions accounts with `customer` role only. Any client-submitted role parameters or form injections are completely ignored.
+- **Enterprise Account Provisioning**: Elevated accounts (`staff`, `reviewer`, `administrator`) can exclusively be provisioned by authenticated Administrators via `/admin/users/create`.
+- **Database-Backed Single Source of Truth**: Route authorization `@role_required` and `@login_required` resolve fresh user identity, role, and active status directly from the database on every HTTP request. Session cookie tampering is completely rejected.
+- **Account Deactivation & Lockout Defense**: Deactivated accounts (`is_active = False`) are strictly blocked from logging in with zero auto-reactivation loopholes. Active sessions for deactivated accounts are terminated immediately.
+- **Administrative Lockout Safeguards**:
+  - *Self-Demotion Blocked*: Administrators cannot remove their own administrator privileges.
+  - *Self-Deactivation Blocked*: Administrators cannot deactivate their own active accounts.
+  - *Last Active Administrator Protection*: Demoting or deactivating the last remaining active administrator is strictly prohibited (`active_admins > 1` invariant).
+- **Object-Level Access Control (IDOR Isolation)**: Multi-tenant tenant boundaries are enforced across all resources. Customers cannot view, modify, or download claims, products, repair records, documents, or PDF certificates belonging to other claimants.
+- **Cross-Site Request Forgery (CSRF) Protection**: Cryptographically secure CSRF tokens validate all state-changing `POST`, `PUT`, `DELETE`, and `PATCH` requests.
+- **Immutable Audit Logging**: All security-critical lifecycle events (`ACCOUNT_CREATED`, `RBAC_ROLE_CHANGE`, `ACCOUNT_ACTIVATED`, `ACCOUNT_DEACTIVATED`, `USER_LOGIN_SUCCESS`, `LOGIN_FAILED`, `USER_LOGOUT`) are permanently recorded in `AuditLog` with actor ID, target entity, role transitions, client IP, and timestamps.
 
 ---
 
@@ -112,8 +137,11 @@ Open **`http://127.0.0.1:5000`** in your browser.
 ## Test Suite
 
 ```bash
-# Run full test suite
+# Run full test suite (109 tests)
 python -m unittest discover -s tests
+
+# Run dedicated RBAC security, CSRF & IDOR suite (24 tests)
+python -m unittest tests/test_rbac_security.py
 
 # Run SRS test categories
 python -m unittest tests/test_srs_18_categories.py

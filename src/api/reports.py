@@ -1,4 +1,4 @@
-from flask import Blueprint, send_file, flash, redirect, url_for, Response, session
+from flask import Blueprint, send_file, flash, redirect, url_for, Response
 from config.config import Config
 from src.models.entities import Claim
 from src.api.auth import login_required, get_current_user
@@ -15,7 +15,15 @@ def download_claim_pdf(claim_id):
     """
     claim = Claim.query.filter_by(claim_id=claim_id).first_or_404()
     curr_user = get_current_user()
-    if session.get("role") == Config.ROLE_CUSTOMER and curr_user and claim.user_id != curr_user.id:
+    if not curr_user:
+        flash("Please sign in to continue.", "warning")
+        return redirect(url_for("auth.login"))
+
+    is_elevated = curr_user.role in [
+        Config.ROLE_ADMIN, Config.ROLE_REVIEWER, Config.ROLE_STAFF,
+        "administrator", "claim_reviewer", "service_center_staff", "Admin", "Reviewer", "Staff"
+    ]
+    if not is_elevated and claim.user_id != curr_user.id:
         flash("Access denied: You can only download reports for your own warranty claims.", "danger")
         return redirect(url_for("claims.customer_dashboard"))
     pdf_generator = get_pdf_generator()

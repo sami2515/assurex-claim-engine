@@ -13,7 +13,7 @@ from database.db import init_db, db
 from src.models.entities import User
 
 # Import Blueprints
-from src.api.auth import auth_bp, get_current_user
+from src.api.auth import auth_bp, get_current_user, generate_csrf_token
 from src.api.products import product_bp
 from src.api.claims import claim_bp
 from src.api.reviewer import reviewer_bp
@@ -48,6 +48,7 @@ def create_app(config_class=Config):
     def inject_global_vars():
         return {
             "current_user": get_current_user(),
+            "csrf_token": generate_csrf_token,
             "app_config": Config,
             "claim_classes": Config.ALL_CLAIM_CLASSES,
             "consistency_statuses": Config.ALL_CONSISTENCY_STATUSES,

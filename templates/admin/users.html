@@ -1,0 +1,350 @@
+{% extends "components/base.html" %}
+
+{% block title %}User Management & Access Control (RBAC){% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+    <div>
+        <h2 class="fw-bold text-slate-900 mb-1">User Management &amp; Access Control (RBAC)</h2>
+        <p class="text-muted mb-0">Provision enterprise accounts, manage user access levels, and configure account statuses</p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left"></i> Back to Dashboard
+        </a>
+        <button type="button" class="btn btn-primary btn-sm d-inline-flex align-items-center gap-1 shadow-sm" data-bs-toggle="modal" data-bs-target="#provisionUserModal">
+            <i class="bi bi-person-plus-fill"></i> Provision Enterprise User
+        </button>
+    </div>
+</div>
+
+<!-- Stats Row -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 bg-white p-3">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <span class="text-muted extra-small text-uppercase fw-semibold">Total Accounts</span>
+                    <h3 class="fw-bold text-slate-900 mb-0 mt-1">{{ total_users_count }}</h3>
+                </div>
+                <div class="bg-primary-subtle text-primary p-3 rounded-circle">
+                    <i class="bi bi-people-fill fs-5"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 bg-white p-3">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <span class="text-muted extra-small text-uppercase fw-semibold">Customers</span>
+                    <h3 class="fw-bold text-success mb-0 mt-1">{{ customer_count }}</h3>
+                </div>
+                <div class="bg-success-subtle text-success p-3 rounded-circle">
+                    <i class="bi bi-person-circle fs-5"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 bg-white p-3">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <span class="text-muted extra-small text-uppercase fw-semibold">Staff &amp; Reviewers</span>
+                    <h3 class="fw-bold text-warning mb-0 mt-1">{{ staff_count + reviewer_count }}</h3>
+                </div>
+                <div class="bg-warning-subtle text-warning p-3 rounded-circle">
+                    <i class="bi bi-shield-check fs-5"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm rounded-4 bg-white p-3">
+            <div class="d-flex align-items-center justify-content-between">
+                <div>
+                    <span class="text-muted extra-small text-uppercase fw-semibold">Active Admins</span>
+                    <h3 class="fw-bold text-primary mb-0 mt-1">{{ active_admin_count }}</h3>
+                </div>
+                <div class="bg-danger-subtle text-danger p-3 rounded-circle">
+                    <i class="bi bi-shield-lock-fill fs-5"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Search & Filter Console -->
+<div class="card border-0 shadow-sm rounded-4 bg-white mb-4">
+    <div class="card-body p-3 p-md-4">
+        <form method="GET" action="{{ url_for('admin.users_directory') }}" class="row g-3 align-items-end">
+            <div class="col-md-5">
+                <label for="searchQuery" class="form-label fw-semibold small text-slate-700">Search Users</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control bg-light border-start-0" id="searchQuery" name="q" value="{{ q }}" placeholder="Search by name, email, or user ID...">
+                </div>
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <label for="roleFilter" class="form-label fw-semibold small text-slate-700">Role Filter</label>
+                <select class="form-select bg-light" id="roleFilter" name="role">
+                    <option value="all" {% if not role_filter or role_filter == 'all' %}selected{% endif %}>All Roles</option>
+                    {% for ro in role_options %}
+                        <option value="{{ ro.val }}" {% if role_filter == ro.val %}selected{% endif %}>{{ ro.label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-sm-6 col-md-2">
+                <label for="statusFilter" class="form-label fw-semibold small text-slate-700">Status</label>
+                <select class="form-select bg-light" id="statusFilter" name="status">
+                    <option value="all" {% if not status_filter or status_filter == 'all' %}selected{% endif %}>All Statuses</option>
+                    <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active Only</option>
+                    <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Disabled Only</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex gap-2">
+                <button type="submit" class="btn btn-primary w-100 fw-semibold">
+                    <i class="bi bi-funnel-fill"></i> Filter
+                </button>
+                {% if q or (role_filter and role_filter != 'all') or (status_filter and status_filter != 'all') %}
+                    <a href="{{ url_for('admin.users_directory') }}" class="btn btn-outline-secondary" title="Reset Filters">
+                        <i class="bi bi-arrow-counterclockwise"></i>
+                    </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Users Table Card -->
+<div class="card border-0 shadow-sm rounded-4 bg-white">
+    <div class="card-header-styled d-flex justify-content-between align-items-center">
+        <span class="fw-bold text-slate-900"><i class="bi bi-person-lines-fill text-primary me-2"></i>User Accounts Directory</span>
+        <span class="badge bg-light text-secondary border font-mono">Found {{ users|length }} Records</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-custom align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>User ID</th>
+                    <th>Full Name &amp; Contact</th>
+                    <th>Assigned Role</th>
+                    <th>Account Status</th>
+                    <th>Joined</th>
+                    <th class="text-end">RBAC Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if users %}
+                    {% for u in users %}
+                        <tr>
+                            <td class="font-mono extra-small fw-semibold text-primary">{{ u.user_id }}</td>
+                            <td>
+                                <div class="fw-bold text-slate-900 small">{{ u.full_name }}</div>
+                                <div class="extra-small text-muted">{{ u.email }}</div>
+                                {% if u.phone_number %}
+                                    <div class="extra-small text-muted font-mono"><i class="bi bi-telephone me-1"></i>{{ u.phone_number }}</div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if u.role in ['Admin', 'administrator'] %}
+                                    <span class="badge bg-primary px-2.5 py-1.5"><i class="bi bi-shield-lock-fill me-1"></i>Administrator</span>
+                                {% elif u.role in ['Reviewer', 'claim_reviewer'] %}
+                                    <span class="badge bg-dark px-2.5 py-1.5"><i class="bi bi-shield-check me-1"></i>Claim Reviewer</span>
+                                {% elif u.role in ['Staff', 'service_center_staff'] %}
+                                    <span class="badge bg-secondary px-2.5 py-1.5"><i class="bi bi-tools me-1"></i>Service Staff</span>
+                                {% else %}
+                                    <span class="badge bg-success px-2.5 py-1.5"><i class="bi bi-person-fill me-1"></i>Customer</span>
+                                {% endif %}
+                                {% if current_user and current_user.id == u.id %}
+                                    <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle extra-small ms-1">You</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if u.is_active %}
+                                    <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                                        <i class="bi bi-check-circle-fill me-1"></i>Active
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1">
+                                        <i class="bi bi-slash-circle-fill me-1"></i>Disabled
+                                    </span>
+                                {% endif %}
+                            </td>
+                            <td class="extra-small text-muted font-mono">
+                                {{ u.created_at.strftime('%Y-%m-%d') if u.created_at else 'N/A' }}
+                            </td>
+                            <td class="text-end">
+                                <div class="btn-group btn-group-sm">
+                                    <!-- Role Change Trigger -->
+                                    <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#changeRoleModal{{ u.id }}" {% if current_user and current_user.id == u.id %}title="Cannot change your own role"{% endif %}>
+                                        <i class="bi bi-person-gear"></i> Role
+                                    </button>
+
+                                    <!-- Status Toggle Form -->
+                                    <form method="POST" action="{{ url_for('admin.toggle_user_status', user_id=u.id) }}" class="d-inline" onsubmit="return confirm('{% if u.is_active %}Are you sure you want to deactivate {{ u.full_name }}? They will no longer be able to log in.{% else %}Reactivate {{ u.full_name }}?{% endif %}');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        {% if u.is_active %}
+                                            {% if current_user and current_user.id == u.id %}
+                                                <button type="button" class="btn btn-outline-secondary btn-sm" disabled title="Self-deactivation is prohibited">
+                                                    <i class="bi bi-slash-circle"></i>
+                                                </button>
+                                            {% elif u.role in ['Admin', 'administrator'] and active_admin_count <= 1 %}
+                                                <button type="button" class="btn btn-outline-secondary btn-sm" disabled title="Cannot deactivate the last active administrator">
+                                                    <i class="bi bi-slash-circle"></i>
+                                                </button>
+                                            {% else %}
+                                                <button type="submit" class="btn btn-outline-danger btn-sm" title="Deactivate User">
+                                                    <i class="bi bi-slash-circle"></i>
+                                                </button>
+                                            {% endif %}
+                                        {% else %}
+                                            <button type="submit" class="btn btn-outline-success btn-sm" title="Reactivate User">
+                                                <i class="bi bi-arrow-repeat"></i>
+                                            </button>
+                                        {% endif %}
+                                    </form>
+                                </div>
+
+                                <!-- Change Role Modal for User {{ u.id }} -->
+                                <div class="modal fade text-start" id="changeRoleModal{{ u.id }}" tabindex="-1" aria-labelledby="changeRoleLabel{{ u.id }}" aria-hidden="true">
+                                    <div class="modal-dialog modal-dialog-centered">
+                                        <div class="modal-content border-0 shadow-lg rounded-4">
+                                            <form method="POST" action="{{ url_for('admin.update_user_role', user_id=u.id) }}">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <div class="modal-header border-bottom border-light-subtle">
+                                                    <h5 class="modal-title fw-bold text-slate-900" id="changeRoleLabel{{ u.id }}">
+                                                        <i class="bi bi-person-gear text-primary me-2"></i>Change User Role
+                                                    </h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                </div>
+                                                <div class="modal-body p-4">
+                                                    <div class="mb-3">
+                                                        <label class="form-label small text-muted mb-1">Target Account</label>
+                                                        <div class="p-2.5 bg-light rounded-3">
+                                                            <div class="fw-bold text-slate-900">{{ u.full_name }}</div>
+                                                            <div class="small text-muted font-mono">{{ u.email }} &bull; {{ u.user_id }}</div>
+                                                        </div>
+                                                    </div>
+
+                                                    {% if current_user and current_user.id == u.id %}
+                                                        <div class="alert alert-warning border-0 small mb-3">
+                                                            <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                                                            You are viewing your own account. Self-demotion from Administrator is strictly prohibited.
+                                                        </div>
+                                                    {% elif u.role in ['Admin', 'administrator'] and active_admin_count <= 1 %}
+                                                        <div class="alert alert-warning border-0 small mb-3">
+                                                            <i class="bi bi-shield-exclamation me-1"></i>
+                                                            This is the <strong>last active Administrator</strong> in the system. Role demotion is blocked until another administrator is provisioned.
+                                                        </div>
+                                                    {% endif %}
+
+                                                    <div class="mb-3">
+                                                        <label for="roleSelect{{ u.id }}" class="form-label fw-semibold small text-slate-700">Select New Role <span class="text-danger">*</span></label>
+                                                        <select class="form-select bg-light" id="roleSelect{{ u.id }}" name="role" required>
+                                                            {% for ro in role_options %}
+                                                                {% set is_selected = (u.role == ro.val) or (u.role in ['Admin', 'administrator'] and ro.val in ['Admin', 'administrator']) or (u.role in ['Reviewer', 'claim_reviewer'] and ro.val in ['Reviewer', 'claim_reviewer']) or (u.role in ['Staff', 'service_center_staff'] and ro.val in ['Staff', 'service_center_staff']) or (u.role in ['Customer', 'customer'] and ro.val in ['Customer', 'customer']) %}
+                                                                <option value="{{ ro.val }}" {% if is_selected %}selected{% endif %}>
+                                                                    {{ ro.label }} {% if is_selected %}(Current Role){% endif %}
+                                                                </option>
+                                                            {% endfor %}
+                                                        </select>
+                                                    </div>
+
+                                                    <p class="text-muted extra-small mb-0">
+                                                        <i class="bi bi-info-circle me-1"></i> Role modifications take effect immediately across all active sessions and are recorded in the immutable audit trail.
+                                                    </p>
+                                                </div>
+                                                <div class="modal-footer border-top border-light-subtle">
+                                                    <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Cancel</button>
+                                                    <button type="submit" class="btn btn-primary btn-sm fw-semibold">
+                                                        <i class="bi bi-check2"></i> Save Role
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center py-5 text-muted">
+                            <i class="bi bi-people display-6 text-muted d-block mb-2"></i>
+                            <div class="fw-semibold">No user accounts found</div>
+                            <div class="extra-small">Try clearing search filters or provision a new user.</div>
+                        </td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Provision Enterprise User Modal -->
+<div class="modal fade" id="provisionUserModal" tabindex="-1" aria-labelledby="provisionUserLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg rounded-4">
+            <form method="POST" action="{{ url_for('admin.create_user') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header border-bottom border-light-subtle p-4">
+                    <div>
+                        <h5 class="modal-title fw-bold text-slate-900" id="provisionUserLabel">
+                            <i class="bi bi-person-plus-fill text-primary me-2"></i>Provision Enterprise User
+                        </h5>
+                        <p class="text-muted extra-small mb-0">Create an authenticated enterprise account with designated role-based privileges</p>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="modalFullName" class="form-label fw-semibold small text-slate-700">Full Legal Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control bg-light" id="modalFullName" name="full_name" required placeholder="e.g. Sarah Jenkins">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="modalEmail" class="form-label fw-semibold small text-slate-700">Email Address <span class="text-danger">*</span></label>
+                            <input type="email" class="form-control bg-light" id="modalEmail" name="email" required placeholder="sarah.j@assurex.local">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="modalRole" class="form-label fw-semibold small text-slate-700">Designated Role &amp; Access Level <span class="text-danger">*</span></label>
+                            <select class="form-select bg-light" id="modalRole" name="role" required>
+                                {% for ro in role_options %}
+                                    <option value="{{ ro.val }}" {% if ro.val == 'service_center_staff' %}selected{% endif %}>
+                                        {{ ro.label }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="modalPassword" class="form-label fw-semibold small text-slate-700">Initial Password <span class="text-danger">*</span></label>
+                            <input type="password" class="form-control bg-light" id="modalPassword" name="password" required minlength="8" placeholder="Minimum 8 characters">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="modalPhone" class="form-label fw-semibold small text-slate-700">Phone Number</label>
+                            <input type="tel" class="form-control bg-light" id="modalPhone" name="phone" placeholder="+1-800-555-0199">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="modalAddress" class="form-label fw-semibold small text-slate-700">Office / Facility Address</label>
+                            <input type="text" class="form-control bg-light" id="modalAddress" name="address" placeholder="Service Center Bay #2">
+                        </div>
+                    </div>
+                    <div class="alert alert-info border-0 bg-primary-subtle text-primary-emphasis d-flex align-items-center gap-2 p-3 mt-4 mb-0 rounded-3 small">
+                        <i class="bi bi-shield-check fs-5 text-primary flex-shrink-0"></i>
+                        <div>
+                            Enterprise accounts are initialized as active immediately upon provisioning. The creation event and assigned role are recorded in the audit log.
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-top border-light-subtle p-3">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary fw-semibold px-4">
+                        <i class="bi bi-person-check-fill me-1"></i> Provision Account
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

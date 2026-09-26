@@ -22,10 +22,14 @@ def list_products():
     user = get_current_user()
     status_filter = (request.args.get("status") or request.args.get("tab") or "all").strip().lower()
 
-    if session.get("role") in [Config.ROLE_ADMIN, Config.ROLE_STAFF, Config.ROLE_REVIEWER]:
+    is_elevated = user and user.role in [
+        Config.ROLE_ADMIN, Config.ROLE_STAFF, Config.ROLE_REVIEWER,
+        "administrator", "service_center_staff", "claim_reviewer", "Admin", "Staff", "Reviewer"
+    ]
+    if is_elevated:
         query = Product.query
     else:
-        query = Product.query.filter_by(user_id=user.id)
+        query = Product.query.filter_by(user_id=user.id if user else None)
 
     all_products = query.order_by(Product.created_at.desc()).all()
 
@@ -227,7 +231,7 @@ def register_product():
         # Record Audit Log
         audit = AuditLog(
             user_id=user.id,
-            user_role=session.get("role"),
+            user_role=user.role if user else None,
             action="PRODUCT_REGISTRATION",
             entity_type="PRODUCT",
             entity_id=product.product_id,
@@ -474,16 +478,21 @@ def download_document(document_id):
     if not doc:
         from flask import abort
         abort(404)
-    user_id = session.get("user_id")
-    user_role = session.get("role")
+    user = get_current_user()
+    if not user:
+        flash("Please sign in to continue.", "warning")
+        return redirect(url_for("auth.login"))
 
     # Access control verification
     is_authorized = False
-    if user_role in [Config.ROLE_ADMIN, Config.ROLE_REVIEWER, Config.ROLE_STAFF]:
+    if user.role in [
+        Config.ROLE_ADMIN, Config.ROLE_REVIEWER, Config.ROLE_STAFF,
+        "administrator", "claim_reviewer", "service_center_staff", "Admin", "Reviewer", "Staff"
+    ]:
         is_authorized = True
-    elif doc.product and doc.product.user_id == user_id:
+    elif doc.product and doc.product.user_id == user.id:
         is_authorized = True
-    elif doc.claim and doc.claim.user_id == user_id:
+    elif doc.claim and doc.claim.user_id == user.id:
         is_authorized = True
 
     if not is_authorized:
@@ -526,16 +535,21 @@ def replace_document(document_id):
     with an updated version, recalculating checksum, file size, and re-running OCR extraction.
     """
     doc = ClaimDocument.query.filter_by(document_id=document_id).first_or_404()
-    user_id = session.get("user_id")
-    user_role = session.get("role")
+    user = get_current_user()
+    if not user:
+        flash("Please sign in to continue.", "warning")
+        return redirect(url_for("auth.login"))
 
     # Access control verification
     is_authorized = False
-    if user_role in [Config.ROLE_ADMIN, Config.ROLE_STAFF]:
+    if user.role in [
+        Config.ROLE_ADMIN, Config.ROLE_STAFF,
+        "administrator", "service_center_staff", "Admin", "Staff"
+    ]:
         is_authorized = True
-    elif doc.product and doc.product.user_id == user_id:
+    elif doc.product and doc.product.user_id == user.id:
         is_authorized = True
-    elif doc.claim and doc.claim.user_id == user_id:
+    elif doc.claim and doc.claim.user_id == user.id:
         if doc.claim.status not in [Config.STATUS_APPROVED, Config.STATUS_REJECTED]:
             is_authorized = True
         else:
@@ -596,8 +610,8 @@ def replace_document(document_id):
         doc.ocr_data_json = json.dumps(doc_info.get("entities", {}))
 
     audit = AuditLog(
-        user_id=user_id,
-        user_role=user_role,
+        user_id=user.id,
+        user_role=user.role,
         action="DOCUMENT_REPLACED",
         entity_type="CLAIM_DOCUMENT",
         entity_id=doc.document_id,
@@ -624,16 +638,21 @@ def delete_document(document_id):
     according to their access rights.
     """
     doc = ClaimDocument.query.filter_by(document_id=document_id).first_or_404()
-    user_id = session.get("user_id")
-    user_role = session.get("role")
+    user = get_current_user()
+    if not user:
+        flash("Please sign in to continue.", "warning")
+        return redirect(url_for("auth.login"))
 
     # Access control verification
     is_authorized = False
-    if user_role in [Config.ROLE_ADMIN, Config.ROLE_STAFF]:
+    if user.role in [
+        Config.ROLE_ADMIN, Config.ROLE_STAFF,
+        "administrator", "service_center_staff", "Admin", "Staff"
+    ]:
         is_authorized = True
-    elif doc.product and doc.product.user_id == user_id:
+    elif doc.product and doc.product.user_id == user.id:
         is_authorized = True
-    elif doc.claim and doc.claim.user_id == user_id:
+    elif doc.claim and doc.claim.user_id == user.id:
         if doc.claim.status not in [Config.STATUS_APPROVED, Config.STATUS_REJECTED]:
             is_authorized = True
         else:
@@ -656,8 +675,8 @@ def delete_document(document_id):
     doc_id_val = doc.document_id
 
     audit = AuditLog(
-        user_id=user_id,
-        user_role=user_role,
+        user_id=user.id,
+        user_role=user.role,
         action="DOCUMENT_REMOVED",
         entity_type="CLAIM_DOCUMENT",
         entity_id=doc_id_val,
@@ -682,7 +701,15 @@ def view_product(product_id):
     """
     product = Product.query.filter_by(product_id=product_id).first_or_404()
     curr_user = get_current_user()
-    if session.get("role") == Config.ROLE_CUSTOMER and curr_user and product.user_id != curr_user.id:
+    if not curr_user:
+        flash("Please sign in to continue.", "warning")
+        return redirect(url_for("auth.login"))
+
+    is_elevated = curr_user.role in [
+        Config.ROLE_ADMIN, Config.ROLE_STAFF, Config.ROLE_REVIEWER,
+        "administrator", "service_center_staff", "claim_reviewer", "Admin", "Staff", "Reviewer"
+    ]
+    if not is_elevated and product.user_id != curr_user.id:
         flash("Access denied: You can only view your own registered products.", "danger")
         return redirect(url_for("products.list_products"))
     policy_rules = product.warranty.policy.get_rules() if product.warranty and product.warranty.policy else {}
@@ -698,10 +725,17 @@ def add_repair_record(product_id):
     repair costs, and whether each repair was completed by an authorized or unauthorized service center.
     """
     user = get_current_user()
+    if not user:
+        flash("Please sign in to continue.", "warning")
+        return redirect(url_for("auth.login"))
     product = Product.query.filter_by(product_id=product_id).first_or_404()
 
     # Permission check: owner, service center staff, or administrator
-    if session.get("role") not in [Config.ROLE_ADMIN, Config.ROLE_STAFF] and product.user_id != user.id:
+    is_staff_or_admin = user.role in [
+        Config.ROLE_ADMIN, Config.ROLE_STAFF,
+        "administrator", "service_center_staff", "Admin", "Staff"
+    ]
+    if not is_staff_or_admin and product.user_id != user.id:
         flash("You do not have authorization to log repairs for this equipment asset.", "danger")
         return redirect(url_for("products.view_product", product_id=product.product_id))
 
@@ -749,7 +783,7 @@ def add_repair_record(product_id):
     AuditLog.log_event(
         action="REPAIR_RECORDED",
         user_id=user.id,
-        user_role=session.get("role"),
+        user_role=user.role,
         entity_type="Product",
         entity_id=product.product_id,
         details={

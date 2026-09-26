@@ -192,7 +192,7 @@ def adjudicate(claim_id):
     # System Audit
     audit = AuditLog(
         user_id=user.id,
-        user_role=session.get("role"),
+        user_role=user.role,
         action="REVIEWER_ADJUDICATION",
         entity_type="Claim",
         entity_id=claim.claim_id,
@@ -209,7 +209,7 @@ def adjudicate(claim_id):
     if new_status in [Config.STATUS_APPROVED, Config.STATUS_REJECTED]:
         final_audit = AuditLog(
             user_id=user.id,
-            user_role=session.get("role"),
+            user_role=user.role,
             action="FINAL_DECISION",
             entity_type="Claim",
             entity_id=claim.claim_id,
