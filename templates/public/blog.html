@@ -77,6 +77,29 @@
         background-color: #e9ecef;
         color: #0d6efd;
     }
+    .btn-copy-article {
+        background-color: #ffffff;
+        border: 1px solid #cbd5e1;
+        color: #334155;
+        font-weight: 500;
+        transition: all 0.2s ease-in-out;
+    }
+    .btn-copy-article:hover {
+        background-color: #0f172a !important;
+        border-color: #0f172a !important;
+        color: #ffffff !important;
+    }
+    .btn-copy-article:hover * {
+        color: #ffffff !important;
+    }
+    .btn-copy-article.copied {
+        background-color: #10b981 !important;
+        border-color: #10b981 !important;
+        color: #ffffff !important;
+    }
+    .btn-copy-article.copied * {
+        color: #ffffff !important;
+    }
 </style>
 <!-- Marked.js for fast, clean, standard Markdown rendering -->
 <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
@@ -136,8 +159,8 @@
                     </svg>
                     <span>Read on Medium &nearr;</span>
                 </a>
-                <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-3 py-1 d-inline-flex align-items-center gap-1 border-light-subtle text-secondary" onclick="copyMarkdownToClipboard()">
-                    <i class="bi bi-clipboard"></i> <span id="copyBtnText">Copy Markdown</span>
+                <button type="button" id="copyArticleBtn" class="btn btn-copy-article btn-sm rounded-pill px-3 py-1 d-inline-flex align-items-center gap-1 shadow-xs" onclick="copyArticleToClipboard()">
+                    <i class="bi bi-clipboard" id="copyBtnIcon"></i> <span id="copyBtnText">Copy Article</span>
                 </button>
             </div>
         </div>
@@ -187,10 +210,13 @@
                         <div class="fw-bold text-dark small mb-1">Published on Medium &middot; Technical Whitepaper</div>
                         <div class="extra-small text-muted">Authored by Sami Khan &amp; AssureX Engineering Team.</div>
                     </div>
-                    <div class="d-flex gap-2">
+                    <div class="d-flex flex-wrap gap-2">
                         <a href="https://medium.com/@samikhan031027/building-assurex-a-dual-model-warranty-claim-evaluation-system-8a30d3684111" target="_blank" class="btn btn-dark btn-sm rounded-pill px-3 d-inline-flex align-items-center gap-1">
                             Read on Medium &nearr;
                         </a>
+                        <button type="button" class="btn btn-copy-article btn-sm rounded-pill px-3 py-1 d-inline-flex align-items-center gap-1 shadow-xs" onclick="copyArticleToClipboard()">
+                            <i class="bi bi-clipboard"></i> <span>Copy Article</span>
+                        </button>
                         <a href="https://github.com/sami2515/techwiz-7" target="_blank" class="btn btn-outline-dark btn-sm rounded-pill px-3 d-inline-flex align-items-center gap-1">
                             <i class="bi bi-github"></i> Repository
                         </a>
@@ -230,16 +256,107 @@
         }
     });
 
-    function copyMarkdownToClipboard() {
-        const rawMarkdown = document.getElementById("rawMarkdownSource").textContent;
-        navigator.clipboard.writeText(rawMarkdown).then(function() {
-            const btnText = document.getElementById("copyBtnText");
-            const original = btnText.innerText;
-            btnText.innerText = "Copied to Clipboard!";
-            setTimeout(() => { btnText.innerText = original; }, 2500);
-        }).catch(function(err) {
-            alert("Could not copy automatically to clipboard.");
-        });
+    function copyArticleToClipboard() {
+        const container = document.getElementById("blogRenderContainer");
+        const rawMarkdown = document.getElementById("rawMarkdownSource") ? document.getElementById("rawMarkdownSource").textContent : "";
+
+        function stripMarkdownSyntax(text) {
+            if (!text) return "";
+            return text
+                .replace(/```[\s\S]*?```/g, '')
+                .replace(/^#{1,6}\s+(.*)$/gm, '$1')
+                .replace(/^>\s+(.*)$/gm, '$1')
+                .replace(/^(?:[-*_]\s*){3,}$/gm, '')
+                .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+                .replace(/[*_]{1,3}([^*_]+)[*_]{1,3}/g, '$1')
+                .replace(/`([^`]+)`/g, '$1')
+                .replace(/^\s*>\s*/gm, '')
+                .replace(/\n{3,}/g, '\n\n')
+                .trim();
+        }
+
+        let cleanText = "";
+        let htmlContent = "";
+
+        if (container && container.innerText && !container.querySelector(".spinner-border")) {
+            cleanText = container.innerText.trim();
+            cleanText = cleanText
+                .replace(/^#{1,6}\s+/gm, '')
+                .replace(/^>\s+/gm, '')
+                .replace(/^(?:[-*_]\s*){3,}$/gm, '');
+            htmlContent = container.innerHTML;
+        } else {
+            cleanText = stripMarkdownSyntax(rawMarkdown);
+            htmlContent = "<pre>" + cleanText + "</pre>";
+        }
+
+        function markSuccess() {
+            const allCopyBtns = document.querySelectorAll(".btn-copy-article");
+            allCopyBtns.forEach(function(btn) {
+                btn.classList.add("copied");
+                const icon = btn.querySelector("i");
+                const span = btn.querySelector("span");
+                if (icon) icon.className = "bi bi-check2";
+                if (span) span.innerText = "Copied to Clipboard!";
+            });
+            setTimeout(function() {
+                allCopyBtns.forEach(function(btn) {
+                    btn.classList.remove("copied");
+                    const icon = btn.querySelector("i");
+                    const span = btn.querySelector("span");
+                    if (icon) icon.className = "bi bi-clipboard";
+                    if (span) span.innerText = "Copy Article";
+                });
+            }, 2500);
+        }
+
+        if (navigator.clipboard && window.ClipboardItem && htmlContent) {
+            try {
+                const textBlob = new Blob([cleanText], { type: "text/plain" });
+                const htmlBlob = new Blob([htmlContent], { type: "text/html" });
+                navigator.clipboard.write([
+                    new ClipboardItem({
+                        "text/plain": textBlob,
+                        "text/html": htmlBlob
+                    })
+                ]).then(markSuccess).catch(function() {
+                    navigator.clipboard.writeText(cleanText).then(markSuccess).catch(execFallback);
+                });
+                return;
+            } catch (e) {
+                // fall through
+            }
+        }
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(cleanText).then(markSuccess).catch(execFallback);
+        } else {
+            execFallback();
+        }
+
+        function execFallback() {
+            const textarea = document.createElement("textarea");
+            textarea.value = cleanText;
+            textarea.style.position = "fixed";
+            textarea.style.opacity = "0";
+            textarea.style.pointerEvents = "none";
+            document.body.appendChild(textarea);
+            textarea.focus();
+            textarea.select();
+            try {
+                const successful = document.execCommand("copy");
+                if (successful) {
+                    markSuccess();
+                } else {
+                    alert("Could not copy automatically. Please select text manually.");
+                }
+            } catch (err) {
+                alert("Could not copy automatically. Please select text manually.");
+            }
+            document.body.removeChild(textarea);
+        }
     }
+
+    const copyMarkdownToClipboard = copyArticleToClipboard;
 </script>
 {% endblock %}
