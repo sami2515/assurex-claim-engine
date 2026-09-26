@@ -157,7 +157,8 @@ python reports/generate_comparison_report.py
 
 ## Live Deployment
 
-- **Live URL:** [https://assurexai.pythonanywhere.com](https://assurexai.pythonanywhere.com)
+- **Primary Live URL:** [https://assurex.pythonanywhere.com](https://assurex.pythonanywhere.com)
+- **Redirect Alias:** [https://assurexai.pythonanywhere.com](https://assurexai.pythonanywhere.com)
 - **Hosting:** PythonAnywhere
 
 ---
