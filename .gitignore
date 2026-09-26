@@ -32,6 +32,5 @@ desktop.ini
 *_SRS.pdf
 generate_project_report_pdf.py
 reports/generate_project_report_pdf.py
-page-05-architecture-diagram.jpg
-static/img/page-05-architecture-diagram.jpg
+/page-05-architecture-diagram.jpg
 static/img/logo2 - Copy.png
