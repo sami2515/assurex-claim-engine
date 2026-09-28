@@ -22,5 +22,6 @@ desktop.ini
 
 # Local database (built by `python database/seed.py`) and generated artefacts
 database/*.db
+!database/assurex.db
 reports/model_comparison_val.csv
 model/teachable_machine/versions/
