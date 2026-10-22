@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import gzip
+import os
 import secrets
 
 from flask import request
@@ -52,7 +53,7 @@ def harden(app) -> None:
     if not app.config.get("SECRET_KEY"):
         raise RuntimeError("SECRET_KEY is not set. Run `python database/seed.py` once (it writes a .env with a "
                            "random key) or export SECRET_KEY before starting the app.")
-    app.config.setdefault("SESSION_COOKIE_SECURE", not (app.debug or app.testing))
+    app.config.setdefault("SESSION_COOKIE_SECURE", os.environ.get("SESSION_COOKIE_SECURE", "0").lower() in ("1", "true"))
     app.config.update(SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax", SESSION_COOKIE_NAME="assurex_session")
     csrf.init_app(app)
     limiter.init_app(app)

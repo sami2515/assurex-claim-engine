@@ -109,7 +109,10 @@ def logout():
     if g.get("user"):
         audit("LOGOUT", "User", g.user.user_id)
         db.session.commit()
+    csrf_token = session.get("csrf_token")
     session.clear()
+    if csrf_token:
+        session["csrf_token"] = csrf_token
     flash("You're signed out.", "info")
     return redirect(url_for("auth.login"))
 

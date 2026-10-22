@@ -43,7 +43,10 @@ def init_rbac(app, db, User, AuditLog) -> None:
             now = datetime.now(timezone.utc).timestamp()
             expired = last is not None and now - last > idle * 60
             if user is None or not user.is_active or user.session_version != ver or expired:
+                csrf_token = session.get("csrf_token")
                 session.clear()                                  # role changed / disabled / idle
+                if csrf_token:
+                    session["csrf_token"] = csrf_token
                 if expired:
                     flash("You were signed out after a period of inactivity.", "info")
             else:
@@ -197,9 +200,12 @@ def login_user(user, password: str) -> tuple[bool, str]:
             user.failed_logins = 0
         return False, GENERIC_LOGIN_ERROR
     user.failed_logins, user.locked_until, user.last_login_at = 0, None, now
+    csrf_token = session.get("csrf_token")
     session.clear()                                               # rotate: prevents session fixation
     session.permanent = True
     session.update(uid=user.id, ver=user.session_version, seen=now.timestamp())
+    if csrf_token:
+        session["csrf_token"] = csrf_token
     return True, ""
 
 
